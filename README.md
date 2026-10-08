@@ -19,7 +19,7 @@ This approach fits our team and project because, between the four core classes, 
 
 <h2>HOW TO GET IT RUNNING:</h2>
 
-<h2>**VERIFYING THE VERTICAL SLICE:</h2>
+<h2>VERIFYING THE VERTICAL SLICE:</h2>
 
 **Claude AI was used for brainstorming and generating the ERD**
 
