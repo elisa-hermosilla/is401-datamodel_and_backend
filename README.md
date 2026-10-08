@@ -18,7 +18,7 @@ Database - This is where we will store data and changes made
 This approach fits our team and project because, between the four core classes, these are the ones we are learning about and have the most experience with.
 
 <h2>HOW TO GET IT RUNNING:</h2>
-1. a
+1. a <br>
 2. a
 
 <h2>VERIFYING THE VERTICAL SLICE:</h2>
