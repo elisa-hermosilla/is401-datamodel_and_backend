@@ -1,5 +1,5 @@
 # is401-datamodel_and_backend
-APP SUMMARY:
+APP SUMMARY: 5-8 sentences on the problem your product solves, who experiences it, and what the app does.
 Our product solves the issue of organizing and receiving notifications 
 
 Step 1: Draw your ERD
