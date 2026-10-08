@@ -16,5 +16,5 @@ HOW TO GET IT RUNNING:
 
 VERIFYING THE VERTICAL SLICE:
 
-Claude AI was used for brainstorming and generating the ERD
-Claude AI was used for developing the Frontend and Backend 
+*Claude AI was used for brainstorming and generating the ERD
+*Claude AI was used for developing the Frontend and Backend 
