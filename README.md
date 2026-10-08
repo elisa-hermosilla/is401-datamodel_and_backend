@@ -7,7 +7,7 @@ BYU students often struggle to keep track of assignments and deadlines because t
 <img width="3360" height="2580" alt="image" src="https://github.com/user-attachments/assets/bf7e813b-8073-4589-b2b8-4fe5d8dc6767" />
 
 
-<h1>**TECH STACK:**</h1>
+<h2>TECH STACK:</h2>
 
 Front End - HTML/CSS/JavaScript: This was used to create the user interface and interaction with the user
 
