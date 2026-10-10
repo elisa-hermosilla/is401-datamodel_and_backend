@@ -1,4 +1,4 @@
-/* Dashboard. Classes come from the API; assignments are still sample data. */
+/* Dashboard. Classes and assignments come from the API. */
 
 initApp("dashboard").then(main);
 
@@ -12,7 +12,7 @@ function main() {
   })();
 
   /* ---------- Buckets ---------- */
-  function openItems() { return visibleAssignments().filter(a => !a.done); }
+  function openItems() { return ASSIGNMENTS.filter(a => !isDone(a)); }
   function bucket() {
     const now = new Date();
     const list = openItems();
@@ -27,11 +27,12 @@ function main() {
   function renderStats() {
     const b = bucket();
     const byDue = l => [...l].sort((x, y) => dueDate(x) - dueDate(y));
+    const weekClasses = [...new Set(b.week.map(a => a.course_id))].length;
     const stats = [
       { cls: "danger", icon: ICONS.alert, label: "Past due",     value: b.past.length,     foot: b.past.length ? `Oldest: ${fmtDayLabel(dueDate(byDue(b.past)[0]))}` : "None past due" },
       { cls: "warn",   icon: ICONS.clock, label: "Due today",    value: b.today.length,    foot: b.today.length ? `Next: ${fmtTime(dueDate(byDue(b.today)[0]))}` : "Nothing left today" },
       { cls: "info",   icon: ICONS.sun,   label: "Due tomorrow", value: b.tomorrow.length, foot: b.tomorrow.length ? `${esc(byDue(b.tomorrow)[0].course_code)} first` : "Nothing due tomorrow" },
-      { cls: "ok",     icon: ICONS.week,  label: "Next 7 days",  value: b.week.length,     foot: `${[...new Set(b.week.map(a => a.course_code))].length} class${[...new Set(b.week.map(a => a.course_code))].length === 1 ? "" : "es"}` },
+      { cls: "ok",     icon: ICONS.week,  label: "Next 7 days",  value: b.week.length,     foot: `${weekClasses} class${weekClasses === 1 ? "" : "es"}` },
     ];
     document.getElementById("stat-grid").innerHTML = stats.map(s => `
       <a class="card stat ${s.cls}" href="calendar.html" title="Open in calendar">
@@ -45,46 +46,40 @@ function main() {
   function renderNext() {
     const open = openItems().sort((a, b) => dueDate(a) - dueDate(b));
     const next = open[0];
-    const all = visibleAssignments();
-    const done = all.filter(a => a.done).length;
-    const pct = all.length ? Math.round((done / all.length) * 100) : 0;
+    const done = ASSIGNMENTS.filter(isDone).length;
+    const pct = ASSIGNMENTS.length ? Math.round((done / ASSIGNMENTS.length) * 100) : 0;
 
     const el = document.getElementById("next-grid");
-    const cls = next ? getClass(next.course_code) : null;
+    const type = next ? typeLabel(next) : "";
     el.innerHTML = `
       <div class="card next-card">
         <div class="eyebrow">Work on this next</div>
         ${next ? `
           <h3>${esc(next.title)}</h3>
           <div class="meta">
-            <span class="tag">${esc(cls.course_code)}</span>
-            <span class="tag">${next.type}</span>
-            ${next.minutes ? `<span class="tag">${fmtMinutes(next.minutes)} estimated</span>` : ""}
+            <span class="tag">${esc(next.course_code)}</span>
+            ${type ? `<span class="tag">${esc(type)}</span>` : ""}
+            ${next.estimated_minutes ? `<span class="tag">${fmtMinutes(next.estimated_minutes)} estimated</span>` : ""}
             <span>Due ${fmtDayLabel(dueDate(next))} · ${fmtTime(dueDate(next))}</span>
           </div>
           <div class="actions">
-            <button type="button" class="btn btn-light" data-open-next="${next.id}">View details</button>
-            <button type="button" class="btn btn-outline" data-done-next="${next.id}">Mark complete</button>
+            <button type="button" class="btn btn-light" data-open-next="${next.assignment_id}">View details</button>
+            <button type="button" class="btn btn-outline" data-done-next="${next.assignment_id}">Mark complete</button>
           </div>` : `
           <h3>Nothing open</h3>
-          <p class="empty-next">No open assignments.</p>`}
+          <p class="empty-next">${CLASSES.length ? "No open assignments." : "Add a class on the Assignments page to get started."}</p>`}
       </div>
       <div class="card progress-card">
         <div class="label" style="font-size:13px;font-weight:600;color:var(--muted)">Completed</div>
-        <div class="num">${done}<small>of ${all.length}</small></div>
+        <div class="num">${done}<small>of ${ASSIGNMENTS.length}</small></div>
         <div class="progress-track"><div style="width:${pct}%"></div></div>
         <div class="foot">${pct}% of this semester's assignments</div>
       </div>`;
 
     const openBtn = el.querySelector("[data-open-next]");
-    if (openBtn) openBtn.addEventListener("click", () => openDetail(Number(openBtn.dataset.openNext)));
+    if (openBtn) openBtn.addEventListener("click", () => openAssignmentModal({ assignment: getAssignment(Number(openBtn.dataset.openNext)) }, renderAll));
     const doneBtn = el.querySelector("[data-done-next]");
-    if (doneBtn) doneBtn.addEventListener("click", () => {
-      const a = ASSIGNMENTS.find(x => x.id === Number(doneBtn.dataset.doneNext));
-      a.done = true;
-      toast("Marked complete");
-      renderAll();
-    });
+    if (doneBtn) doneBtn.addEventListener("click", () => saveAssignment(Number(doneBtn.dataset.doneNext), { completed: true }, renderAll, "Marked complete"));
   }
 
   /* ---------- Streaks ---------- */
@@ -98,7 +93,7 @@ function main() {
         <div>
           <div class="num">${pastDueStreak}<small>days</small></div>
           <div class="title">No past-due assignments</div>
-          <div class="meta">${pastDueStreak ? `Best streak: ${STREAKS.noPastDueBest} days` : `${b.past.length} past due · Best: ${STREAKS.noPastDueBest} days`}</div>
+          <div class="meta">${pastDueStreak ? `Best streak: ${USER.no_past_due_best_streak} days` : `${b.past.length} past due · Best: ${USER.no_past_due_best_streak} days`}</div>
           <div class="streak-dots">${dots(pastDueStreak)}</div>
         </div>
       </div>
@@ -107,7 +102,7 @@ function main() {
         <div>
           <div class="num">${STREAKS.checkInCurrent}<small>days</small></div>
           <div class="title">Daily check-in streak</div>
-          <div class="meta">Opened every day since ${fmtDate(addDays(today(), -STREAKS.checkInCurrent + 1))} · Best: ${STREAKS.checkInBest}</div>
+          <div class="meta">Opened every day since ${fmtDate(addDays(today(), -STREAKS.checkInCurrent + 1))} · Best: ${USER.check_in_best_streak}</div>
           <div class="streak-dots">${dots(7)}</div>
         </div>
       </div>`;
@@ -123,16 +118,17 @@ function main() {
 
   const fClass = document.getElementById("f-class");
   const fType = document.getElementById("f-type");
+  const typeNames = () => ASSIGNMENT_TYPES.map(t => cap(t.name));
 
   function renderFilterControls() {
     fClass.innerHTML = `<option value="">+ Class</option>` +
       CLASSES.filter(c => !filters.classes.has(c.course_code)).map(c => `<option value="${esc(c.course_code)}">${esc(c.course_code)}</option>`).join("");
     fType.innerHTML = `<option value="">+ Type</option>` +
-      ASSIGNMENT_TYPES.filter(t => !filters.types.has(t)).map(t => `<option value="${t}">${t}</option>`).join("");
+      typeNames().filter(t => !filters.types.has(t)).map(t => `<option value="${esc(t)}">${esc(t)}</option>`).join("");
 
     const chips = [
       ...[...filters.classes].map(code => `<span class="filter-chip" style="background:${getClass(code).color_hex}">${esc(code)}<button type="button" data-rm-class="${esc(code)}" title="Remove filter">${ICONS.x}</button></span>`),
-      ...[...filters.types].map(t => `<span class="filter-chip type">${t}<button type="button" data-rm-type="${t}" title="Remove filter">${ICONS.x}</button></span>`),
+      ...[...filters.types].map(t => `<span class="filter-chip type">${esc(t)}<button type="button" data-rm-type="${esc(t)}" title="Remove filter">${ICONS.x}</button></span>`),
     ];
     const el = document.getElementById("active-filters");
     el.innerHTML = chips.length
@@ -153,26 +149,28 @@ function main() {
   function applyFilters(list) {
     return list.filter(a =>
       (filters.classes.size === 0 || filters.classes.has(a.course_code)) &&
-      (filters.types.size === 0 || filters.types.has(a.type)));
+      (filters.types.size === 0 || filters.types.has(typeLabel(a))));
   }
 
   function refresh() { renderFilterControls(); renderList(); }
   function renderAll() { renderStats(); renderNext(); renderStreaks(); renderList(); }
 
   /* ---------- Sortable list ---------- */
-  let customOrder = null; // array of ids once user drags
   const sortSel = document.getElementById("sort");
   const showDone = document.getElementById("show-done");
+  /* Custom order is persisted in assignment.sort_order; offer it if any row has one */
+  if (ASSIGNMENTS.some(a => a.sort_order != null)) sortSel.value = "custom";
 
   function sorted() {
-    let list = applyFilters(showDone.checked ? visibleAssignments() : openItems());
+    let list = applyFilters(showDone.checked ? [...ASSIGNMENTS] : openItems());
     const mode = sortSel.value;
-    if (mode === "custom" && customOrder) {
-      list.sort((a, b) => customOrder.indexOf(a.id) - customOrder.indexOf(b.id));
+    if (mode === "custom") {
+      const big = Number.MAX_SAFE_INTEGER;
+      list.sort((a, b) => ((a.sort_order ?? big) - (b.sort_order ?? big)) || dueDate(a) - dueDate(b));
     } else if (mode === "class") {
       list.sort((a, b) => a.course_code.localeCompare(b.course_code) || dueDate(a) - dueDate(b));
     } else if (mode === "type") {
-      list.sort((a, b) => a.type.localeCompare(b.type) || dueDate(a) - dueDate(b));
+      list.sort((a, b) => typeLabel(a).localeCompare(typeLabel(b)) || dueDate(a) - dueDate(b));
     } else {
       list.sort((a, b) => dueDate(a) - dueDate(b));
     }
@@ -198,17 +196,18 @@ function main() {
       row.addEventListener("dragend", () => { row.classList.remove("dragging"); el.querySelectorAll(".drag-over").forEach(r => r.classList.remove("drag-over")); });
       row.addEventListener("dragover", e => { e.preventDefault(); row.classList.add("drag-over"); });
       row.addEventListener("dragleave", () => row.classList.remove("drag-over"));
-      row.addEventListener("drop", e => {
+      row.addEventListener("drop", async e => {
         e.preventDefault();
         const targetId = Number(row.dataset.id);
         if (dragId === null || dragId === targetId) return;
-        const order = sorted().map(a => a.id);
+        const order = sorted().map(a => a.assignment_id);
         order.splice(order.indexOf(dragId), 1);
         order.splice(order.indexOf(targetId), 0, dragId);
-        customOrder = order;
+        order.forEach((id, i) => { getAssignment(id).sort_order = i; });
         sortSel.value = "custom";
         renderList();
-        toast("Order saved");
+        try { await API.assignments.reorder(order); toast("Order saved"); }
+        catch (err) { toast(err.message); }
       });
     });
   }

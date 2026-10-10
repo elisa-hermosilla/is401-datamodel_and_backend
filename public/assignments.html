@@ -107,59 +107,7 @@
     </div>
   </div>
 
-  <!-- Add assignment modal (still sample data for this milestone) -->
-  <div class="modal-backdrop" id="assignment-modal">
-    <div class="modal">
-      <h3 id="a-modal-title">Add an assignment</h3>
-      <form id="assignment-form" novalidate>
-        <div class="form-error" id="assignment-error" role="alert"></div>
-        <div class="field">
-          <label for="a-class">Class</label>
-          <select class="select" id="a-class"></select>
-        </div>
-        <div class="field">
-          <label for="a-title">Assignment name</label>
-          <input class="input" id="a-title" placeholder="e.g. Chapter 8 Homework">
-          <span class="error" id="a-title-error"></span>
-        </div>
-        <div class="row">
-          <div class="field">
-            <label for="a-type">Assignment type</label>
-            <select class="select" id="a-type"></select>
-          </div>
-          <div class="field">
-            <label for="a-submission">Submission type</label>
-            <select class="select" id="a-submission"></select>
-          </div>
-        </div>
-        <div class="row">
-          <div class="field">
-            <label for="a-date">Due date</label>
-            <input class="input" id="a-date" type="date">
-            <span class="error" id="a-date-error"></span>
-          </div>
-          <div class="field">
-            <label for="a-time">Due time</label>
-            <input class="input" id="a-time" type="time" value="23:59">
-          </div>
-        </div>
-        <div class="row">
-          <div class="field">
-            <label for="a-minutes">Estimated minutes <span style="font-weight:400;color:var(--muted)">(optional)</span></label>
-            <input class="input" id="a-minutes" type="number" min="1" placeholder="e.g. 60">
-          </div>
-        </div>
-        <div class="field">
-          <label for="a-notes">Notes <span style="font-weight:400;color:var(--muted)">(optional)</span></label>
-          <textarea class="input" id="a-notes" rows="3" placeholder="Rubric details, group members, where to submit"></textarea>
-        </div>
-        <div class="modal-actions">
-          <button type="button" class="btn btn-secondary" data-close="assignment-modal">Cancel</button>
-          <button type="submit" class="btn btn-primary">Add assignment</button>
-        </div>
-      </form>
-    </div>
-  </div>
+  <!-- The add/edit assignment modal is shared across pages and built by app.js -->
 
   <script src="js/api.js"></script>
   <script src="js/data.js"></script>

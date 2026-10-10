@@ -1,4 +1,4 @@
-/* Calendar. Classes (colors, legend) come from the API; assignments are still sample data. */
+/* Calendar. Classes and assignments come from the API. */
 
 initApp("calendar").then(main);
 
@@ -10,7 +10,7 @@ function main() {
   ["next-month", "next-day"].forEach(id => document.getElementById(id).innerHTML = ICONS.right);
 
   function assignmentsOn(date) {
-    return visibleAssignments().filter(a => sameDay(dueDate(a), date)).sort((a, b) => dueDate(a) - dueDate(b));
+    return ASSIGNMENTS.filter(a => sameDay(dueDate(a), date)).sort((a, b) => dueDate(a) - dueDate(b));
   }
 
   function renderMonth() {
@@ -28,9 +28,9 @@ function main() {
     for (let d = 1; d <= daysInMonth; d++) {
       const date = new Date(viewMonth.getFullYear(), viewMonth.getMonth(), d);
       const items = assignmentsOn(date);
-      const codes = [...new Set(items.map(a => a.course_code))];
-      const dots = codes.slice(0, 4).map(code => `<span style="background:${getClass(code).color_hex}"></span>`).join("")
-        + (codes.length > 4 ? `<span class="more">+${codes.length - 4}</span>` : "");
+      const courseIds = [...new Set(items.map(a => a.course_id))];
+      const dots = courseIds.slice(0, 4).map(id => `<span style="background:${getClassById(id).color_hex}"></span>`).join("")
+        + (courseIds.length > 4 ? `<span class="more">+${courseIds.length - 4}</span>` : "");
       html += `
         <div class="cal-day ${sameDay(date, today()) ? "today" : ""} ${sameDay(date, selected) ? "selected" : ""}" data-date="${date.toISOString()}">
           <div class="n">${d}</div>
@@ -79,6 +79,7 @@ function main() {
   });
   document.addEventListener("keydown", e => {
     if (e.target.matches("input, textarea, select")) return;
+    if (document.querySelector(".modal-backdrop.open")) return;
     if (e.key === "ArrowLeft") shiftDay(-1);
     if (e.key === "ArrowRight") shiftDay(1);
   });

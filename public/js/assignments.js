@@ -1,5 +1,5 @@
-/* Classes page. Classes are real (GET/POST/PUT/DELETE /api/courses);
-   the assignments listed under each class are still sample data from data.js. */
+/* Classes page. Classes and their assignments are real (GET/POST/PUT/DELETE
+   /api/courses and /api/assignments). */
 
 initApp("assignments").then(main);
 
@@ -15,11 +15,11 @@ function main() {
       return;
     }
     grid.innerHTML = CLASSES.map(c => {
-      const all = ASSIGNMENTS.filter(a => a.course_code === c.course_code);
+      const all = ASSIGNMENTS.filter(a => a.course_id === c.course_id);
       const items = all
-        .filter(a => showDone.checked || !a.done)
+        .filter(a => showDone.checked || !isDone(a))
         .sort((a, b) => dueDate(a) - dueDate(b));
-      const openCount = all.filter(a => !a.done).length;
+      const openCount = all.filter(a => !isDone(a)).length;
       return `
         <div class="card class-card" id="class-${c.course_id}">
           <div class="between">
@@ -43,7 +43,7 @@ function main() {
     }).join("");
 
     bindChecks(grid, render);
-    grid.querySelectorAll("[data-add]").forEach(b => b.addEventListener("click", () => openAssignmentModal(Number(b.dataset.add))));
+    grid.querySelectorAll("[data-add]").forEach(b => b.addEventListener("click", () => openAssignmentModal({ course_id: Number(b.dataset.add) }, render)));
     grid.querySelectorAll("[data-edit]").forEach(b => b.addEventListener("click", () => openClassModal(Number(b.dataset.edit))));
     grid.querySelectorAll("[data-delete]").forEach(b => b.addEventListener("click", () => openDeleteConfirm(Number(b.dataset.delete))));
   }
@@ -190,6 +190,8 @@ function main() {
       if (id) {
         saved = await API.courses.update(Number(id), fields);
         setClasses(CLASSES.map(c => (c.course_id === saved.course_id ? saved : c)));
+        /* Assignments carry a copy of the course code/color; refresh them */
+        ASSIGNMENTS.forEach(a => { if (a.course_id === saved.course_id) { a.course_code = saved.course_code; a.color_hex = saved.color_hex; } });
       } else {
         saved = await API.courses.create(fields);
         setClasses([...CLASSES, saved]);
@@ -218,7 +220,7 @@ function main() {
     if (!cls) return;
     pendingDeleteId = courseId;
     clearFormError(confirmError);
-    const n = ASSIGNMENTS.filter(a => a.course_code === cls.course_code).length;
+    const n = ASSIGNMENTS.filter(a => a.course_id === courseId).length;
     document.getElementById("confirm-title").textContent = `Delete ${cls.course_code}?`;
     document.getElementById("confirm-text").textContent = n
       ? `This deletes the class and its ${n} assignment${n === 1 ? "" : "s"}. This cannot be undone.`
@@ -234,6 +236,7 @@ function main() {
     try {
       await API.courses.remove(cls.course_id);
       setClasses(CLASSES.filter(c => c.course_id !== cls.course_id));
+      ASSIGNMENTS = ASSIGNMENTS.filter(a => a.course_id !== cls.course_id);
       closeModal("confirm-modal");
       render();
       toast(`${cls.course_code} deleted`);
@@ -243,56 +246,6 @@ function main() {
       btn.disabled = false;
       pendingDeleteId = null;
     }
-  });
-
-  /* ---------- Add assignment (sample data only for this milestone) ---------- */
-  const assignmentError = document.getElementById("assignment-error");
-
-  function openAssignmentModal(courseId) {
-    const sel = document.getElementById("a-class");
-    sel.innerHTML = CLASSES.map(c =>
-      `<option value="${esc(c.course_code)}" ${c.course_id === courseId ? "selected" : ""}>${esc(c.course_code)}${c.course_name ? ` · ${esc(c.course_name)}` : ""}</option>`).join("");
-    document.getElementById("a-type").innerHTML = ASSIGNMENT_TYPES.map(t => `<option>${t}</option>`).join("");
-    document.getElementById("a-submission").innerHTML = SUBMISSION_TYPES.map(t => `<option>${t}</option>`).join("");
-    document.getElementById("a-notes").value = "";
-    document.getElementById("a-minutes").value = "";
-    const d = addDays(today(), 3);
-    document.getElementById("a-date").value = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-    document.getElementById("a-time").value = "23:59";
-    document.getElementById("a-title").value = "";
-    clearFormError(assignmentError);
-    setFieldError("a-title", ""); setFieldError("a-date", "");
-    openModal("assignment-modal");
-    setTimeout(() => document.getElementById("a-title").focus(), 50);
-  }
-
-  document.getElementById("assignment-form").addEventListener("submit", e => {
-    e.preventDefault();
-    const title = document.getElementById("a-title").value.trim();
-    const date = document.getElementById("a-date").value;
-    let ok = true;
-    if (!title) { setFieldError("a-title", "Assignment name is required."); ok = false; } else setFieldError("a-title", "");
-    if (!date) { setFieldError("a-date", "Due date is required."); ok = false; } else setFieldError("a-date", "");
-    if (!ok) return;
-
-    const [y, m, d] = date.split("-").map(Number);
-    const [hh, mm] = (document.getElementById("a-time").value || "23:59").split(":").map(Number);
-    const due = new Date(y, m - 1, d, hh, mm);
-    const minutes = Number(document.getElementById("a-minutes").value) || null;
-    ASSIGNMENTS.push({
-      id: Math.max(0, ...ASSIGNMENTS.map(a => a.id)) + 1,
-      course_code: document.getElementById("a-class").value,
-      title,
-      type: document.getElementById("a-type").value,
-      submission: document.getElementById("a-submission").value,
-      notes: document.getElementById("a-notes").value.trim(),
-      dueISO: due.toISOString(),
-      minutes,
-      done: false,
-    });
-    closeModal("assignment-modal");
-    render();
-    toast("Assignment added (sample data, not saved)");
   });
 
   render();

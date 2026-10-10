@@ -15,6 +15,7 @@ if (!process.env.SESSION_SECRET) {
 
 const { default: authRoutes } = await import("./routes/auth.js");
 const { default: courseRoutes } = await import("./routes/courses.js");
+const { default: assignmentRoutes } = await import("./routes/assignments.js");
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PORT = Number(process.env.PORT) || 3000;
@@ -44,6 +45,7 @@ app.use(express.static(path.join(__dirname, "..", "public")));
 
 app.use("/api", authRoutes);
 app.use("/api", courseRoutes);
+app.use("/api", assignmentRoutes);
 
 /* JSON 404 for anything under /api that didn't match */
 app.use("/api", (req, res) => {

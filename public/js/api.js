@@ -43,4 +43,14 @@ const API = {
     update: (id, fields) => apiFetch(`/api/courses/${id}`, { method: "PUT", body: fields }),
     remove: id => apiFetch(`/api/courses/${id}`, { method: "DELETE" }),
   },
+
+  assignmentTypes: () => apiFetch("/api/assignment-types"),
+
+  assignments: {
+    list: () => apiFetch("/api/assignments"),
+    create: fields => apiFetch("/api/assignments", { method: "POST", body: fields }),
+    update: (id, fields) => apiFetch(`/api/assignments/${id}`, { method: "PUT", body: fields }),
+    remove: id => apiFetch(`/api/assignments/${id}`, { method: "DELETE" }),
+    reorder: ids => apiFetch("/api/assignments/reorder", { method: "POST", body: { assignment_ids: ids } }),
+  },
 };
