@@ -143,6 +143,78 @@ function isSubmitted(sub) {
   return sub.workflow_state === "complete";
 }
 
+/* Planner items that are not assignments but still have a date the student
+   should see: pages with a to-do date (readings), calendar events, ungraded
+   discussions, practice quizzes. Keyed by plannable_type. */
+const PLANNER_KINDS = {
+  wiki_page:        { prefix: "page",       category: "Readings",         type: "reading",    submission: "No submission", date: p => p.todo_date },
+  calendar_event:   { prefix: "event",      category: "Events",           type: null,         submission: "No submission", date: p => p.start_at },
+  discussion_topic: { prefix: "discussion", category: "Discussions",      type: "discussion", submission: "Discussion board", date: p => p.todo_date || p.due_at },
+  quiz:             { prefix: "quiz",       category: "Practice quizzes", type: "quiz",       submission: "Online quiz",   date: p => p.due_at },
+};
+/* How far around today the planner is asked for */
+const PLANNER_PAST_DAYS = 60;
+const PLANNER_FUTURE_DAYS = 200;
+
+/* Pull the planner feed for one course and upsert the non-assignment items.
+   `seen` holds "title|due_at" keys of the assignments already synced for the
+   course so the same item is never stored twice. Returns the count stored. */
+async function syncPlannerItems(baseUrl, token, course, typeIds, seen) {
+  const start = new Date(Date.now() - PLANNER_PAST_DAYS * 86400000).toISOString();
+  const end = new Date(Date.now() + PLANNER_FUTURE_DAYS * 86400000).toISOString();
+  const items = await canvasGet(baseUrl, token, "/planner/items", {
+    "context_codes[]": [`course_${course.external_course_id}`],
+    "start_date": start,
+    "end_date": end,
+  });
+
+  const categoryCache = {};
+  let stored = 0;
+  for (const item of items) {
+    const kind = PLANNER_KINDS[item.plannable_type];
+    if (!kind) continue;                                        // assignment (already synced), planner_note, etc.
+    const p = item.plannable || {};
+    if (p.assignment_id) continue;                              // graded quiz/discussion: synced as an assignment
+    const dueAt = kind.date(p);
+    if (!dueAt) continue;
+    const title = String(p.title || item.plannable_type).slice(0, 200);
+    const key = `${title}|${new Date(dueAt).toISOString()}`;
+    if (seen.has(key)) continue;                                // same thing came through the assignments feed
+    seen.add(key);
+
+    if (!categoryCache[kind.category]) {
+      const { rows: [cat] } = await query(
+        `insert into assignment_category (course_id, assignment_type_id, name, external_category_id)
+         values ($1, $2, $3, $4)
+         on conflict (course_id, external_category_id) do update set name = excluded.name
+         returning assignment_category_id`,
+        [course.course_id, kind.type ? typeIds[kind.type] : null, kind.category, `planner:${item.plannable_type}`]);
+      categoryCache[kind.category] = cat.assignment_category_id;
+    }
+
+    const done = !!(item.planner_override && item.planner_override.marked_complete) || !!(item.submissions && item.submissions.submitted);
+    const url = item.html_url ? (item.html_url.startsWith("/") ? baseUrl + item.html_url : item.html_url) : null;
+    await query(
+      `insert into assignment (course_id, assignment_category_id, external_assignment_id, title, due_at, due_time_known,
+                               submission_type, external_url, completed_at, manually_completed)
+       values ($1, $2, $3, $4, $5, $6, $7, $8, $9, false)
+       on conflict (course_id, external_assignment_id) do update set
+         assignment_category_id = excluded.assignment_category_id,
+         title = excluded.title,
+         due_at = excluded.due_at,
+         due_time_known = excluded.due_time_known,
+         submission_type = excluded.submission_type,
+         external_url = excluded.external_url,
+         completed_at = case when assignment.manually_completed then assignment.completed_at else excluded.completed_at end,
+         updated_at = now()`,
+      [course.course_id, categoryCache[kind.category], `${kind.prefix}:${p.id ?? item.plannable_id}`, title, dueAt,
+       !(item.plannable_type === "calendar_event" && p.all_day), kind.submission, url ? String(url).slice(0, 500) : null,
+       done ? new Date().toISOString() : null]);
+    stored++;
+  }
+  return stored;
+}
+
 /* Pull every linked Canvas course for this user. Returns counts. */
 export async function syncUser(userId) {
   const conn = await getConnection(userId);
@@ -162,8 +234,9 @@ export async function syncUser(userId) {
         order by course_code`,
       [userId, conn.lms_source_id]);
 
-    let coursesSynced = 0, assignmentsSynced = 0, skippedUndated = 0;
+    let coursesSynced = 0, assignmentsSynced = 0, skippedUndated = 0, plannerSynced = 0;
     for (const course of courses) {
+      const seen = new Set(); // "title|due_at" of everything stored for this course this run
       /* Assignment groups -> assignment_category */
       const groups = await canvasGet(baseUrl, conn.access_token, `/courses/${course.external_course_id}/assignment_groups`);
       const categoryByGroup = {};
@@ -203,8 +276,15 @@ export async function syncUser(userId) {
           [course.course_id, categoryByGroup[String(a.assignment_group_id)] ?? null, String(a.id),
            String(a.name || "Untitled").slice(0, 200), a.due_at, submissionLabel(a.submission_types),
            a.html_url ? String(a.html_url).slice(0, 500) : null, completedAt]);
+        seen.add(`${String(a.name || "Untitled").slice(0, 200)}|${new Date(a.due_at).toISOString()}`);
         assignmentsSynced++;
       }
+
+      /* Readings, events, ungraded discussions, practice quizzes */
+      const extra = await syncPlannerItems(baseUrl, conn.access_token, course, typeIds, seen);
+      plannerSynced += extra;
+      assignmentsSynced += extra;
+
       await query("update course set last_synced_at = now(), connected_account_id = $2 where course_id = $1", [course.course_id, conn.connected_account_id]);
       coursesSynced++;
     }
@@ -213,7 +293,7 @@ export async function syncUser(userId) {
     await query(
       `update sync_log set finished_at = now(), status = 'success', courses_synced = $2, assignments_synced = $3 where sync_log_id = $1`,
       [log.sync_log_id, coursesSynced, assignmentsSynced]);
-    return { courses_synced: coursesSynced, assignments_synced: assignmentsSynced, skipped_undated: skippedUndated, finished_at: new Date().toISOString() };
+    return { courses_synced: coursesSynced, assignments_synced: assignmentsSynced, planner_items: plannerSynced, skipped_undated: skippedUndated, finished_at: new Date().toISOString() };
   } catch (err) {
     await query("update sync_log set finished_at = now(), status = 'failed', error_message = $2 where sync_log_id = $1",
       [log.sync_log_id, String(err.message).slice(0, 2000)]);
