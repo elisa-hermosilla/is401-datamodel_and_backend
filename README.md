@@ -53,6 +53,7 @@ Run <code>npm install</code> again only if <code>package.json</code> changed sin
   <li>Type in the Course Code, Course Name, and pick a color for the class, then hit "Add Class"</li>
 </ol>
 <br>
+
 **Claude AI was used for brainstorming and generating the ERD**
 
 **Claude AI was used for developing the Frontend and Backend**
