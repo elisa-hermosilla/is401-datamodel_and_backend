@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Assignments · DueList</title>
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+  <div class="app">
+    <aside id="sidebar"></aside>
+
+    <main class="main">
+      <div class="page-header">
+        <div>
+          <h1>Classes</h1>
+          <p class="sub">Your classes and the assignments in each. Add, edit, or delete a class.</p>
+        </div>
+        <div class="toolbar">
+          <label style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--muted)">
+            <input type="checkbox" id="show-done"> Show completed
+          </label>
+          <button class="btn btn-primary" id="add-class-btn"></button>
+        </div>
+      </div>
+
+      <div class="class-grid" id="class-grid"></div>
+    </main>
+  </div>
+
+  <!-- Add / edit class modal -->
+  <div class="modal-backdrop" id="class-modal">
+    <div class="modal">
+      <h3 id="class-modal-title">Add a class</h3>
+      <form id="class-form" novalidate>
+        <input type="hidden" id="c-id">
+        <div class="form-error" id="class-error" role="alert"></div>
+        <div class="row">
+          <div class="field">
+            <label for="c-code">Course code</label>
+            <input class="input" id="c-code" placeholder="e.g. MKTG 201" maxlength="30">
+            <span class="error" id="c-code-error"></span>
+          </div>
+          <div class="field">
+            <label for="c-color">Color</label>
+            <input class="input" id="c-color" type="color" value="#0891b2" style="padding:4px;height:41px">
+          </div>
+        </div>
+        <div class="field">
+          <label for="c-name">Course name</label>
+          <input class="input" id="c-name" placeholder="e.g. Marketing Management" maxlength="150">
+          <span class="error" id="c-name-error"></span>
+        </div>
+        <div class="field">
+          <label for="c-source">Source</label>
+          <select class="select" id="c-source"></select>
+          <span class="error" id="c-source-error"></span>
+          <span class="hint">Canvas and Learning Suite classes sync automatically. Manual classes only show assignments you add.</span>
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="btn btn-secondary" data-close="class-modal">Cancel</button>
+          <button type="submit" class="btn btn-primary" id="class-submit">Add class</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Delete class confirm -->
+  <div class="modal-backdrop" id="confirm-modal">
+    <div class="modal">
+      <h3 id="confirm-title">Delete class</h3>
+      <p class="confirm-text" id="confirm-text"></p>
+      <div class="form-error" id="confirm-error" role="alert"></div>
+      <div class="modal-actions">
+        <button type="button" class="btn btn-secondary" data-close="confirm-modal">Cancel</button>
+        <button type="button" class="btn btn-danger" id="confirm-delete">Delete</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Add assignment modal (still sample data for this milestone) -->
+  <div class="modal-backdrop" id="assignment-modal">
+    <div class="modal">
+      <h3 id="a-modal-title">Add an assignment</h3>
+      <form id="assignment-form" novalidate>
+        <div class="form-error" id="assignment-error" role="alert"></div>
+        <div class="field">
+          <label for="a-class">Class</label>
+          <select class="select" id="a-class"></select>
+        </div>
+        <div class="field">
+          <label for="a-title">Assignment name</label>
+          <input class="input" id="a-title" placeholder="e.g. Chapter 8 Homework">
+          <span class="error" id="a-title-error"></span>
+        </div>
+        <div class="row">
+          <div class="field">
+            <label for="a-type">Assignment type</label>
+            <select class="select" id="a-type"></select>
+          </div>
+          <div class="field">
+            <label for="a-submission">Submission type</label>
+            <select class="select" id="a-submission"></select>
+          </div>
+        </div>
+        <div class="row">
+          <div class="field">
+            <label for="a-date">Due date</label>
+            <input class="input" id="a-date" type="date">
+            <span class="error" id="a-date-error"></span>
+          </div>
+          <div class="field">
+            <label for="a-time">Due time</label>
+            <input class="input" id="a-time" type="time" value="23:59">
+          </div>
+        </div>
+        <div class="row">
+          <div class="field">
+            <label for="a-minutes">Estimated minutes <span style="font-weight:400;color:var(--muted)">(optional)</span></label>
+            <input class="input" id="a-minutes" type="number" min="1" placeholder="e.g. 60">
+          </div>
+        </div>
+        <div class="field">
+          <label for="a-notes">Notes <span style="font-weight:400;color:var(--muted)">(optional)</span></label>
+          <textarea class="input" id="a-notes" rows="3" placeholder="Rubric details, group members, where to submit"></textarea>
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="btn btn-secondary" data-close="assignment-modal">Cancel</button>
+          <button type="submit" class="btn btn-primary">Add assignment</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script src="js/api.js"></script>
+  <script src="js/data.js"></script>
+  <script src="js/app.js"></script>
+  <script src="js/assignments.js"></script>
+</body>
+</html>

@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Settings · DueList</title>
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+  <div class="app">
+    <aside id="sidebar"></aside>
+
+    <main class="main">
+      <div class="page-header">
+        <div>
+          <h1>Settings</h1>
+          <p class="sub">Notification timing and connected accounts.</p>
+        </div>
+        <button class="btn btn-primary" id="save">Save changes</button>
+      </div>
+
+      <div class="settings-grid">
+
+        <!-- Summary notifications -->
+        <div class="card">
+          <div class="card-header">
+            <div>
+              <h3>Summary notifications</h3>
+              <p class="sub">A digest of what's due, sent on the days and time you choose.</p>
+            </div>
+            <label class="switch"><input type="checkbox" id="summary-on" checked><span class="slider"></span></label>
+          </div>
+          <div id="summary-body">
+            <div class="setting-row">
+              <div class="info">
+                <div class="t">Days of the week</div>
+                <div class="d">Which days the summary is sent.</div>
+              </div>
+            </div>
+            <div class="chips" id="dow-chips"></div>
+            <div class="setting-row">
+              <div class="info">
+                <div class="t">Time of day</div>
+                <div class="d">When the summary arrives on those days.</div>
+              </div>
+              <div class="control">
+                <input class="input" type="time" id="summary-time" value="07:30">
+              </div>
+            </div>
+            <div class="setting-row">
+              <div class="info">
+                <div class="t">Include in summary</div>
+                <div class="d">What the digest covers.</div>
+              </div>
+              <div class="control">
+                <select class="select" id="summary-range">
+                  <option>Due today</option>
+                  <option selected>Due today &amp; tomorrow</option>
+                  <option>Due in the next 7 days</option>
+                </select>
+              </div>
+            </div>
+            <div class="callout" id="summary-preview"></div>
+          </div>
+        </div>
+
+        <!-- Assignment reminders -->
+        <div class="card">
+          <div class="card-header">
+            <div>
+              <h3>Assignment reminders</h3>
+              <p class="sub">A reminder before each assignment is due.</p>
+            </div>
+            <label class="switch"><input type="checkbox" id="reminders-on" checked><span class="slider"></span></label>
+          </div>
+          <div id="reminders-body">
+            <div class="setting-row">
+              <div class="info">
+                <div class="t">Remind me before it's due</div>
+                <div class="d">Choose one or more reminder points.</div>
+              </div>
+            </div>
+            <div class="chips" id="hours-chips"></div>
+            <div class="row" style="margin-top:12px;max-width:420px">
+              <input class="input" type="number" id="custom-amount" min="1" max="999" placeholder="Custom amount">
+              <select class="select" id="custom-unit" style="flex:none;width:auto">
+                <option value="1">minutes</option>
+                <option value="60" selected>hours</option>
+                <option value="1440">days</option>
+              </select>
+              <button class="btn btn-secondary" id="add-hours" style="flex:none">Add</button>
+            </div>
+
+            <div class="setting-row" style="margin-top:8px">
+              <div class="info">
+                <div class="t">Quiet hours</div>
+                <div class="d">Pause notifications during these hours. Time inside quiet hours is skipped when counting down to a reminder, so the reminder arrives before quiet hours start.</div>
+              </div>
+              <div class="control">
+                <label class="switch"><input type="checkbox" id="dnd-on" checked><span class="slider"></span></label>
+              </div>
+            </div>
+            <div class="row" id="dnd-times" style="max-width:420px">
+              <div class="field" style="margin:0">
+                <label>Quiet from</label>
+                <input class="input" type="time" id="dnd-start" value="23:00">
+              </div>
+              <div class="field" style="margin:0">
+                <label>Until</label>
+                <input class="input" type="time" id="dnd-end" value="08:00">
+              </div>
+            </div>
+
+            <!-- Live example -->
+            <div class="callout" id="dnd-example"></div>
+            <div id="dnd-timeline"></div>
+          </div>
+        </div>
+
+        <!-- Delivery -->
+        <div class="card">
+          <div class="card-header">
+            <div>
+              <h3>Delivery</h3>
+              <p class="sub">Where notifications go.</p>
+            </div>
+          </div>
+          <div class="setting-row">
+            <div class="info"><div class="t">Push notifications</div><div class="d">Phone and desktop.</div></div>
+            <div class="control"><label class="switch"><input type="checkbox" checked><span class="slider"></span></label></div>
+          </div>
+          <div class="setting-row">
+            <div class="info"><div class="t">Email</div><div class="d" id="delivery-email"></div></div>
+            <div class="control"><label class="switch"><input type="checkbox"><span class="slider"></span></label></div>
+          </div>
+          <div class="setting-row">
+            <div class="info"><div class="t">Text message</div><div class="d">Not connected</div></div>
+            <div class="control"><button class="btn btn-secondary btn-sm">Add phone</button></div>
+          </div>
+        </div>
+
+        <!-- Connected accounts -->
+        <div class="card">
+          <div class="card-header">
+            <div>
+              <h3>Connected accounts</h3>
+              <p class="sub">Sources DueList imports from.</p>
+            </div>
+          </div>
+          <div class="setting-row">
+            <div class="info"><div class="t">Canvas <span class="tag canvas">Connected</span></div><div class="d" id="canvas-detail">Last synced 4 minutes ago</div></div>
+            <div class="control"><button class="btn btn-secondary btn-sm">Sync now</button><button class="btn btn-ghost btn-sm">Disconnect</button></div>
+          </div>
+          <div class="setting-row">
+            <div class="info"><div class="t">Learning Suite <span class="tag ls">Connected</span></div><div class="d" id="ls-detail">Last synced 4 minutes ago</div></div>
+            <div class="control"><button class="btn btn-secondary btn-sm">Sync now</button><button class="btn btn-ghost btn-sm">Disconnect</button></div>
+          </div>
+        </div>
+
+      </div>
+    </main>
+  </div>
+
+  <script src="js/api.js"></script>
+  <script src="js/data.js"></script>
+  <script src="js/app.js"></script>
+  <script src="js/settings.js"></script>
+</body>
+</html>

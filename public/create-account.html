@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Create account · DueList</title>
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+  <div class="auth-wrap">
+    <section class="auth-hero">
+      <div>
+        <div class="brand"><span class="brand-mark">D</span> DueList</div>
+        <h1>Create an account.</h1>
+        <p>After you create an account you can link Canvas and Learning Suite. DueList imports your classes and assignments from both.</p>
+        <div class="hero-sources">
+          <span class="source-pill"><span class="source-dot" style="background:#f87171"></span> Canvas</span>
+          <span class="source-pill"><span class="source-dot" style="background:#60a5fa"></span> Learning Suite</span>
+        </div>
+      </div>
+      <p style="font-size:13px">IS 401 · Group 208</p>
+    </section>
+
+    <section class="auth-panel">
+      <div class="auth-card">
+        <h2>Create your account</h2>
+        <p class="sub">Use your BYU email so your courses can be matched.</p>
+
+        <!-- Mock for this milestone: the form validates in the browser and navigates; it does not call the API. -->
+        <form id="create-form" novalidate>
+          <div class="form-error" id="create-error" role="alert"></div>
+          <div class="row">
+            <div class="field">
+              <label for="first">First name</label>
+              <input class="input" id="first" type="text" placeholder="Cosmo">
+            </div>
+            <div class="field">
+              <label for="last">Last name</label>
+              <input class="input" id="last" type="text" placeholder="Cougar">
+            </div>
+          </div>
+          <div class="field">
+            <label for="email">BYU email</label>
+            <input class="input" id="email" type="email" placeholder="netid@byu.edu">
+          </div>
+          <div class="field">
+            <label for="pass">Password</label>
+            <input class="input" id="pass" type="password" placeholder="At least 8 characters">
+          </div>
+          <div class="field">
+            <label for="pass2">Confirm password</label>
+            <input class="input" id="pass2" type="password" placeholder="Re-enter password">
+          </div>
+          <button class="btn btn-primary btn-block" type="submit">Create account</button>
+        </form>
+
+        <p class="auth-footer">Already have an account? <a href="index.html">Sign in</a></p>
+      </div>
+    </section>
+  </div>
+
+  <script>
+    document.getElementById("create-form").addEventListener("submit", e => {
+      e.preventDefault();
+      const err = document.getElementById("create-error");
+      const v = id => document.getElementById(id).value.trim();
+      let msg = "";
+      if (!v("first") || !v("last")) msg = "Enter your first and last name.";
+      else if (!v("email")) msg = "Enter your BYU email.";
+      else if (v("pass").length < 8) msg = "Password must be at least 8 characters.";
+      else if (v("pass") !== v("pass2")) msg = "Passwords do not match.";
+      if (msg) { err.textContent = msg; err.classList.add("show"); return; }
+      err.classList.remove("show");
+      window.location.href = "index.html";
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sign in · DueList</title>
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+  <div class="auth-wrap">
+    <section class="auth-hero">
+      <div>
+        <div class="brand"><span class="brand-mark">D</span> DueList</div>
+        <h1>Canvas and Learning Suite assignments in one list.</h1>
+        <p>DueList collects your BYU assignments into a single dashboard, calendar, and reminder system.</p>
+        <div class="hero-sources">
+          <span class="source-pill"><span class="source-dot" style="background:#f87171"></span> Canvas</span>
+          <span class="source-pill"><span class="source-dot" style="background:#60a5fa"></span> Learning Suite</span>
+        </div>
+      </div>
+      <p style="font-size:13px">IS 401 · Group 208</p>
+    </section>
+
+    <section class="auth-panel">
+      <div class="auth-card">
+        <h2>Sign in</h2>
+        <p class="sub">Use your username or email.</p>
+
+        <form id="login-form" novalidate>
+          <div class="form-error" id="login-error" role="alert"></div>
+          <div class="field">
+            <label for="user">Username or email</label>
+            <input class="input" id="user" type="text" placeholder="netid or netid@byu.edu" autocomplete="username" autofocus>
+          </div>
+          <div class="field">
+            <div class="between">
+              <label for="pass">Password</label>
+              <a href="forgot-password.html" style="font-size:13px">Forgot password?</a>
+            </div>
+            <input class="input" id="pass" type="password" placeholder="Password" autocomplete="current-password">
+          </div>
+          <div class="between" style="margin-bottom:18px">
+            <label style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--muted)">
+              <input type="checkbox" checked> Keep me signed in
+            </label>
+          </div>
+          <button class="btn btn-primary btn-block" type="submit" id="login-btn">Sign in</button>
+        </form>
+
+        <div class="divider">or</div>
+        <a class="btn btn-secondary btn-block" href="create-account.html">Create account</a>
+
+        <p class="auth-footer">Trouble signing in? <a href="forgot-password.html">Reset your password</a></p>
+      </div>
+    </section>
+  </div>
+
+  <script src="js/api.js"></script>
+  <script src="js/login.js"></script>
+</body>
+</html>
