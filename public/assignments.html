@@ -35,17 +35,47 @@
       <h3 id="class-modal-title">Add a class</h3>
       <form id="class-form" novalidate>
         <input type="hidden" id="c-id">
+        <input type="hidden" id="c-source">
+        <input type="hidden" id="c-external-id">
+        <input type="hidden" id="c-color">
         <div class="form-error" id="class-error" role="alert"></div>
-        <div class="row">
+
+        <!-- Source first: it decides which fields follow -->
+        <div class="field">
+          <label>Source</label>
+          <div class="chips source-chips" id="c-source-chips"></div>
+          <span class="error" id="c-source-error"></span>
+        </div>
+
+        <!-- Canvas: pick from the connected account's course list -->
+        <div class="source-section" id="c-section-canvas">
           <div class="field">
-            <label for="c-code">Course code</label>
-            <input class="input" id="c-code" placeholder="e.g. MKTG 201" maxlength="30">
-            <span class="error" id="c-code-error"></span>
+            <label for="c-canvas-course">Canvas class</label>
+            <select class="select" id="c-canvas-course"></select>
+            <span class="error" id="c-canvas-course-error"></span>
+            <span class="hint">From your connected Canvas account. Picking one fills in the code and name below; assignments sync automatically.</span>
           </div>
+        </div>
+
+        <!-- Learning Suite: per-course iCalendar feed -->
+        <div class="source-section" id="c-section-ls">
           <div class="field">
-            <label for="c-color">Color</label>
-            <input class="input" id="c-color" type="color" value="#0891b2" style="padding:4px;height:41px">
+            <label for="c-ics">iCalendar link</label>
+            <input class="input" id="c-ics" type="url" placeholder="https://learningsuite.byu.edu/.../calendar.ics" maxlength="500">
+            <span class="error" id="c-ics-error"></span>
+            <span class="hint">In Learning Suite open the course, go to Schedule, and copy the iCal link. Assignments sync from it about once a day.</span>
           </div>
+        </div>
+
+        <!-- Manual -->
+        <div class="source-section" id="c-section-manual">
+          <div class="field"><span class="hint">Manual classes only show assignments you add yourself.</span></div>
+        </div>
+
+        <div class="field">
+          <label for="c-code">Course code</label>
+          <input class="input" id="c-code" placeholder="e.g. MKTG 201" maxlength="30">
+          <span class="error" id="c-code-error"></span>
         </div>
         <div class="field">
           <label for="c-name">Course name</label>
@@ -53,10 +83,8 @@
           <span class="error" id="c-name-error"></span>
         </div>
         <div class="field">
-          <label for="c-source">Source</label>
-          <select class="select" id="c-source"></select>
-          <span class="error" id="c-source-error"></span>
-          <span class="hint">Canvas and Learning Suite classes sync automatically. Manual classes only show assignments you add.</span>
+          <label>Color</label>
+          <div class="color-swatches" id="c-swatches"></div>
         </div>
         <div class="modal-actions">
           <button type="button" class="btn btn-secondary" data-close="class-modal">Cancel</button>

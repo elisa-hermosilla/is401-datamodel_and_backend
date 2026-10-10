@@ -44,6 +44,18 @@ const ASSIGNMENTS = [
   { id: 28, course_code: "FIN 201",   title: "Midterm",                        type: "Exam",       submission: "Testing Center",   offset: 14, time: "09:00", minutes: 240, done: false, notes: "" },
 ];
 
+/* Sample Canvas course list (what a connected Canvas account would return).
+   The add-class modal offers these when Source = Canvas. A future milestone
+   replaces this with a fetch from the Canvas API via connected_account. */
+const CANVAS_COURSES = [
+  { external_course_id: "canvas-10231", course_code: "IS 401",   course_name: "Systems Design & Implementation" },
+  { external_course_id: "canvas-10455", course_code: "IS 403",   course_name: "Principles of Business" },
+  { external_course_id: "canvas-10988", course_code: "STAT 121", course_name: "Principles of Statistics" },
+  { external_course_id: "canvas-11204", course_code: "MKTG 201", course_name: "Marketing Management" },
+  { external_course_id: "canvas-11377", course_code: "ECON 110", course_name: "Economic Principles and Problems" },
+  { external_course_id: "canvas-11502", course_code: "CS 142",   course_name: "Introduction to Computer Programming" },
+];
+
 const STREAKS = {
   noPastDueBest: 18,
   checkInCurrent: 23,

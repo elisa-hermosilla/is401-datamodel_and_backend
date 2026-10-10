@@ -35,6 +35,28 @@ let USER = null;
 let CLASSES = [];
 let LMS_SOURCES = [];
 
+/* The 12 colors a class can be. Default for a new class is the first one not
+   already used by one of the user's classes. */
+const CLASS_COLORS = [
+  { hex: "#2563eb", name: "Blue" },
+  { hex: "#16a34a", name: "Green" },
+  { hex: "#d97706", name: "Amber" },
+  { hex: "#dc2626", name: "Red" },
+  { hex: "#9333ea", name: "Purple" },
+  { hex: "#0d9488", name: "Teal" },
+  { hex: "#ea580c", name: "Orange" },
+  { hex: "#db2777", name: "Pink" },
+  { hex: "#4f46e5", name: "Indigo" },
+  { hex: "#0891b2", name: "Cyan" },
+  { hex: "#65a30d", name: "Lime" },
+  { hex: "#6b7280", name: "Gray" },
+];
+function nextClassColor() {
+  const used = new Set(CLASSES.map(c => c.color_hex.toLowerCase()));
+  const free = CLASS_COLORS.find(c => !used.has(c.hex));
+  return free ? free.hex : CLASS_COLORS[CLASSES.length % CLASS_COLORS.length].hex;
+}
+
 /* Call this first on every app page. Redirects to the sign-in page when the
    session is missing, then loads sources + classes and draws the sidebar. */
 async function initApp(activeNav) {

@@ -5,6 +5,7 @@ import { requireLogin } from "../middleware/auth.js";
 const router = Router();
 
 const COLOR_RE = /^#[0-9a-fA-F]{6}$/;
+const ICS_URL_RE = /^(https?|webcal):\/\/\S+$/i;
 
 class ValidationError extends Error {
   constructor(message) { super(message); this.status = 400; }
@@ -42,6 +43,23 @@ async function validateCourse(body, { partial }) {
     const { rows } = await query("select 1 from lms_source where lms_source_id = $1", [id]);
     if (rows.length === 0) throw new ValidationError("That source does not exist");
     out.lms_source_id = id;
+  }
+
+  /* Learning Suite: the course's iCalendar feed URL. Optional; null clears it. */
+  if (has("ics_feed_url")) {
+    const url = body.ics_feed_url == null ? null : String(body.ics_feed_url).trim();
+    if (url) {
+      if (url.length > 500) throw new ValidationError("iCalendar link must be 500 characters or fewer");
+      if (!ICS_URL_RE.test(url)) throw new ValidationError("iCalendar link must start with https://, http://, or webcal://");
+    }
+    out.ics_feed_url = url || null;
+  }
+
+  /* Canvas: the course id in Canvas. Optional; null clears it. */
+  if (has("external_course_id")) {
+    const id = body.external_course_id == null ? null : String(body.external_course_id).trim();
+    if (id && id.length > 100) throw new ValidationError("Canvas course id must be 100 characters or fewer");
+    out.external_course_id = id || null;
   }
 
   if (has("is_archived")) {
@@ -83,10 +101,11 @@ router.post("/courses", requireLogin, async (req, res, next) => {
   try {
     const f = await validateCourse(req.body, { partial: false });
     const { rows } = await query(
-      `insert into course (user_id, lms_source_id, course_code, course_name, color_hex)
-       values ($1, $2, $3, $4, $5)
+      `insert into course (user_id, lms_source_id, course_code, course_name, color_hex, ics_feed_url, external_course_id)
+       values ($1, $2, $3, $4, $5, $6, $7)
        returning *`,
-      [req.session.userId, f.lms_source_id, f.course_code, f.course_name ?? null, f.color_hex]
+      [req.session.userId, f.lms_source_id, f.course_code, f.course_name ?? null, f.color_hex,
+       f.ics_feed_url ?? null, f.external_course_id ?? null]
     );
     res.status(201).json(rows[0]);
   } catch (err) { next(err); }

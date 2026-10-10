@@ -414,6 +414,22 @@ textarea.input { resize: vertical; line-height: 1.5; }
 .streak.blue .flame svg { color: var(--accent); }
 .streak .flame.off svg { color: var(--muted); }
 
+/* ---------- Class modal: source chips + color swatches ---------- */
+.source-chips .chip { display: inline-flex; align-items: center; gap: 6px; }
+.source-chips .chip .dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+.source-section { display: none; }
+.source-section.show { display: block; }
+.color-swatches { display: flex; flex-wrap: wrap; gap: 10px; padding: 2px 0; }
+.color-swatch {
+  width: 30px; height: 30px; border-radius: 50%; border: 0; padding: 0; cursor: pointer;
+  box-shadow: 0 0 0 2px var(--surface), 0 0 0 3px transparent; transition: transform .1s, box-shadow .1s;
+  display: grid; place-items: center; color: #fff;
+}
+.color-swatch:hover { transform: scale(1.1); }
+.color-swatch.active { box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--text); }
+.color-swatch svg { width: 14px; height: 14px; display: none; }
+.color-swatch.active svg { display: block; }
+
 /* ---------- Auth page errors ---------- */
 .auth-card .form-error { margin-bottom: 16px; }
 
