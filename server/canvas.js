@@ -144,11 +144,12 @@ function isSubmitted(sub) {
 }
 
 /* Planner items that are not assignments but still have a date the student
-   should see: pages with a to-do date (readings), calendar events, ungraded
-   discussions, practice quizzes. Keyed by plannable_type. */
+   should see: pages with a to-do date (readings), ungraded discussions,
+   practice quizzes. Keyed by plannable_type. Calendar events are left out on
+   purpose: Canvas puts every scheduled class period in the calendar and the
+   feed gives no way to tell those from real events. */
 const PLANNER_KINDS = {
   wiki_page:        { prefix: "page",       category: "Readings",         type: "reading",    submission: "No submission", date: p => p.todo_date },
-  calendar_event:   { prefix: "event",      category: "Events",           type: null,         submission: "No submission", date: p => p.start_at },
   discussion_topic: { prefix: "discussion", category: "Discussions",      type: "discussion", submission: "Discussion board", date: p => p.todo_date || p.due_at },
   quiz:             { prefix: "quiz",       category: "Practice quizzes", type: "quiz",       submission: "Online quiz",   date: p => p.due_at },
 };
@@ -208,7 +209,7 @@ async function syncPlannerItems(baseUrl, token, course, typeIds, seen) {
          completed_at = case when assignment.manually_completed then assignment.completed_at else excluded.completed_at end,
          updated_at = now()`,
       [course.course_id, categoryCache[kind.category], `${kind.prefix}:${p.id ?? item.plannable_id}`, title, dueAt,
-       !(item.plannable_type === "calendar_event" && p.all_day), kind.submission, url ? String(url).slice(0, 500) : null,
+       true, kind.submission, url ? String(url).slice(0, 500) : null,
        done ? new Date().toISOString() : null]);
     stored++;
   }
