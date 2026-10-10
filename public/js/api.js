@@ -46,6 +46,14 @@ const API = {
 
   assignmentTypes: () => apiFetch("/api/assignment-types"),
 
+  canvas: {
+    status: () => apiFetch("/api/canvas/status"),
+    connect: access_token => apiFetch("/api/canvas/connect", { method: "POST", body: { access_token } }),
+    disconnect: () => apiFetch("/api/canvas/connect", { method: "DELETE" }),
+    courses: () => apiFetch("/api/canvas/courses"),
+    sync: () => apiFetch("/api/canvas/sync", { method: "POST" }),
+  },
+
   assignments: {
     list: () => apiFetch("/api/assignments"),
     create: fields => apiFetch("/api/assignments", { method: "POST", body: fields }),

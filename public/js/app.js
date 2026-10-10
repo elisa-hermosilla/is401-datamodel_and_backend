@@ -37,6 +37,8 @@ let CLASSES = [];
 let ASSIGNMENTS = [];
 let LMS_SOURCES = [];
 let ASSIGNMENT_TYPES = [];
+/* CANVAS: GET /api/canvas/status — whether a token is connected, when it last synced, the instance URL */
+let CANVAS = { connected: false, base_url: "" };
 
 /* The 12 colors a class can be. Default for a new class is the first one not
    already used by one of the user's classes. */
@@ -69,13 +71,15 @@ async function initApp(activeNav) {
     window.location.replace("index.html");
     return new Promise(() => {}); // never resolves; the page is navigating away
   }
-  const [sources, types, courses, assignments] = await Promise.all([
+  const [sources, types, courses, assignments, canvas] = await Promise.all([
     API.lmsSources(), API.assignmentTypes(), API.courses.list(), API.assignments.list(),
+    API.canvas.status().catch(() => ({ connected: false, base_url: "" })),
   ]);
   LMS_SOURCES = sources;
   ASSIGNMENT_TYPES = types;
   setClasses(courses);
   ASSIGNMENTS = assignments;
+  CANVAS = canvas;
   renderSidebar(activeNav);
 }
 
@@ -131,6 +135,17 @@ function fmtMinutes(min) {
   return `${min} min`;
 }
 function cap(s) { return s ? s.charAt(0).toUpperCase() + s.slice(1) : ""; }
+/* "just now", "4 min ago", "2 hrs ago", "3 days ago", or "never" */
+function relTime(iso) {
+  if (!iso) return "never";
+  const m = Math.round((Date.now() - new Date(iso).getTime()) / 60000);
+  if (m < 1) return "just now";
+  if (m < 60) return `${m} min ago`;
+  const h = Math.round(m / 60);
+  if (h < 24) return `${h} hr${h === 1 ? "" : "s"} ago`;
+  const d = Math.round(h / 24);
+  return `${d} day${d === 1 ? "" : "s"} ago`;
+}
 /* "YYYY-MM-DD" and "HH:MM" in local time, for date/time inputs */
 function toDateInput(d) { return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`; }
 function toTimeInput(d) { return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`; }
@@ -142,10 +157,17 @@ function getAssignment(id) { return ASSIGNMENTS.find(a => a.assignment_id === id
 /* The assignment's display type ("Quiz"), or "" when it has none */
 function typeLabel(a) { return a.type_name ? cap(a.type_name) : (a.category_name || ""); }
 
-/* Source tag styled as a link: simulates jumping straight to Canvas / Learning Suite */
-function sourceTag(cls, label) {
-  const isCanvas = cls.source === "Canvas";
+/* Source tag styled as a link. With a real URL (a synced Canvas assignment's
+   html_url, or a linked Canvas course) it opens Canvas in a new tab; otherwise
+   it just shows a toast, like the mockup did. */
+function sourceTag(cls, label, href) {
   if (cls.source === "Manual") return `<span class="tag type">Manual</span>`;
+  const isCanvas = cls.source === "Canvas";
+  const link = href || (isCanvas && cls.external_course_id && CANVAS.base_url
+    ? `${CANVAS.base_url}/courses/${encodeURIComponent(cls.external_course_id)}` : null);
+  if (link) {
+    return `<a href="${esc(link)}" class="tag link ${isCanvas ? "canvas" : "ls"}" target="_blank" rel="noopener" title="Open in ${cls.source}">${label || cls.source} ${ICONS.external}</a>`;
+  }
   return `<a href="#" class="tag link ${isCanvas ? "canvas" : "ls"}" data-source="${cls.source}" title="Open in ${cls.source}">${label || cls.source} ${ICONS.external}</a>`;
 }
 function dueClass(a) {
@@ -176,7 +198,7 @@ function assignmentRow(a, opts = {}) {
           <span class="sep">•</span>
           <span class="submission">${esc(a.submission_type || "No submission")}</span>
           <span class="sep">•</span>
-          ${sourceTag(cls)}
+          ${sourceTag(cls, null, a.external_url)}
         </div>
         <div class="notes ${hasNote ? "" : "empty-note"}" data-notes="${a.assignment_id}">
           <span class="notes-text">${hasNote ? esc(a.notes) : "Add a note"}</span>
@@ -222,9 +244,11 @@ function bindChecks(container, onChange, opts = {}) {
   container.querySelectorAll("[data-source]").forEach(el => {
     el.addEventListener("click", e => {
       e.preventDefault(); e.stopPropagation();
-      toast(`Opening assignment in ${el.dataset.source}`);
+      toast(el.dataset.source === "Canvas" ? "Connect Canvas in Settings to open assignments there" : `${el.dataset.source} sync is not built yet`);
     });
   });
+  /* Real external links open Canvas without also opening the edit modal */
+  container.querySelectorAll("a.tag.link[target=_blank]").forEach(el => el.addEventListener("click", e => e.stopPropagation()));
   container.querySelectorAll("[data-filter-class]").forEach(el => {
     el.addEventListener("click", e => {
       e.stopPropagation();
@@ -496,7 +520,9 @@ function renderSidebar(active) {
     </nav>
     <div class="sidebar-bottom">
       <button type="button" class="btn btn-secondary btn-block btn-sm" id="sync-btn">${ICONS.sync} Sync now</button>
-      <div class="sync-note"><span class="dot"></span> Canvas &amp; Learning Suite · synced <span id="sync-time">4 min ago</span></div>
+      <div class="sync-note">${CANVAS.connected
+        ? `<span class="dot ${CANVAS.status === "error" ? "bad" : ""}"></span> Canvas · synced <span id="sync-time">${relTime(CANVAS.last_synced_at)}</span>`
+        : `<span class="dot off"></span> Canvas not connected · <a href="settings.html">Connect</a>`}</div>
       <div class="user-chip">
         <div class="avatar">${esc(userInitials(USER))}</div>
         <div style="flex:1;min-width:0">
@@ -507,19 +533,27 @@ function renderSidebar(active) {
       </div>
     </div>`;
 
-  /* Sync is still a mock for this milestone: it just shows its toast. */
+  /* Sync pulls assignments from Canvas for every linked class, then reloads the page data. */
   const btn = document.getElementById("sync-btn");
-  btn.addEventListener("click", () => {
+  btn.addEventListener("click", async () => {
+    if (!CANVAS.connected) { toast("Connect Canvas in Settings to sync"); return; }
     btn.disabled = true;
     btn.classList.add("syncing");
     btn.innerHTML = `${ICONS.sync} Syncing`;
-    setTimeout(() => {
+    try {
+      const r = await API.canvas.sync();
+      document.getElementById("sync-time").textContent = "just now";
+      toast(r.courses_synced
+        ? `Synced ${r.assignments_synced} assignment${r.assignments_synced === 1 ? "" : "s"} from ${r.courses_synced} class${r.courses_synced === 1 ? "" : "es"}`
+        : "No Canvas classes linked yet. Add one on the Assignments page.");
+      if (r.courses_synced) setTimeout(() => window.location.reload(), 900);
+      else { btn.disabled = false; btn.classList.remove("syncing"); btn.innerHTML = `${ICONS.sync} Sync now`; }
+    } catch (err) {
+      toast(err.message);
       btn.disabled = false;
       btn.classList.remove("syncing");
       btn.innerHTML = `${ICONS.sync} Sync now`;
-      document.getElementById("sync-time").textContent = "just now";
-      toast("Synced Canvas & Learning Suite");
-    }, 1400);
+    }
   });
 
   document.getElementById("logout-btn").addEventListener("click", async () => {

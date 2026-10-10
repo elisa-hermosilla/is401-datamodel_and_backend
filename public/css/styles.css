@@ -157,6 +157,8 @@ input, select, textarea { font-family: inherit; font-size: 14px; }
 .user-chip .email { font-size: 11px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .sync-note { font-size: 11px; color: var(--muted); padding: 10px 12px 0; line-height: 1.5; }
 .sync-note .dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: var(--ok); margin-right: 4px; vertical-align: middle; }
+.sync-note .dot.off { background: #cbd5e1; }
+.sync-note .dot.bad { background: var(--danger); }
 
 .main { padding: 32px 36px 48px; max-width: 1240px; width: 100%; }
 .page-header { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; margin-bottom: 24px; }

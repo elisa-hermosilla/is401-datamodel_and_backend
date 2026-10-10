@@ -78,7 +78,7 @@ function parseId(raw) {
 /* GET /api/lms-sources */
 router.get("/lms-sources", requireLogin, async (req, res, next) => {
   try {
-    const { rows } = await query("select lms_source_id, name from lms_source order by lms_source_id");
+    const { rows } = await query("select lms_source_id, name, base_url from lms_source order by lms_source_id");
     res.json(rows);
   } catch (err) { next(err); }
 });
@@ -100,9 +100,13 @@ router.get("/courses", requireLogin, async (req, res, next) => {
 router.post("/courses", requireLogin, async (req, res, next) => {
   try {
     const f = await validateCourse(req.body, { partial: false });
+    /* A Canvas class with an external id is tied to the user's Canvas connection (if any) so sync can find it */
     const { rows } = await query(
-      `insert into course (user_id, lms_source_id, course_code, course_name, color_hex, ics_feed_url, external_course_id)
-       values ($1, $2, $3, $4, $5, $6, $7)
+      `insert into course (user_id, lms_source_id, course_code, course_name, color_hex, ics_feed_url, external_course_id, connected_account_id)
+       values ($1, $2, $3, $4, $5, $6, $7,
+               case when $7::varchar is not null
+                    then (select connected_account_id from connected_account where user_id = $1 and lms_source_id = $2)
+               end)
        returning *`,
       [req.session.userId, f.lms_source_id, f.course_code, f.course_name ?? null, f.color_hex,
        f.ics_feed_url ?? null, f.external_course_id ?? null]
@@ -121,11 +125,22 @@ router.put("/courses/:id", requireLogin, async (req, res, next) => {
     const keys = Object.keys(f);
     if (keys.length === 0) throw new ValidationError("Nothing to update");
 
-    const sets = keys.map((k, i) => `${k} = $${i + 1}`).join(", ");
-    const params = [...keys.map(k => f[k]), id, req.session.userId];
+    const setList = keys.map((k, i) => `${k} = $${i + 1}`);
+    const params = [...keys.map(k => f[k])];
+    /* Re-point the Canvas connection whenever the source or external id changes */
+    if ("external_course_id" in f || "lms_source_id" in f) {
+      setList.push(`connected_account_id = case
+        when coalesce($${params.length + 1}::varchar, external_course_id) is not null
+         and coalesce($${params.length + 2}::int, lms_source_id) = (select lms_source_id from lms_source where name = 'Canvas')
+        then (select connected_account_id from connected_account
+               where user_id = $${params.length + 3} and lms_source_id = coalesce($${params.length + 2}::int, course.lms_source_id))
+        end`);
+      params.push(f.external_course_id ?? null, f.lms_source_id ?? null, req.session.userId);
+    }
+    params.push(id, req.session.userId);
     const { rows } = await query(
-      `update course set ${sets}
-        where course_id = $${keys.length + 1} and user_id = $${keys.length + 2}
+      `update course set ${setList.join(", ")}
+        where course_id = $${params.length - 1} and user_id = $${params.length}
         returning *`,
       params
     );

@@ -32,9 +32,93 @@ function main() {
 
   /* Real user bits in otherwise-mock cards */
   document.getElementById("delivery-email").textContent = USER.email || "No email on file";
-  const count = name => CLASSES.filter(c => c.source === name).length;
-  document.getElementById("canvas-detail").textContent = `Last synced 4 minutes ago · ${count("Canvas")} course${count("Canvas") === 1 ? "" : "s"}`;
-  document.getElementById("ls-detail").textContent = `Last synced 4 minutes ago · ${count("Learning Suite")} course${count("Learning Suite") === 1 ? "" : "s"}`;
+
+  /* ---------- Canvas connection (real) ---------- */
+  function renderCanvas() {
+    const el = document.getElementById("canvas-row");
+    if (CANVAS.connected) {
+      const last = CANVAS.last_sync;
+      const linked = CANVAS.linked_courses || 0;
+      const detail = [
+        `Last synced ${relTime(CANVAS.last_synced_at)}`,
+        `${linked} linked class${linked === 1 ? "" : "es"}`,
+        last && last.status === "failed" ? `Last sync failed: ${last.error_message || "unknown error"}` : null,
+        last && last.status === "success" ? `${last.assignments_synced} assignment${last.assignments_synced === 1 ? "" : "s"} last time` : null,
+      ].filter(Boolean).join(" · ");
+      el.innerHTML = `
+        <div class="setting-row">
+          <div class="info">
+            <div class="t">Canvas <span class="tag ${CANVAS.status === "error" ? "type" : "canvas"}">${CANVAS.status === "error" ? "Token rejected" : "Connected"}</span></div>
+            <div class="d">${esc(detail)}</div>
+            ${linked === 0 ? `<div class="d">Link a class: Assignments page → Add class → Canvas.</div>` : ""}
+          </div>
+          <div class="control">
+            <button class="btn btn-secondary btn-sm" id="canvas-sync">Sync now</button>
+            <button class="btn btn-ghost btn-sm" id="canvas-disconnect">Disconnect</button>
+          </div>
+        </div>
+        <div class="form-error" id="canvas-error" role="alert"></div>`;
+      document.getElementById("canvas-sync").addEventListener("click", async e => {
+        const b = e.currentTarget; b.disabled = true; b.textContent = "Syncing";
+        try {
+          const r = await API.canvas.sync();
+          toast(`Synced ${r.assignments_synced} assignment${r.assignments_synced === 1 ? "" : "s"} from ${r.courses_synced} class${r.courses_synced === 1 ? "" : "es"}`);
+        } catch (err) { showCanvasError(err.message); }
+        CANVAS = await API.canvas.status();
+        renderCanvas();
+      });
+      document.getElementById("canvas-disconnect").addEventListener("click", async e => {
+        e.currentTarget.disabled = true;
+        try {
+          await API.canvas.disconnect();
+          CANVAS = await API.canvas.status();
+          toast("Canvas disconnected");
+          renderCanvas();
+        } catch (err) { showCanvasError(err.message); }
+      });
+    } else {
+      el.innerHTML = `
+        <div class="setting-row">
+          <div class="info">
+            <div class="t">Canvas <span class="tag type">Not connected</span></div>
+            <div class="d">Paste a Canvas access token to import your classes and assignments. In Canvas go to <a href="${esc(CANVAS.base_url || "https://byu.instructure.com")}/profile/settings" target="_blank" rel="noopener">Account → Settings</a>, scroll to Approved Integrations, click <strong>+ New Access Token</strong>, and copy the token. Canvas shows it only once.</div>
+          </div>
+        </div>
+        <form id="canvas-form" novalidate class="row" style="max-width:560px;align-items:flex-start">
+          <div class="field" style="margin:0;flex:1">
+            <input class="input" id="canvas-token" type="password" placeholder="Paste access token" autocomplete="off" spellcheck="false">
+          </div>
+          <button class="btn btn-primary" type="submit" id="canvas-connect" style="flex:none">Connect</button>
+        </form>
+        <div class="form-error" id="canvas-error" role="alert" style="margin-top:10px"></div>
+        <div class="hint" style="display:block;margin-top:8px">The token is stored on the DueList server so sync can run. Revoke it any time from the same Canvas page.</div>`;
+      document.getElementById("canvas-form").addEventListener("submit", async e => {
+        e.preventDefault();
+        const btn = document.getElementById("canvas-connect");
+        const token = document.getElementById("canvas-token").value.trim();
+        if (!token) return showCanvasError("Paste your Canvas access token.");
+        btn.disabled = true; btn.textContent = "Checking";
+        try {
+          const r = await API.canvas.connect(token);
+          CANVAS = r;
+          const who = r.canvas_name ? ` as ${r.canvas_name}` : "";
+          if (r.sync) toast(`Connected${who}. Synced ${r.sync.assignments_synced} assignment${r.sync.assignments_synced === 1 ? "" : "s"} from ${r.sync.courses_synced} class${r.sync.courses_synced === 1 ? "" : "es"}.`);
+          else toast(`Connected${who}`);
+          renderCanvas();
+          if (r.sync_error) showCanvasError(`Connected, but the first sync failed: ${r.sync_error}`);
+        } catch (err) {
+          showCanvasError(err.message);
+          btn.disabled = false; btn.textContent = "Connect";
+        }
+      });
+    }
+  }
+  function showCanvasError(msg) {
+    const e = document.getElementById("canvas-error");
+    if (!e) return;
+    e.textContent = msg; e.classList.add("show");
+  }
+  renderCanvas();
 
   /* ---------- State ---------- */
   const state = {

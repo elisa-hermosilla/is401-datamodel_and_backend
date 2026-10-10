@@ -92,19 +92,38 @@ function main() {
     selectSource(selectedId);
   }
 
-  /* --- Canvas class picker (sample list from data.js for this milestone) --- */
-  function renderCanvasOptions(cls) {
+  /* --- Canvas class picker: the student's live Canvas course list (GET /api/canvas/courses) --- */
+  let canvasCourses = null; // fetched once per modal open
+  async function renderCanvasOptions(cls) {
     const sel = document.getElementById("c-canvas-course");
+    const note = document.getElementById("c-canvas-note");
     const current = cls && cls.external_course_id;
-    const known = current && CANVAS_COURSES.some(c => c.external_course_id === current);
-    const placeholder = cls ? `Keep ${esc(cls.course_code)}` : "Choose a Canvas class";
-    sel.innerHTML = `<option value="">${placeholder}</option>` +
-      CANVAS_COURSES.map(c =>
-        `<option value="${esc(c.external_course_id)}" ${known && c.external_course_id === current ? "selected" : ""}>${esc(c.course_code)} · ${esc(c.course_name)}</option>`).join("");
     document.getElementById("c-external-id").value = current || "";
+
+    if (!CANVAS.connected) {
+      sel.style.display = "none";
+      note.innerHTML = `Canvas isn't connected. <a href="settings.html">Connect it in Settings</a> to pick from your classes, or enter the code and name below.`;
+      return;
+    }
+    sel.style.display = "";
+    sel.disabled = true;
+    sel.innerHTML = `<option value="">Loading your Canvas classes</option>`;
+    note.textContent = "From your Canvas account. Picking one fills in the code and name below; assignments sync from it.";
+    try {
+      if (!canvasCourses) canvasCourses = await API.canvas.courses();
+      const placeholder = cls ? `Keep ${esc(cls.course_code)}` : "Choose a Canvas class";
+      sel.innerHTML = `<option value="">${placeholder}</option>` +
+        canvasCourses.map(c =>
+          `<option value="${esc(c.external_course_id)}" ${c.external_course_id === current ? "selected" : ""}>${esc(c.course_code)} · ${esc(c.course_name)}${c.term ? ` (${esc(c.term)})` : ""}${c.already_added && c.external_course_id !== current ? " · already added" : ""}</option>`).join("");
+    } catch (err) {
+      sel.innerHTML = `<option value="">Could not load Canvas classes</option>`;
+      note.textContent = err.message;
+    } finally {
+      sel.disabled = false;
+    }
   }
   document.getElementById("c-canvas-course").addEventListener("change", e => {
-    const pick = CANVAS_COURSES.find(c => c.external_course_id === e.target.value);
+    const pick = (canvasCourses || []).find(c => c.external_course_id === e.target.value);
     document.getElementById("c-external-id").value = pick ? pick.external_course_id : "";
     if (pick) {
       document.getElementById("c-code").value = pick.course_code;
@@ -144,6 +163,7 @@ function main() {
 
     const manual = LMS_SOURCES.find(s => s.name === "Manual");
     renderSourceChips(cls ? cls.lms_source_id : (manual ? manual.lms_source_id : LMS_SOURCES[0]?.lms_source_id));
+    canvasCourses = null;
     renderCanvasOptions(cls);
     renderSwatches(cls ? cls.color_hex : nextClassColor());
 
@@ -173,7 +193,7 @@ function main() {
     let ok = true;
     if (!fields.lms_source_id) { setFieldError("c-source", "Choose a source."); ok = false; }
     else setFieldError("c-source", "");
-    if (source === "Canvas" && !id && !fields.external_course_id) { setFieldError("c-canvas-course", "Choose a Canvas class."); ok = false; }
+    if (source === "Canvas" && !id && CANVAS.connected && !fields.external_course_id) { setFieldError("c-canvas-course", "Choose a Canvas class."); ok = false; }
     else setFieldError("c-canvas-course", "");
     if (source === "Learning Suite" && fields.ics_feed_url && !/^(https?|webcal):\/\/\S+$/i.test(fields.ics_feed_url)) { setFieldError("c-ics", "Paste a full link starting with https://."); ok = false; }
     else setFieldError("c-ics", "");
