@@ -17,16 +17,11 @@ The database is hosted on Supabase, so nothing runs "live" on a server. Each per
    npm install
    ```
 
-4. **Create your `.env` file.** Copy `.env.example` to `.env` in the project root, then fill in the two values:
+4. **Create your `.env` file.** Copy `.env.example` to `.env` in the project root, then change the SESSION_SECRET to a long random string
 
-   | Variable | What to put |
-   |---|---|
-   | `DATABASE_URL` | The Supabase **session pooler** connection string (Supabase dashboard → Connect → Session pooler, port 5432). Get the password from Jared; it is never committed to GitHub. If the password has special characters, URL-encode them (e.g. `@` → `%40`). |
-   | `SESSION_SECRET` | Any long random string. Does not need to match anyone else's. |
+Note for graders: In a real-world scenario, we know that having the credentials in the `.env.example` file is a terrible idea, but since this is currently private and hosted locally, the credentials are conveniently in the `.env.example` file for the sake of easy testing, but will be removed later on.
 
-   Leave `PORT=3000` as is.
-
-   `.env` is git-ignored. Never commit it, and never paste the connection string into the repo, an issue, or a group chat screenshot.
+`.env` is git-ignored.
 
 ## Every time you want to run it
 
