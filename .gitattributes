@@ -1,0 +1,2 @@
+# Normalize line endings so Windows and Mac checkouts don't show every file as modified.
+* text=auto
