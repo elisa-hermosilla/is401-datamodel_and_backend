@@ -22,9 +22,8 @@ This approach fits our team and project because, between the four core classes, 
 <br>
 <h3>One-time setup:</h3>
 <ol>
-  <li>Install Node.js (version 18 or newer) from https://nodejs.org. Check with node -v.</li>
-  <li>Clone the repo: <br> <details>git clone https://github.com/elisa-hermosilla/is401-datamodel_and_backend.git
-cd is401-datamodel_and_backend</details></li>
+  <li>Install Node.js (version 18 or newer) from https://nodejs.org. Check with <code>node -v</code>.</li>
+  <li>Clone the repo: <br> git clone https://github.com/elisa-hermosilla/is401-datamodel_and_backend.git cd is401-datamodel_and_backend</li>
   <li>Install dependencies (they are not stored in the repo) <br> npm install</li>
   <li>Create your .env file. Copy .env.example to .env in the project root, then change the SESSION_SECRET to a long random string</li>
 </ol>
