@@ -120,6 +120,42 @@ function main() {
   }
   renderCanvas();
 
+  /* ---------- Learning Suite feeds (real) ---------- */
+  let LS = { courses: [], last_synced_at: null };
+  function renderLearningSuite() {
+    const el = document.getElementById("ls-row");
+    const n = LS.courses.length;
+    const failed = LS.courses.filter(c => c.last_sync && c.last_sync.status === "failed");
+    const detail = n
+      ? [`${n} class${n === 1 ? "" : "es"} with an iCal link`, `last synced ${relTime(LS.last_synced_at)}`,
+         failed.length ? `${failed.length} failed last time` : null].filter(Boolean).join(" · ")
+      : "No classes have an iCal link yet. Add one: Assignments → Add class → Learning Suite.";
+    el.innerHTML = `
+      <div class="setting-row">
+        <div class="info">
+          <div class="t">Learning Suite <span class="tag ${n ? "ls" : "type"}">${n ? (failed.length ? "Needs attention" : "Linked") : "Not linked"}</span></div>
+          <div class="d">${esc(detail)}</div>
+          ${LS.courses.map(c => `<div class="d">${esc(c.course_code)}: ${c.last_sync ? (c.last_sync.status === "failed" ? `failed, ${esc(c.last_sync.error_message || "")}` : `${c.last_sync.assignments_synced} item${c.last_sync.assignments_synced === 1 ? "" : "s"} ${relTime(c.last_sync.finished_at)}`) : "never synced"}</div>`).join("")}
+        </div>
+        ${n ? `<div class="control"><button class="btn btn-secondary btn-sm" id="ls-sync">Sync now</button></div>` : ""}
+      </div>
+      <div class="form-error" id="ls-error" role="alert"></div>`;
+    const btn = document.getElementById("ls-sync");
+    if (btn) btn.addEventListener("click", async () => {
+      btn.disabled = true; btn.textContent = "Syncing";
+      try {
+        const r = await API.learningSuite.sync();
+        if (r.errors.length) { const e = document.getElementById("ls-error"); e.textContent = r.errors.map(x => `${x.course_code}: ${x.error}`).join(" · "); e.classList.add("show"); }
+        toast(`Synced ${r.assignments_synced} item${r.assignments_synced === 1 ? "" : "s"} from ${r.courses_synced} class${r.courses_synced === 1 ? "" : "es"}`);
+      } catch (err) {
+        const e = document.getElementById("ls-error"); e.textContent = err.message; e.classList.add("show");
+      }
+      LS = await API.learningSuite.status();
+      renderLearningSuite();
+    });
+  }
+  API.learningSuite.status().then(s => { LS = s; renderLearningSuite(); }).catch(() => renderLearningSuite());
+
   /* ---------- State ---------- */
   const state = {
     days: new Set(["Mon", "Tue", "Wed", "Thu", "Fri"]),

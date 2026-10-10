@@ -17,6 +17,7 @@ const { default: authRoutes } = await import("./routes/auth.js");
 const { default: courseRoutes } = await import("./routes/courses.js");
 const { default: assignmentRoutes } = await import("./routes/assignments.js");
 const { default: canvasRoutes } = await import("./routes/canvas.js");
+const { default: syncRoutes } = await import("./routes/sync.js");
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PORT = Number(process.env.PORT) || 3000;
@@ -48,6 +49,7 @@ app.use("/api", authRoutes);
 app.use("/api", courseRoutes);
 app.use("/api", assignmentRoutes);
 app.use("/api", canvasRoutes);
+app.use("/api", syncRoutes);
 
 /* JSON 404 for anything under /api that didn't match */
 app.use("/api", (req, res) => {

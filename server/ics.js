@@ -1,0 +1,113 @@
+/* A small iCalendar (RFC 5545) reader: enough to turn a Learning Suite course
+   feed into a list of { uid, title, description, url, due_at, all_day }.
+
+   Handles line unfolding, VEVENT and VTODO blocks, property parameters
+   (VALUE=DATE, TZID=...), text escapes, UTC "Z" stamps, zoned stamps, and
+   floating stamps (treated as campus time). No dependencies. */
+
+/* Campus time zone: dates with no zone, and all-day items, are interpreted here. */
+export const CAMPUS_TZ = process.env.APP_TIMEZONE || "America/Denver";
+/* All-day items (no time in the feed) are due at this local time. */
+const ALL_DAY_DUE = { hour: 23, minute: 59 };
+
+/* ---- time zone math without a library ---- */
+function tzOffsetMinutes(date, tz) {
+  const dtf = new Intl.DateTimeFormat("en-US", {
+    timeZone: tz, hourCycle: "h23",
+    year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", second: "2-digit",
+  });
+  const p = Object.fromEntries(dtf.formatToParts(date).filter(x => x.type !== "literal").map(x => [x.type, Number(x.value)]));
+  const asUtc = Date.UTC(p.year, p.month - 1, p.day, p.hour % 24, p.minute, p.second);
+  return Math.round((asUtc - date.getTime()) / 60000);
+}
+/* Wall-clock (y, mo, d, h, mi) in `tz` -> Date (UTC instant) */
+export function zonedToUtc(y, mo, d, h, mi, s, tz) {
+  const guess = Date.UTC(y, mo - 1, d, h, mi, s);
+  const off1 = tzOffsetMinutes(new Date(guess), tz);
+  let utc = guess - off1 * 60000;
+  const off2 = tzOffsetMinutes(new Date(utc), tz);
+  if (off2 !== off1) utc = guess - off2 * 60000;
+  return new Date(utc);
+}
+
+/* ---- parsing ---- */
+function unfold(text) {
+  const out = [];
+  for (const raw of String(text).split(/\r\n|\n|\r/)) {
+    if ((raw.startsWith(" ") || raw.startsWith("\t")) && out.length) out[out.length - 1] += raw.slice(1);
+    else out.push(raw);
+  }
+  return out;
+}
+
+function unescapeText(s) {
+  return String(s ?? "")
+    .replace(/\\n/gi, "\n")
+    .replace(/\\,/g, ",")
+    .replace(/\\;/g, ";")
+    .replace(/\\\\/g, "\\")
+    .trim();
+}
+
+/* "20261015" | "20261015T140000" | "20261015T200000Z" with VALUE/TZID params -> { date, allDay } */
+function parseStamp(value, params = {}) {
+  const v = String(value || "").trim();
+  let m = v.match(/^(\d{4})(\d{2})(\d{2})$/);
+  if (m || (params.VALUE === "DATE" && (m = v.match(/^(\d{4})(\d{2})(\d{2})/)))) {
+    const [, y, mo, d] = m.map(Number);
+    return { date: zonedToUtc(y, mo, d, ALL_DAY_DUE.hour, ALL_DAY_DUE.minute, 0, CAMPUS_TZ), allDay: true };
+  }
+  m = v.match(/^(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})?(Z)?$/);
+  if (!m) return null;
+  const [y, mo, d, h, mi] = m.slice(1, 6).map(Number);
+  const s = m[6] ? Number(m[6]) : 0;
+  if (m[7]) return { date: new Date(Date.UTC(y, mo - 1, d, h, mi, s)), allDay: false };
+  let tz = params.TZID || CAMPUS_TZ;
+  try { new Intl.DateTimeFormat("en-US", { timeZone: tz }); } catch { tz = CAMPUS_TZ; } // unknown TZID -> campus time
+  return { date: zonedToUtc(y, mo, d, h, mi, s, tz), allDay: false };
+}
+
+/* Parse a whole feed. Returns events in feed order; items without a usable
+   date or title are dropped. */
+export function parseIcs(text) {
+  if (!/BEGIN:VCALENDAR/i.test(String(text))) throw new Error("That link did not return a calendar (no BEGIN:VCALENDAR)");
+  const items = [];
+  let cur = null;
+  for (const line of unfold(text)) {
+    const upper = line.toUpperCase();
+    if (upper === "BEGIN:VEVENT" || upper === "BEGIN:VTODO") { cur = { kind: upper.slice(6), props: {} }; continue; }
+    if (upper === "END:VEVENT" || upper === "END:VTODO") { if (cur) items.push(cur); cur = null; continue; }
+    if (!cur) continue;
+    const idx = line.indexOf(":");
+    if (idx < 0) continue;
+    const [name, ...paramParts] = line.slice(0, idx).split(";");
+    const params = {};
+    for (const p of paramParts) {
+      const eq = p.indexOf("=");
+      if (eq > 0) params[p.slice(0, eq).toUpperCase()] = p.slice(eq + 1).replace(/^"|"$/g, "");
+    }
+    cur.props[name.toUpperCase()] = { value: line.slice(idx + 1), params };
+  }
+
+  const events = [];
+  for (const it of items) {
+    const P = it.props;
+    const title = unescapeText(P.SUMMARY?.value);
+    if (!title) continue;
+    /* A to-do's DUE wins; otherwise the start stamp. */
+    const stampProp = (it.kind === "VTODO" && P.DUE) ? P.DUE : (P.DTSTART || P.DUE);
+    const stamp = stampProp ? parseStamp(stampProp.value, stampProp.params) : null;
+    if (!stamp) continue;
+    const uid = unescapeText(P.UID?.value) || `${title}|${stamp.date.toISOString()}`;
+    events.push({
+      uid: uid.slice(0, 100),
+      title: title.slice(0, 200),
+      description: unescapeText(P.DESCRIPTION?.value) || null,
+      url: P.URL ? unescapeText(P.URL.value).slice(0, 500) : null,
+      categories: P.CATEGORIES ? unescapeText(P.CATEGORIES.value) : null,
+      due_at: stamp.date,
+      all_day: stamp.allDay,
+    });
+  }
+  return events;
+}

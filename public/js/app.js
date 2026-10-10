@@ -39,6 +39,8 @@ let LMS_SOURCES = [];
 let ASSIGNMENT_TYPES = [];
 /* CANVAS: GET /api/canvas/status — whether a token is connected, when it last synced, the instance URL */
 let CANVAS = { connected: false, base_url: "" };
+/* SYNC: GET /api/sync/status — the sidebar summary across Canvas and Learning Suite */
+let SYNC = { can_sync: false, last_synced_at: null };
 
 /* The 12 colors a class can be. Default for a new class is the first one not
    already used by one of the user's classes. */
@@ -71,15 +73,17 @@ async function initApp(activeNav) {
     window.location.replace("index.html");
     return new Promise(() => {}); // never resolves; the page is navigating away
   }
-  const [sources, types, courses, assignments, canvas] = await Promise.all([
+  const [sources, types, courses, assignments, canvas, sync] = await Promise.all([
     API.lmsSources(), API.assignmentTypes(), API.courses.list(), API.assignments.list(),
     API.canvas.status().catch(() => ({ connected: false, base_url: "" })),
+    API.sync.status().catch(() => ({ can_sync: false, last_synced_at: null })),
   ]);
   LMS_SOURCES = sources;
   ASSIGNMENT_TYPES = types;
   setClasses(courses);
   ASSIGNMENTS = assignments;
   CANVAS = canvas;
+  SYNC = sync;
   renderSidebar(activeNav);
 }
 
@@ -520,9 +524,9 @@ function renderSidebar(active) {
     </nav>
     <div class="sidebar-bottom">
       <button type="button" class="btn btn-secondary btn-block btn-sm" id="sync-btn">${ICONS.sync} Sync now</button>
-      <div class="sync-note">${CANVAS.connected
-        ? `<span class="dot ${CANVAS.status === "error" ? "bad" : ""}"></span> Canvas · synced <span id="sync-time">${relTime(CANVAS.last_synced_at)}</span>`
-        : `<span class="dot off"></span> Canvas not connected · <a href="settings.html">Connect</a>`}</div>
+      <div class="sync-note">${SYNC.can_sync
+        ? `<span class="dot ${SYNC.canvas_status === "error" ? "bad" : ""}"></span> ${[SYNC.canvas_connected ? "Canvas" : null, SYNC.learning_suite_courses ? "Learning Suite" : null].filter(Boolean).join(" &amp; ")} · synced <span id="sync-time">${relTime(SYNC.last_synced_at)}</span>`
+        : `<span class="dot off"></span> Nothing linked yet · <a href="settings.html">Connect</a>`}</div>
       <div class="user-chip">
         <div class="avatar">${esc(userInitials(USER))}</div>
         <div style="flex:1;min-width:0">
@@ -533,26 +537,31 @@ function renderSidebar(active) {
       </div>
     </div>`;
 
-  /* Sync pulls assignments from Canvas for every linked class, then reloads the page data. */
+  /* Sync pulls Canvas (if connected) and every Learning Suite feed, then reloads the page data. */
   const btn = document.getElementById("sync-btn");
   btn.addEventListener("click", async () => {
-    if (!CANVAS.connected) { toast("Connect Canvas in Settings to sync"); return; }
+    if (!SYNC.can_sync) { toast("Connect Canvas in Settings or add a Learning Suite class with an iCal link"); return; }
     btn.disabled = true;
     btn.classList.add("syncing");
     btn.innerHTML = `${ICONS.sync} Syncing`;
+    const reset = () => { btn.disabled = false; btn.classList.remove("syncing"); btn.innerHTML = `${ICONS.sync} Sync now`; };
     try {
-      const r = await API.canvas.sync();
-      document.getElementById("sync-time").textContent = "just now";
-      toast(r.courses_synced
-        ? `Synced ${r.assignments_synced} assignment${r.assignments_synced === 1 ? "" : "s"} from ${r.courses_synced} class${r.courses_synced === 1 ? "" : "es"}`
-        : "No Canvas classes linked yet. Add one on the Assignments page.");
-      if (r.courses_synced) setTimeout(() => window.location.reload(), 900);
-      else { btn.disabled = false; btn.classList.remove("syncing"); btn.innerHTML = `${ICONS.sync} Sync now`; }
+      const r = await API.sync.run();
+      const problems = [
+        r.canvas_error ? `Canvas: ${r.canvas_error}` : null,
+        ...(r.learning_suite?.errors || []).map(e => `${e.course_code}: ${e.error}`),
+      ];
+      if (r.nothing_linked) { toast("No Canvas or Learning Suite classes linked yet"); reset(); return; }
+      const timeEl = document.getElementById("sync-time");
+      if (timeEl) timeEl.textContent = "just now";
+      toast(problems.length
+        ? problems[0]
+        : `Synced ${r.assignments_synced} assignment${r.assignments_synced === 1 ? "" : "s"} from ${r.courses_synced} class${r.courses_synced === 1 ? "" : "es"}`);
+      if (r.courses_synced) setTimeout(() => window.location.reload(), problems.length ? 2200 : 900);
+      else reset();
     } catch (err) {
       toast(err.message);
-      btn.disabled = false;
-      btn.classList.remove("syncing");
-      btn.innerHTML = `${ICONS.sync} Sync now`;
+      reset();
     }
   });
 

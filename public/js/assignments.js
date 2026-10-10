@@ -133,6 +133,30 @@ function main() {
     }
   });
 
+  /* --- Learning Suite "Check link": fetch + parse the feed and report what's in it --- */
+  const ICS_DEFAULT_NOTE = "In Learning Suite open the course, go to Schedule, and copy the iCal link. Syncing pulls every dated item on the schedule.";
+  document.getElementById("c-ics-check").addEventListener("click", async e => {
+    const btn = e.currentTarget;
+    const note = document.getElementById("c-ics-note");
+    const url = document.getElementById("c-ics").value.trim();
+    setFieldError("c-ics", "");
+    if (!url) return setFieldError("c-ics", "Paste the iCalendar link first.");
+    btn.disabled = true; btn.textContent = "Checking";
+    note.textContent = "Fetching the calendar";
+    try {
+      const p = await API.learningSuite.preview(url);
+      const next = p.sample[0] ? ` Next: ${p.sample[0].title} (${fmtDayLabel(new Date(p.sample[0].due_at))}).` : "";
+      note.textContent = p.total
+        ? `Link works: ${p.total} item${p.total === 1 ? "" : "s"}, ${p.upcoming} upcoming.${next}`
+        : "Link works, but the calendar is empty. Check that the professor added items to the Schedule.";
+    } catch (err) {
+      note.textContent = ICS_DEFAULT_NOTE;
+      setFieldError("c-ics", err.message);
+    } finally {
+      btn.disabled = false; btn.textContent = "Check link";
+    }
+  });
+
   /* --- Color swatches --- */
   function selectColor(hex) {
     document.getElementById("c-color").value = hex;
@@ -160,6 +184,7 @@ function main() {
     document.getElementById("c-code").value = cls ? cls.course_code : "";
     document.getElementById("c-name").value = cls ? (cls.course_name || "") : "";
     document.getElementById("c-ics").value = cls ? (cls.ics_feed_url || "") : "";
+    document.getElementById("c-ics-note").textContent = ICS_DEFAULT_NOTE;
 
     const manual = LMS_SOURCES.find(s => s.name === "Manual");
     renderSourceChips(cls ? cls.lms_source_id : (manual ? manual.lms_source_id : LMS_SOURCES[0]?.lms_source_id));

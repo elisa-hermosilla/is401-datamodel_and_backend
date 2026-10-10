@@ -46,6 +46,17 @@ const API = {
 
   assignmentTypes: () => apiFetch("/api/assignment-types"),
 
+  learningSuite: {
+    preview: ics_feed_url => apiFetch("/api/learning-suite/preview", { method: "POST", body: { ics_feed_url } }),
+    status: () => apiFetch("/api/learning-suite/status"),
+    sync: () => apiFetch("/api/learning-suite/sync", { method: "POST" }),
+  },
+
+  sync: {
+    status: () => apiFetch("/api/sync/status"),
+    run: () => apiFetch("/api/sync", { method: "POST" }),
+  },
+
   canvas: {
     status: () => apiFetch("/api/canvas/status"),
     connect: access_token => apiFetch("/api/canvas/connect", { method: "POST", body: { access_token } }),

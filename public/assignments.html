@@ -61,9 +61,12 @@
         <div class="source-section" id="c-section-ls">
           <div class="field">
             <label for="c-ics">iCalendar link</label>
-            <input class="input" id="c-ics" type="url" placeholder="https://learningsuite.byu.edu/.../calendar.ics" maxlength="500">
+            <div class="row" style="align-items:flex-start">
+              <input class="input" id="c-ics" type="url" placeholder="https://learningsuite.byu.edu/.../calendar.ics" maxlength="500">
+              <button type="button" class="btn btn-secondary" id="c-ics-check" style="flex:none">Check link</button>
+            </div>
             <span class="error" id="c-ics-error"></span>
-            <span class="hint">In Learning Suite open the course, go to Schedule, and copy the iCal link. Assignments sync from it about once a day.</span>
+            <span class="hint" id="c-ics-note">In Learning Suite open the course, go to Schedule, and copy the iCal link. Syncing pulls every dated item on the schedule.</span>
           </div>
         </div>
 
