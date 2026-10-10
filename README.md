@@ -23,25 +23,25 @@ This approach fits our team and project because, between the four core classes, 
 <h3>One-time setup:</h3>
 <ol>
   <li>Install Node.js (version 18 or newer) from https://nodejs.org. Check with <code>node -v</code>.</li>
-  <li>Clone the repo: <br> git clone https://github.com/elisa-hermosilla/is401-datamodel_and_backend.git cd is401-datamodel_and_backend</li>
-  <li>Install dependencies (they are not stored in the repo) <br> npm install</li>
-  <li>Create your .env file. Copy .env.example to .env in the project root, then change the SESSION_SECRET to a long random string</li>
+  <li>Clone the repo: <br> <code>git clone https://github.com/elisa-hermosilla/is401-datamodel_and_backend.git cd is401-datamodel_and_backend</code></li>
+  <li>Install dependencies (they are not stored in the repo) <br> <code>npm install</code></li>
+  <li>Create your <code>.env</code> file. Copy <code>.env.example</code> to <code>.env</code> in the project root, then change the SESSION_SECRET to a long random string</li>
 </ol>
 <br>
-Note: We know that having the credentials in the .env.example file isn't the greatest idea. We currently have them there for the sake of easy testing, but they will be removed later on
+Note: We know that having the credentials in the <code>.env.example</code> file isn't the greatest idea. We currently have them there for the sake of easy testing, but they will be removed later on
 <br>
 <h3>Every Time you Want to Run It</h3>
 <ol>
-  <li>Run: git pull & npm start</li>
+  <li>Run: <code>git pull <br> npm start</code></li>
   <li>Then open <a href="http://localhost:3000">http://localhost:3000</a> and click Create account to make your own login. If you want to see sample data (three classes with assignments), sign in as the shared demo account:</li>
   <img width="230" height="94" alt="image" src="https://github.com/user-attachments/assets/2b0c9100-454d-4ae3-a77b-3bb4a60ae7f4" />
-  <li>Press Ctrl+C in the terminal to stop the server</li>
+  <li>Press <code>Ctrl+C</code> in the terminal to stop the server</li>
 </ol>
-Windows Only: if npm start fails with "running scripts is disabled on this system", either run npm.cmd start instead, or run this once in PowerShell and then use npm start normally: Set-ExecutionPolicy -Scope CurrentUser RemoteSigned
+Windows Only: if <code>npm start</code> fails with "running scripts is disabled on this system", either run <code>npm.cmd start</code> instead, or run this once in PowerShell and then use <code>npm start</code> normally: <code>Set-ExecutionPolicy -Scope CurrentUser RemoteSigned</code>
 <br>
 Mac & Linux don't need this!
 <br>
-Run npm install again only if package.json changed since your last pull (you'll see an error about a missing module if so).
+Run <code>npm install</code> again only if <code>package.json</code> changed since your last pull (you'll see an error about a missing module if so).
 <br>
 <h3>If something goes wrong or isn't working, please see how-to-get-it-running.md for specific details</h3>
 
