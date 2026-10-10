@@ -28,6 +28,7 @@ cd is401-datamodel_and_backend</li>
   <li>Install dependencies (they are not stored in the repo) <br> npm install</li>
   <li>Create your .env file. Copy .env.example to .env in the project root, then change the SESSION_SECRET to a long random string</li>
 </ol>
+```bash npm start```
 <br>
 Note: We know that having the credentials in the .env.example file isn't the greatest idea. We currently have them there for the sake of easy testing, but they will be removed later on
 <br>
