@@ -22,7 +22,13 @@ This approach fits our team and project because, between the four core classes, 
 2. a
 
 <h2>VERIFYING THE VERTICAL SLICE:</h2>
-
+<ul>
+  <li>Login via this test account: user cosmocougar, password gocougs!</li>
+  <li>On the left sidebar, click on "Assignments"</li>
+  <li>Click the "Add Class" button</li>
+  <li>Type in the Course Code, Course Name, and pick a color for the class, then hit "Add Class"</li>
+</ul>
+<br>
 **Claude AI was used for brainstorming and generating the ERD**
 
 **Claude AI was used for developing the Frontend and Backend**
