@@ -37,7 +37,7 @@ Note: We know that having the credentials in the <code>.env.example</code> file 
   <img width="230" height="94" alt="image" src="https://github.com/user-attachments/assets/2b0c9100-454d-4ae3-a77b-3bb4a60ae7f4" />
   <li>Press <code>Ctrl+C</code> in the terminal to stop the server</li>
 </ol>
-Windows Only: if <code>npm start</code> fails with "running scripts is disabled on this system", either run <code>npm.cmd start</code> instead, or run this once in PowerShell and then use <code>npm start</code> normally: <code>Set-ExecutionPolicy -Scope CurrentUser RemoteSigned</code>
+Windows Only: if <code>npm start</code> fails with "running scripts is disabled on this system", either run <code>npm.cmd start</code> instead, or run this once in PowerShell and then use <code>npm start</code> normally: <br><code>Set-ExecutionPolicy -Scope CurrentUser RemoteSigned</code>
 <br>
 Mac & Linux don't need this!
 <br>
