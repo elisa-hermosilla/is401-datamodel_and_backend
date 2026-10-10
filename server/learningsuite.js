@@ -10,8 +10,35 @@
    no submission status, so completion is entirely the student's checkbox. */
 
 import { query } from "./db.js";
-import { parseIcs } from "./ics.js";
+import { decodeFeed, parseIcs } from "./ics.js";
 import { guessType } from "./canvas.js";
+
+/* Schedule rows that are lecture topics rather than things to do. Learning
+   Suite puts one "Topic: ..." entry on every class day. */
+export function isScheduleNoise(e) {
+  return /^topic\s*:/i.test(e.title);
+}
+
+/* Long first lines (a lecture blurb, say) are cut at a word boundary for the
+   title; the full text lands in the note. */
+const TITLE_MAX = 120;
+export function shortTitle(title) {
+  const t = String(title || "").trim();
+  if (t.length <= TITLE_MAX) return t;
+  const cut = t.lastIndexOf(" ", TITLE_MAX - 1);
+  return (cut > 40 ? t.slice(0, cut) : t.slice(0, TITLE_MAX - 1)).trim() + "…";
+}
+
+/* Anything in the description beyond the stored title becomes the
+   assignment's starting note (only when first created; later notes are the
+   student's). If the title was shortened, the whole description is kept. */
+function noteFrom(e, storedTitle) {
+  if (!e.description) return null;
+  const lines = e.description.split("\n").map(s => s.trim()).filter(Boolean);
+  if (lines[0] && lines[0].replace(/\s+/g, " ") === storedTitle) lines.shift();
+  const rest = lines.join("\n").trim();
+  return rest && rest !== storedTitle ? rest.slice(0, 2000) : null;
+}
 
 const TIMEOUT_MS = 20000;
 const MAX_BYTES = 5 * 1024 * 1024;
@@ -41,25 +68,27 @@ export async function fetchFeed(rawUrl) {
   if (!res.ok) throw new FeedError(`The iCalendar link returned ${res.status}`, 502);
   const len = Number(res.headers.get("content-length") || 0);
   if (len > MAX_BYTES) throw new FeedError("That calendar is too large to import", 502);
-  const text = await res.text();
-  if (text.length > MAX_BYTES) throw new FeedError("That calendar is too large to import", 502);
+  const bytes = await res.arrayBuffer();
+  if (bytes.byteLength > MAX_BYTES) throw new FeedError("That calendar is too large to import", 502);
   try {
-    return parseIcs(text);
+    return parseIcs(decodeFeed(bytes));
   } catch (err) {
     throw new FeedError(err.message, 400);
   }
 }
 
-/* What the class form's "Check link" button shows. */
+/* What the class form's "Check link" button shows. Counts match what sync imports. */
 export async function previewFeed(rawUrl) {
-  const events = await fetchFeed(rawUrl);
+  const all = await fetchFeed(rawUrl);
+  const events = all.filter(e => !isScheduleNoise(e));
   const now = Date.now();
   const upcoming = events.filter(e => e.due_at.getTime() >= now).sort((a, b) => a.due_at - b.due_at);
   return {
     total: events.length,
     upcoming: upcoming.length,
     all_day: events.filter(e => e.all_day).length,
-    sample: upcoming.slice(0, 5).map(e => ({ title: e.title, due_at: e.due_at.toISOString(), all_day: e.all_day })),
+    skipped_topics: all.length - events.length,
+    sample: upcoming.slice(0, 5).map(e => ({ title: shortTitle(e.title), due_at: e.due_at.toISOString(), all_day: e.all_day })),
   };
 }
 
@@ -89,14 +118,16 @@ export async function syncCourse(course, typeIds) {
 
     let stored = 0;
     for (const e of events) {
+      if (isScheduleNoise(e)) continue;
       const t = e.due_at.getTime();
       if (t < from || t > to) continue;
       const typeName = guessType(e.categories) || guessType(e.title);
       const categoryId = await categoryFor(typeName);
+      const title = shortTitle(e.title);
       await query(
         `insert into assignment (course_id, assignment_category_id, external_assignment_id, title, due_at, due_time_known,
-                                 submission_type, external_url)
-         values ($1, $2, $3, $4, $5, $6, $7, $8)
+                                 submission_type, external_url, notes)
+         values ($1, $2, $3, $4, $5, $6, $7, $8, $9)
          on conflict (course_id, external_assignment_id) do update set
            assignment_category_id = excluded.assignment_category_id,
            title = excluded.title,
@@ -104,8 +135,8 @@ export async function syncCourse(course, typeIds) {
            due_time_known = excluded.due_time_known,
            external_url = coalesce(excluded.external_url, assignment.external_url),
            updated_at = now()`,
-        [course.course_id, categoryId, `ics:${e.uid}`, e.title, e.due_at.toISOString(), !e.all_day,
-         "No submission", e.url]);
+        [course.course_id, categoryId, `ics:${e.uid}`, title, e.due_at.toISOString(), !e.all_day,
+         "No submission", e.url, noteFrom(e, title)]);
       stored++;
     }
 

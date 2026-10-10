@@ -122,17 +122,26 @@ function submissionLabel(types) {
   return types.map(t => SUBMISSION_LABELS[t] || t).join(", ").slice(0, 50);
 }
 
-/* Guess our global assignment_type from a Canvas assignment-group name. */
-export function guessType(groupName) {
-  const n = String(groupName || "").toLowerCase();
-  if (/quiz/.test(n)) return "quiz";
-  if (/exam|test|midterm|final/.test(n)) return "exam";
-  if (/paper|essay|writing/.test(n)) return "paper";
-  if (/project/.test(n)) return "project";
-  if (/reading/.test(n)) return "reading";
-  if (/discussion/.test(n)) return "discussion";
-  if (/homework|hw|assignment|problem|lab|practice/.test(n)) return "homework";
-  return null;
+/* Guess our global assignment_type from a name (a Canvas assignment group, a
+   feed item's category, or its title). When several keywords appear, the one
+   that comes first in the text wins, so "pre-reading ... Project" is reading. */
+const TYPE_PATTERNS = [
+  ["quiz", /quiz/],
+  ["exam", /exam|\btest\b|midterm|final/],
+  ["paper", /paper|essay|writing/],
+  ["project", /project/],
+  ["reading", /reading|\bread\b/],
+  ["discussion", /discussion/],
+  ["homework", /homework|\bhw\b|assignment|problem|\blab\b|practice/],
+];
+export function guessType(name) {
+  const n = String(name || "").toLowerCase();
+  let best = null, at = Infinity;
+  for (const [type, re] of TYPE_PATTERNS) {
+    const m = re.exec(n);
+    if (m && m.index < at) { best = type; at = m.index; }
+  }
+  return best;
 }
 
 /* Did the student submit this? Canvas marks the submission with submitted_at

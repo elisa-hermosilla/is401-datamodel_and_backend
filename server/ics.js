@@ -67,14 +67,24 @@ function parseStamp(value, params = {}) {
   return { date: zonedToUtc(y, mo, d, h, mi, s, tz), allDay: false };
 }
 
+/* Decode feed bytes as UTF-8. Learning Suite's feeds are UTF-8 with a few
+   stray Latin-1 bytes (non-breaking spaces) mixed in; those decode to U+FFFD
+   and become plain spaces, while real UTF-8 text (curly quotes) stays intact. */
+export function decodeFeed(bytes) {
+  const text = new TextDecoder("utf-8").decode(bytes);
+  return text.replace(/ /g, " ").replace(/�/g, " ");
+}
+
 /* Parse a whole feed. Returns events in feed order; items without a usable
    date or title are dropped. */
 export function parseIcs(text) {
   if (!/BEGIN:VCALENDAR/i.test(String(text))) throw new Error("That link did not return a calendar (no BEGIN:VCALENDAR)");
   const items = [];
   let cur = null;
+  let prodid = "";
   for (const line of unfold(text)) {
     const upper = line.toUpperCase();
+    if (upper.startsWith("PRODID:")) prodid = line.slice(7);
     if (upper === "BEGIN:VEVENT" || upper === "BEGIN:VTODO") { cur = { kind: upper.slice(6), props: {} }; continue; }
     if (upper === "END:VEVENT" || upper === "END:VTODO") { if (cur) items.push(cur); cur = null; continue; }
     if (!cur) continue;
@@ -89,10 +99,21 @@ export function parseIcs(text) {
     cur.props[name.toUpperCase()] = { value: line.slice(idx + 1), params };
   }
 
+  /* Learning Suite (PRODID ctl.byu.edu) writes SUMMARY as a truncated copy of
+     DESCRIPTION with the line breaks removed, so the description's first line
+     is the real title there. Other feeds use SUMMARY as intended. */
+  const titleFromDescription = /ctl\.byu\.edu/i.test(prodid);
+
   const events = [];
   for (const it of items) {
     const P = it.props;
-    const title = unescapeText(P.SUMMARY?.value);
+    const description = unescapeText(P.DESCRIPTION?.value) || null;
+    let title = unescapeText(P.SUMMARY?.value);
+    if (titleFromDescription && description) {
+      const first = description.split("\n").map(s => s.trim()).find(Boolean);
+      if (first) title = first;
+    }
+    title = title.replace(/\s+/g, " ").trim();
     if (!title) continue;
     /* A to-do's DUE wins; otherwise the start stamp. */
     const stampProp = (it.kind === "VTODO" && P.DUE) ? P.DUE : (P.DTSTART || P.DUE);
@@ -102,7 +123,7 @@ export function parseIcs(text) {
     events.push({
       uid: uid.slice(0, 100),
       title: title.slice(0, 200),
-      description: unescapeText(P.DESCRIPTION?.value) || null,
+      description,
       url: P.URL ? unescapeText(P.URL.value).slice(0, 500) : null,
       categories: P.CATEGORIES ? unescapeText(P.CATEGORIES.value) : null,
       due_at: stamp.date,
