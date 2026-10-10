@@ -119,10 +119,14 @@ router.get("/assignment-types", requireLogin, async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
-/* GET /api/assignments — every assignment in the current user's classes, soonest first */
+/* GET /api/assignments — every assignment in the current user's classes, soonest first.
+   Assignments in a category the student excluded are left out. */
 router.get("/assignments", requireLogin, async (req, res, next) => {
   try {
-    const { rows } = await query(`${SELECT} where c.user_id = $1 order by a.due_at asc, a.assignment_id asc`, [req.session.userId]);
+    const { rows } = await query(
+      `${SELECT} where c.user_id = $1 and coalesce(cat.is_included, true)
+        order by a.due_at asc, a.assignment_id asc`,
+      [req.session.userId]);
     res.json(rows);
   } catch (err) { next(err); }
 });

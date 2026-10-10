@@ -10,8 +10,35 @@
    no submission status, so completion is entirely the student's checkbox. */
 
 import { query } from "./db.js";
-import { decodeFeed, parseIcs } from "./ics.js";
+import { decodeFeed, parseIcs, sameDayAt } from "./ics.js";
 import { guessType } from "./canvas.js";
+
+/* A feed has no category data, so items are sorted into fixed buckets by a
+   keyword in their category or title. Each bucket is an assignment_category
+   row (external_category_id "ics:<bucket>") the student maps to a type, a
+   default due time, and included/excluded. */
+export const BUCKETS = {
+  reading: "Readings", homework: "Homework", quiz: "Quizzes", exam: "Exams",
+  paper: "Papers", project: "Projects", discussion: "Discussions", other: "Other",
+};
+export function bucketOf(e) {
+  return guessType(e.categories) || guessType(e.title) || "other";
+}
+
+/* Create the bucket's category row if missing (typed by the keyword guess the
+   first time); afterwards the student's mapping on it is left alone. */
+export async function upsertBucket(courseId, bucket, typeIds) {
+  const { rows: [cat] } = await query(
+    `insert into assignment_category (course_id, assignment_type_id, name, external_category_id)
+     values ($1, $2, $3, $4)
+     on conflict (course_id, external_category_id) do update set name = excluded.name
+     returning *`,
+    [courseId, bucket === "other" ? null : typeIds[bucket], BUCKETS[bucket], `ics:${bucket}`]);
+  return cat;
+}
+
+/* "HH:MM:SS" from Postgres -> "HH:MM" */
+export function hhmm(t) { return t ? String(t).slice(0, 5) : null; }
 
 /* Schedule rows that are lecture topics rather than things to do. Learning
    Suite puts one "Topic: ..." entry on every class day. */
@@ -92,6 +119,25 @@ export async function previewFeed(rawUrl) {
   };
 }
 
+/* Fetch a linked course's feed and make sure every bucket that has items has
+   a category row. Returns the categories with how many feed items hit each.
+   Used by the class form's mapping step before the first sync. */
+export async function discoverCategories(course, typeIds) {
+  const from = Date.now() - PAST_DAYS * 86400000;
+  const to = Date.now() + FUTURE_DAYS * 86400000;
+  const events = (await fetchFeed(course.ics_feed_url))
+    .filter(e => !isScheduleNoise(e) && e.due_at.getTime() >= from && e.due_at.getTime() <= to);
+  const counts = {};
+  for (const e of events) { const b = bucketOf(e); counts[b] = (counts[b] || 0) + 1; }
+  const out = [];
+  for (const bucket of Object.keys(BUCKETS)) {
+    if (!counts[bucket]) continue;
+    const cat = await upsertBucket(course.course_id, bucket, typeIds);
+    out.push({ ...cat, default_due_time: hhmm(cat.default_due_time), item_count: counts[bucket] });
+  }
+  return out;
+}
+
 /* Import one linked course's feed. Returns the number of items stored. */
 export async function syncCourse(course, typeIds) {
   const { rows: [log] } = await query("insert into sync_log (course_id) values ($1) returning sync_log_id", [course.course_id]);
@@ -100,29 +146,21 @@ export async function syncCourse(course, typeIds) {
     const from = Date.now() - PAST_DAYS * 86400000;
     const to = Date.now() + FUTURE_DAYS * 86400000;
 
-    /* One category per course for feed items, typed by a guess from each title */
-    const catIds = {};
-    async function categoryFor(typeName) {
-      const key = typeName || "none";
-      if (catIds[key]) return catIds[key];
-      const name = typeName ? typeName.charAt(0).toUpperCase() + typeName.slice(1) : "Schedule";
-      const { rows: [cat] } = await query(
-        `insert into assignment_category (course_id, assignment_type_id, name, external_category_id)
-         values ($1, $2, $3, $4)
-         on conflict (course_id, external_category_id) do update set name = excluded.name
-         returning assignment_category_id`,
-        [course.course_id, typeName ? typeIds[typeName] : null, name, `ics:${key}`]);
-      catIds[key] = cat.assignment_category_id;
-      return cat.assignment_category_id;
-    }
-
-    let stored = 0;
+    const cats = {};
+    let stored = 0, excluded = 0;
     for (const e of events) {
       if (isScheduleNoise(e)) continue;
       const t = e.due_at.getTime();
       if (t < from || t > to) continue;
-      const typeName = guessType(e.categories) || guessType(e.title);
-      const categoryId = await categoryFor(typeName);
+      const bucket = bucketOf(e);
+      if (!cats[bucket]) cats[bucket] = await upsertBucket(course.course_id, bucket, typeIds);
+      const cat = cats[bucket];
+      if (!cat.is_included) { excluded++; continue; }
+
+      /* An all-day item takes the category's default due time when one is set */
+      let dueAt = e.due_at, timeKnown = !e.all_day;
+      if (e.all_day && cat.default_due_time) { dueAt = sameDayAt(e.due_at, hhmm(cat.default_due_time)); timeKnown = true; }
+
       const title = shortTitle(e.title);
       await query(
         `insert into assignment (course_id, assignment_category_id, external_assignment_id, title, due_at, due_time_known,
@@ -135,7 +173,7 @@ export async function syncCourse(course, typeIds) {
            due_time_known = excluded.due_time_known,
            external_url = coalesce(excluded.external_url, assignment.external_url),
            updated_at = now()`,
-        [course.course_id, categoryId, `ics:${e.uid}`, title, e.due_at.toISOString(), !e.all_day,
+        [course.course_id, cat.assignment_category_id, `ics:${e.uid}`, title, dueAt.toISOString(), timeKnown,
          "No submission", e.url, noteFrom(e, title)]);
       stored++;
     }
@@ -152,22 +190,27 @@ export async function syncCourse(course, typeIds) {
   }
 }
 
-/* Every linked Learning Suite course the user has. */
-export async function linkedCourses(userId) {
+/* Every linked Learning Suite course the user has (or just one of them). */
+export async function linkedCourses(userId, courseId = null) {
   const { rows } = await query(
     `select c.course_id, c.course_code, c.ics_feed_url, c.last_synced_at
        from course c join lms_source s on s.lms_source_id = c.lms_source_id
       where c.user_id = $1 and s.name = 'Learning Suite' and c.ics_feed_url is not null and not c.is_archived
+        and ($2::int is null or c.course_id = $2)
       order by c.course_code`,
-    [userId]);
+    [userId, courseId]);
   return rows;
 }
 
-/* Sync all of them. One bad feed doesn't stop the others; its error is reported per course. */
-export async function syncUser(userId) {
-  const courses = await linkedCourses(userId);
-  const { rows: typeRows } = await query("select assignment_type_id, name from assignment_type");
-  const typeIds = Object.fromEntries(typeRows.map(t => [t.name, t.assignment_type_id]));
+export async function assignmentTypeIds() {
+  const { rows } = await query("select assignment_type_id, name from assignment_type");
+  return Object.fromEntries(rows.map(t => [t.name, t.assignment_type_id]));
+}
+
+/* Sync all of them (or one). One bad feed doesn't stop the others; its error is reported per course. */
+export async function syncUser(userId, courseId = null) {
+  const courses = await linkedCourses(userId, courseId);
+  const typeIds = await assignmentTypeIds();
 
   let coursesSynced = 0, assignmentsSynced = 0;
   const errors = [];

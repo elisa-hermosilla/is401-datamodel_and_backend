@@ -173,12 +173,39 @@ function main() {
     selectColor(selectedHex);
   }
 
+  /* ---------- Two-step modal plumbing ----------
+     Step 1 is the class form. For Canvas and Learning Suite classes the submit
+     button says Next and leads to step 2, the category mapping. Manual classes
+     have no categories to map, so their button saves and closes. */
+  const modalBox = document.getElementById("class-modal-box");
+  const step2 = document.getElementById("class-step-2");
+  let wizard = { course: null };            // the saved class we're mapping in step 2
+
+  function stepLabel(step) {
+    const base = document.getElementById("c-id").value ? "Edit class" : "Add a class";
+    const syncSource = currentSourceName() !== "Manual";
+    document.getElementById("class-modal-title").innerHTML = `${base}${syncSource ? `<span class="step-tag">Step ${step} of 2</span>` : ""}`;
+  }
+  function showStep(step) {
+    classForm.style.display = step === 1 ? "" : "none";
+    step2.style.display = step === 2 ? "" : "none";
+    modalBox.classList.toggle("modal-wide", step === 2);
+    stepLabel(step);
+  }
+  /* The submit button's label depends on the source chip */
+  function refreshSubmitLabel() {
+    const editing = !!document.getElementById("c-id").value;
+    classSubmit.textContent = currentSourceName() === "Manual" ? (editing ? "Save" : "Add class") : "Next";
+    stepLabel(1);
+  }
+
   /* courseId undefined = add; a number = edit that class */
   function openClassModal(courseId) {
     const cls = courseId ? CLASSES.find(c => c.course_id === courseId) : null;
     classForm.reset();
     clearFormError(classError);
     ["c-code", "c-name", "c-source", "c-ics", "c-canvas-course"].forEach(id => setFieldError(id, ""));
+    wizard = { course: cls || null };
 
     document.getElementById("c-id").value = cls ? cls.course_id : "";
     document.getElementById("c-code").value = cls ? cls.course_code : "";
@@ -192,12 +219,13 @@ function main() {
     renderCanvasOptions(cls);
     renderSwatches(cls ? cls.color_hex : nextClassColor());
 
-    document.getElementById("class-modal-title").textContent = cls ? "Edit class" : "Add a class";
-    classSubmit.textContent = cls ? "Save" : "Add class";
+    showStep(1);
+    refreshSubmitLabel();
     openModal("class-modal");
     setTimeout(() => document.getElementById("c-code").focus(), 50);
   }
   document.getElementById("add-class-btn").addEventListener("click", () => openClassModal());
+  document.getElementById("c-source-chips").addEventListener("click", refreshSubmitLabel);
 
   classForm.addEventListener("submit", async e => {
     e.preventDefault();
@@ -243,16 +271,112 @@ function main() {
       }
       /* Keep the same order the API uses: non-archived first, then by code */
       CLASSES.sort((a, b) => (a.is_archived - b.is_archived) || a.course_code.localeCompare(b.course_code) || a.course_id - b.course_id);
-
-      closeModal("class-modal");
+      document.getElementById("c-id").value = saved.course_id;
       render();
-      toast(id ? `${saved.course_code} saved` : `${saved.course_code} added`);
-      const card = document.getElementById(`class-${saved.course_id}`);
-      if (card) card.scrollIntoView({ behavior: "smooth", block: "center" });
+
+      if (source === "Manual") {
+        closeModal("class-modal");
+        toast(id ? `${saved.course_code} saved` : `${saved.course_code} added`);
+        const card = document.getElementById(`class-${saved.course_id}`);
+        if (card) card.scrollIntoView({ behavior: "smooth", block: "center" });
+      } else {
+        wizard.course = CLASSES.find(c => c.course_id === saved.course_id);
+        await openMappingStep();
+      }
     } catch (err) {
       showFormError(classError, err.message);
     } finally {
       classSubmit.disabled = false;
+    }
+  });
+
+  /* ---------- Step 2: map categories to types ---------- */
+  const catBody = document.getElementById("cat-body");
+  const catError = document.getElementById("cat-error");
+  const catFinish = document.getElementById("cat-finish");
+
+  async function openMappingStep() {
+    const course = wizard.course;
+    const isLS = course.source === "Learning Suite";
+    showStep(2);
+    clearFormError(catError);
+    document.getElementById("cat-intro").textContent = isLS
+      ? `Items on the ${course.course_code} schedule are grouped by keyword. Pick the type each group should show as, a due time for its all-day items, and whether to include it.`
+      : `${course.course_code}'s Canvas assignment groups. Pick the type each one should show as and whether to include it.`;
+    catBody.innerHTML = `<div class="empty">Loading categories from ${isLS ? "the schedule" : "Canvas"}</div>`;
+    catFinish.disabled = true;
+    try {
+      const cats = await API.courses.discoverCategories(course.course_id);
+      renderCategoryTable(cats, isLS);
+    } catch (err) {
+      catBody.innerHTML = `<div class="empty">No categories to map yet.</div>`;
+      showFormError(catError, err.message);
+    } finally {
+      catFinish.disabled = false;
+    }
+  }
+
+  function renderCategoryTable(cats, isLS) {
+    if (!cats.length) { catBody.innerHTML = `<div class="empty">Nothing found to map. Sync later and edit the class to map new categories.</div>`; return; }
+    const typeOptions = sel => `<option value="">None</option>` +
+      ASSIGNMENT_TYPES.map(t => `<option value="${t.assignment_type_id}" ${sel === t.assignment_type_id ? "selected" : ""}>${esc(cap(t.name))}</option>`).join("");
+    catBody.innerHTML = `
+      <table class="cat-table">
+        <thead><tr>
+          <th>Category</th><th>Show as</th>${isLS ? "<th>Due time</th>" : ""}<th style="text-align:center">Include</th>
+        </tr></thead>
+        <tbody>
+          ${cats.map(c => {
+            const n = c.item_count != null ? c.item_count : c.assignment_count;
+            return `
+            <tr data-cat="${c.assignment_category_id}" class="${c.is_included ? "" : "excluded"}">
+              <td class="name">${esc(c.name)}<span class="n">${n} item${n === 1 ? "" : "s"}</span></td>
+              <td class="type"><select class="select" data-field="type">${typeOptions(c.assignment_type_id)}</select></td>
+              ${isLS ? `<td class="time"><input class="input" type="time" data-field="time" value="${esc(c.default_due_time || "")}" title="Due time for all-day items (blank = 11:59 PM)"></td>` : ""}
+              <td class="inc"><input type="checkbox" data-field="include" ${c.is_included ? "checked" : ""} title="Include this category"></td>
+            </tr>`; }).join("")}
+        </tbody>
+      </table>
+      ${isLS ? `<span class="hint" style="display:block;margin-top:8px">Blank due time keeps the schedule's 11:59 PM.</span>` : ""}`;
+    catBody.querySelectorAll('[data-field="include"]').forEach(cb =>
+      cb.addEventListener("change", () => cb.closest("tr").classList.toggle("excluded", !cb.checked)));
+  }
+
+  function readCategoryTable() {
+    return [...catBody.querySelectorAll("tr[data-cat]")].map(tr => ({
+      assignment_category_id: Number(tr.dataset.cat),
+      assignment_type_id: tr.querySelector('[data-field="type"]').value ? Number(tr.querySelector('[data-field="type"]').value) : null,
+      default_due_time: tr.querySelector('[data-field="time"]')?.value || null,
+      is_included: tr.querySelector('[data-field="include"]').checked,
+    }));
+  }
+
+  document.getElementById("cat-back").addEventListener("click", () => { showStep(1); refreshSubmitLabel(); });
+
+  catFinish.addEventListener("click", async () => {
+    const course = wizard.course;
+    clearFormError(catError);
+    catFinish.disabled = true; catFinish.textContent = "Syncing";
+    try {
+      const rows = readCategoryTable();
+      if (rows.length) await API.courses.saveCategories(course.course_id, rows);
+      let msg = `${course.course_code} saved`;
+      try {
+        const r = await API.courses.sync(course.course_id);
+        msg = `${course.course_code}: synced ${r.assignments_synced} item${r.assignments_synced === 1 ? "" : "s"}`;
+      } catch (err) {
+        msg = `${course.course_code} saved, but sync failed: ${err.message}`;
+      }
+      ASSIGNMENTS = await API.assignments.list();
+      closeModal("class-modal");
+      render();
+      toast(msg);
+      const card = document.getElementById(`class-${course.course_id}`);
+      if (card) card.scrollIntoView({ behavior: "smooth", block: "center" });
+    } catch (err) {
+      showFormError(catError, err.message);
+    } finally {
+      catFinish.disabled = false; catFinish.textContent = "Finish";
     }
   });
 

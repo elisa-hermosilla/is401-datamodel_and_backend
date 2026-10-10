@@ -42,6 +42,10 @@ const API = {
     create: fields => apiFetch("/api/courses", { method: "POST", body: fields }),
     update: (id, fields) => apiFetch(`/api/courses/${id}`, { method: "PUT", body: fields }),
     remove: id => apiFetch(`/api/courses/${id}`, { method: "DELETE" }),
+    categories: id => apiFetch(`/api/courses/${id}/categories`),
+    discoverCategories: id => apiFetch(`/api/courses/${id}/categories/discover`, { method: "POST" }),
+    saveCategories: (id, categories) => apiFetch(`/api/courses/${id}/categories`, { method: "PUT", body: { categories } }),
+    sync: id => apiFetch(`/api/courses/${id}/sync`, { method: "POST" }),
   },
 
   assignmentTypes: () => apiFetch("/api/assignment-types"),

@@ -30,6 +30,15 @@ export function zonedToUtc(y, mo, d, h, mi, s, tz) {
   return new Date(utc);
 }
 
+/* The same calendar day as `date` (in campus time) at wall-clock "HH:MM". Used to
+   apply a category's default due time to an all-day item. */
+export function sameDayAt(date, hhmm, tz = CAMPUS_TZ) {
+  const [h, mi] = String(hhmm).split(":").map(Number);
+  const p = Object.fromEntries(new Intl.DateTimeFormat("en-US", { timeZone: tz, year: "numeric", month: "2-digit", day: "2-digit" })
+    .formatToParts(date).filter(x => x.type !== "literal").map(x => [x.type, Number(x.value)]));
+  return zonedToUtc(p.year, p.month, p.day, h, mi, 0, tz);
+}
+
 /* ---- parsing ---- */
 function unfold(text) {
   const out = [];

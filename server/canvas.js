@@ -197,10 +197,11 @@ async function syncPlannerItems(baseUrl, token, course, typeIds, seen) {
         `insert into assignment_category (course_id, assignment_type_id, name, external_category_id)
          values ($1, $2, $3, $4)
          on conflict (course_id, external_category_id) do update set name = excluded.name
-         returning assignment_category_id`,
+         returning *`,
         [course.course_id, kind.type ? typeIds[kind.type] : null, kind.category, `planner:${item.plannable_type}`]);
-      categoryCache[kind.category] = cat.assignment_category_id;
+      categoryCache[kind.category] = cat;
     }
+    if (!categoryCache[kind.category].is_included) continue;
 
     const done = !!(item.planner_override && item.planner_override.marked_complete) || !!(item.submissions && item.submissions.submitted);
     const url = item.html_url ? (item.html_url.startsWith("/") ? baseUrl + item.html_url : item.html_url) : null;
@@ -217,7 +218,7 @@ async function syncPlannerItems(baseUrl, token, course, typeIds, seen) {
          external_url = excluded.external_url,
          completed_at = case when assignment.manually_completed then assignment.completed_at else excluded.completed_at end,
          updated_at = now()`,
-      [course.course_id, categoryCache[kind.category], `${kind.prefix}:${p.id ?? item.plannable_id}`, title, dueAt,
+      [course.course_id, categoryCache[kind.category].assignment_category_id, `${kind.prefix}:${p.id ?? item.plannable_id}`, title, dueAt,
        true, kind.submission, url ? String(url).slice(0, 500) : null,
        done ? new Date().toISOString() : null]);
     stored++;
@@ -225,8 +226,44 @@ async function syncPlannerItems(baseUrl, token, course, typeIds, seen) {
   return stored;
 }
 
-/* Pull every linked Canvas course for this user. Returns counts. */
-export async function syncUser(userId) {
+/* Upsert a course's assignment groups as categories. The type is guessed from
+   the group name only when the row is first created; the student's mapping
+   (type, default time, included) is never overwritten by sync. Returns the
+   category rows keyed by Canvas group id. */
+async function upsertGroups(course, groups, typeIds) {
+  const byGroup = {};
+  for (const g of groups) {
+    const guessed = guessType(g.name);
+    const { rows: [cat] } = await query(
+      `insert into assignment_category (course_id, assignment_type_id, name, external_category_id)
+       values ($1, $2, $3, $4)
+       on conflict (course_id, external_category_id) do update set name = excluded.name
+       returning *`,
+      [course.course_id, guessed ? typeIds[guessed] : null, String(g.name || "Assignments").slice(0, 100), String(g.id)]);
+    byGroup[String(g.id)] = cat;
+  }
+  return byGroup;
+}
+
+/* For the class form's mapping step: fetch the course's assignment groups,
+   create their category rows, and count the dated published assignments in
+   each. Returns categories with item_count. */
+export async function discoverCategories(course, conn, typeIds) {
+  const baseUrl = await canvasBaseUrl();
+  const groups = await canvasGet(baseUrl, conn.access_token, `/courses/${course.external_course_id}/assignment_groups`);
+  const byGroup = await upsertGroups(course, groups, typeIds);
+  const assignments = await canvasGet(baseUrl, conn.access_token, `/courses/${course.external_course_id}/assignments`);
+  const counts = {};
+  for (const a of assignments) {
+    if (a.published === false || !a.due_at) continue;
+    const k = String(a.assignment_group_id);
+    counts[k] = (counts[k] || 0) + 1;
+  }
+  return groups.map(g => ({ ...byGroup[String(g.id)], item_count: counts[String(g.id)] || 0 }));
+}
+
+/* Pull every linked Canvas course for this user (or just one). Returns counts. */
+export async function syncUser(userId, courseId = null) {
   const conn = await getConnection(userId);
   if (!conn) throw new CanvasError("Canvas is not connected. Add your access token in Settings.", 400);
   const baseUrl = await canvasBaseUrl();
@@ -241,25 +278,17 @@ export async function syncUser(userId) {
     const { rows: courses } = await query(
       `select course_id, external_course_id, course_code from course
         where user_id = $1 and lms_source_id = $2 and external_course_id is not null and not is_archived
+          and ($3::int is null or course_id = $3)
         order by course_code`,
-      [userId, conn.lms_source_id]);
+      [userId, conn.lms_source_id, courseId]);
 
     let coursesSynced = 0, assignmentsSynced = 0, skippedUndated = 0, plannerSynced = 0;
     for (const course of courses) {
       const seen = new Set(); // "title|due_at" of everything stored for this course this run
       /* Assignment groups -> assignment_category */
       const groups = await canvasGet(baseUrl, conn.access_token, `/courses/${course.external_course_id}/assignment_groups`);
-      const categoryByGroup = {};
-      for (const g of groups) {
-        const guessed = guessType(g.name);
-        const { rows: [cat] } = await query(
-          `insert into assignment_category (course_id, assignment_type_id, name, external_category_id)
-           values ($1, $2, $3, $4)
-           on conflict (course_id, external_category_id) do update set name = excluded.name
-           returning assignment_category_id`,
-          [course.course_id, guessed ? typeIds[guessed] : null, String(g.name || "Assignments").slice(0, 100), String(g.id)]);
-        categoryByGroup[String(g.id)] = cat.assignment_category_id;
-      }
+      const catByGroup = await upsertGroups(course, groups, typeIds);
+      const categoryByGroup = Object.fromEntries(Object.entries(catByGroup).map(([k, c]) => [k, c.assignment_category_id]));
 
       /* Assignments (with the student's own submission) -> assignment */
       const assignments = await canvasGet(baseUrl, conn.access_token, `/courses/${course.external_course_id}/assignments`, {
@@ -269,6 +298,8 @@ export async function syncUser(userId) {
       for (const a of assignments) {
         if (a.published === false) continue;
         if (!a.due_at) { skippedUndated++; continue; } // due_at is NOT NULL in our schema
+        const cat = catByGroup[String(a.assignment_group_id)];
+        if (cat && !cat.is_included) continue; // the student excluded this category
         const submitted = isSubmitted(a.submission);
         const completedAt = submitted ? (a.submission.submitted_at || new Date().toISOString()) : null;
         await query(

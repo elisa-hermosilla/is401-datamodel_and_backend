@@ -29,9 +29,10 @@
     </main>
   </div>
 
-  <!-- Add / edit class modal -->
+  <!-- Add / edit class modal. Step 1: source, code, name, color. Step 2 (Canvas and
+       Learning Suite only): map the class's categories to assignment types. -->
   <div class="modal-backdrop" id="class-modal">
-    <div class="modal">
+    <div class="modal" id="class-modal-box">
       <h3 id="class-modal-title">Add a class</h3>
       <form id="class-form" novalidate>
         <input type="hidden" id="c-id">
@@ -94,6 +95,18 @@
           <button type="submit" class="btn btn-primary" id="class-submit">Add class</button>
         </div>
       </form>
+
+      <!-- Step 2: category mapping -->
+      <div id="class-step-2" style="display:none">
+        <p class="sub" id="cat-intro" style="color:var(--muted);font-size:13.5px;margin-bottom:14px"></p>
+        <div class="form-error" id="cat-error" role="alert"></div>
+        <div id="cat-body"></div>
+        <div class="modal-actions">
+          <button type="button" class="btn btn-ghost" id="cat-back" style="margin-right:auto">Back</button>
+          <button type="button" class="btn btn-secondary" data-close="class-modal">Close</button>
+          <button type="button" class="btn btn-primary" id="cat-finish">Finish</button>
+        </div>
+      </div>
     </div>
   </div>
 
