@@ -57,3 +57,5 @@ Run <code>npm install</code> again only if <code>package.json</code> changed sin
 **Claude AI was used for brainstorming and generating the ERD**
 
 **Claude AI was used for developing the Frontend and Backend**
+
+**Claude AI was used for the How to Get it Running section**
