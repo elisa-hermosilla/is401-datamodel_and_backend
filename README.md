@@ -47,7 +47,7 @@ Run <code>npm install</code> again only if <code>package.json</code> changed sin
 
 <h2>VERIFYING THE VERTICAL SLICE:</h2>
 <ol>
-  <li>Login via this test account: user cosmocougar, password gocougs!</li>
+  <li>Login via this test account: user <code>cosmocougar</code>, password <code>gocougs!</code></li>
   <li>On the left sidebar, click on "Assignments"</li>
   <li>Click the "Add Class" button</li>
   <li>Type in the Course Code, Course Name, and pick a color for the class, then hit "Add Class"</li>
