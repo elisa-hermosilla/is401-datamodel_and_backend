@@ -13,7 +13,7 @@ Front End - HTML/CSS/JavaScript: This was used to create the user interface and 
 
 Back End - Node/Express: This is used to manage communication and applications between the front end and the database
 
-Database - This is where we will store data and changes made
+Database - Postgres: This is where we will store data and changes made
 
 This approach fits our team and project because, between the four core classes, these are the ones we are learning about and have the most experience with.
 
