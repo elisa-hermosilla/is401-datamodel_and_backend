@@ -21,6 +21,11 @@ const PORT = Number(process.env.PORT) || 3000;
 
 const app = express();
 
+/* Behind a hosting proxy (Render, Railway, ...) set NODE_ENV=production so the
+   session cookie is marked Secure and Express trusts the proxy's HTTPS headers. */
+const isProd = process.env.NODE_ENV === "production";
+if (isProd) app.set("trust proxy", 1);
+
 app.use(express.json());
 app.use(session({
   name: "duelist.sid",
@@ -30,6 +35,7 @@ app.use(session({
   cookie: {
     httpOnly: true,
     sameSite: "lax",
+    secure: isProd,
     maxAge: 1000 * 60 * 60 * 24 * 7, // 7 days
   },
 }));
