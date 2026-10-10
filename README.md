@@ -34,7 +34,7 @@ Note: We know that having the credentials in the .env.example file isn't the gre
 <h3>Every Time you Want to Run It</h3>
 <ol>
   <li>Run: git pull & npm start</li>
-  <li>Then open http://localhost:3000 and click Create account to make your own login. If you want to see sample data (three classes with assignments), sign in as the shared demo account:</li>
+  <li>Then open <a href="http://localhost:3000">http://localhost:3000</a> and click Create account to make your own login. If you want to see sample data (three classes with assignments), sign in as the shared demo account:</li>
   <img width="230" height="94" alt="image" src="https://github.com/user-attachments/assets/2b0c9100-454d-4ae3-a77b-3bb4a60ae7f4" />
   <li>Press Ctrl+C in the terminal to stop the server</li>
 </ol>
