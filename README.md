@@ -18,8 +18,33 @@ Database - This is where we will store data and changes made
 This approach fits our team and project because, between the four core classes, these are the ones we are learning about and have the most experience with.
 
 <h2>HOW TO GET IT RUNNING:</h2>
-1. a <br>
-2. a
+*The database is hosted on Supabase, meaning that each person runs the app on their own computer. Everything is shared to the same database.
+<br>
+<h3>One-time setup:</h3>
+<ol>
+  <li>Install Node.js (version 18 or newer) from https://nodejs.org. Check with node -v.</li>
+  <li>Clone the repo: <br> git clone https://github.com/elisa-hermosilla/is401-datamodel_and_backend.git
+cd is401-datamodel_and_backend</li>
+  <li>Install dependencies (they are not stored in the repo) <br> npm install</li>
+  <li>Create your .env file. Copy .env.example to .env in the project root, then change the SESSION_SECRET to a long random string</li>
+</ol>
+<br>
+Note: We know that having the credentials in the .env.example file isn't the greatest idea. We currently have them there for the sake of easy testing, but they will be removed later on
+<br>
+<h3>Every Time you Want to Run It</h3>
+<ol>
+  <li>Run: git pull & npm start</li>
+  <li>Then open http://localhost:3000 and click Create account to make your own login. If you want to see sample data (three classes with assignments), sign in as the shared demo account:</li>
+  <img width="230" height="94" alt="image" src="https://github.com/user-attachments/assets/2b0c9100-454d-4ae3-a77b-3bb4a60ae7f4" />
+  <li>Press Ctrl+C in the terminal to stop the server</li>
+</ol>
+Windows Only: if npm start fails with "running scripts is disabled on this system", either run npm.cmd start instead, or run this once in PowerShell and then use npm start normally: Set-ExecutionPolicy -Scope CurrentUser RemoteSigned
+<br>
+Mac & Linux don't need this!
+<br>
+Run npm install again only if package.json changed since your last pull (you'll see an error about a missing module if so).
+<br>
+<h3>If something goes wrong or isn't working, please see how-to-get-it-running.md for specific details</h3>
 
 <h2>VERIFYING THE VERTICAL SLICE:</h2>
 <ol>
