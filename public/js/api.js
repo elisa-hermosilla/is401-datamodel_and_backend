@@ -31,6 +31,9 @@ const API = {
   login: (identifier, password) => apiFetch("/api/login", { method: "POST", body: { identifier, password } }),
   logout: () => apiFetch("/api/logout", { method: "POST" }),
   me: () => apiFetch("/api/me"),
+  register: fields => apiFetch("/api/register", { method: "POST", body: fields }),
+  changePassword: (current_password, new_password) =>
+    apiFetch("/api/change-password", { method: "POST", body: { current_password, new_password } }),
 
   lmsSources: () => apiFetch("/api/lms-sources"),
 

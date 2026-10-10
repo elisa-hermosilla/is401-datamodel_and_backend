@@ -22,6 +22,38 @@
 
       <div class="settings-grid">
 
+        <!-- Account -->
+        <div class="card">
+          <div class="card-header">
+            <div>
+              <h3>Account</h3>
+              <p class="sub" id="account-sub"></p>
+            </div>
+          </div>
+          <form id="password-form" novalidate style="max-width:420px">
+            <div class="setting-row" style="padding-top:0">
+              <div class="info">
+                <div class="t">Change password</div>
+                <div class="d">You stay signed in after changing it.</div>
+              </div>
+            </div>
+            <div class="form-error" id="password-error" role="alert"></div>
+            <div class="field">
+              <label for="pw-current">Current password</label>
+              <input class="input" id="pw-current" type="password" autocomplete="current-password">
+            </div>
+            <div class="field">
+              <label for="pw-new">New password</label>
+              <input class="input" id="pw-new" type="password" placeholder="At least 8 characters" autocomplete="new-password">
+            </div>
+            <div class="field">
+              <label for="pw-confirm">Confirm new password</label>
+              <input class="input" id="pw-confirm" type="password" autocomplete="new-password">
+            </div>
+            <button class="btn btn-secondary" type="submit" id="pw-btn">Change password</button>
+          </form>
+        </div>
+
         <!-- Summary notifications -->
         <div class="card">
           <div class="card-header">

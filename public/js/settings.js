@@ -3,6 +3,33 @@
 initApp("settings").then(main);
 
 function main() {
+  /* ---------- Account (real): who you are + change password ---------- */
+  document.getElementById("account-sub").textContent = `${USER.first_name} ${USER.last_name} · ${USER.username} · ${USER.email}`;
+  const pwForm = document.getElementById("password-form");
+  const pwError = document.getElementById("password-error");
+  const pwBtn = document.getElementById("pw-btn");
+  pwForm.addEventListener("submit", async e => {
+    e.preventDefault();
+    pwError.classList.remove("show");
+    const current = document.getElementById("pw-current").value;
+    const next = document.getElementById("pw-new").value;
+    const confirm = document.getElementById("pw-confirm").value;
+    const fail = msg => { pwError.textContent = msg; pwError.classList.add("show"); };
+    if (!current) return fail("Enter your current password.");
+    if (next.length < 8) return fail("New password must be at least 8 characters.");
+    if (next !== confirm) return fail("New passwords do not match.");
+    pwBtn.disabled = true;
+    try {
+      await API.changePassword(current, next);
+      pwForm.reset();
+      toast("Password changed");
+    } catch (err) {
+      fail(err.message);
+    } finally {
+      pwBtn.disabled = false;
+    }
+  });
+
   /* Real user bits in otherwise-mock cards */
   document.getElementById("delivery-email").textContent = USER.email || "No email on file";
   const count = name => CLASSES.filter(c => c.source === name).length;
