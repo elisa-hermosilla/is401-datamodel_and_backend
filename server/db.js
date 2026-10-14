@@ -19,6 +19,25 @@ function stripSslMode(url) {
   }
 }
 
+/* Supabase's direct host (db.<ref>.supabase.co) only has an IPv6 address, so it
+   is unreachable from IPv4-only networks. The session pooler host works on both. */
+function warnIfDirectHost(url) {
+  try {
+    const { hostname } = new URL(url);
+    if (/^db\.[a-z0-9]+\.supabase\.co$/.test(hostname)) {
+      console.warn(
+        `DATABASE_URL points at ${hostname}, Supabase's direct host, which is IPv6-only. ` +
+        "If the connection times out, use the Session pooler string instead " +
+        "(Supabase dashboard -> Connect -> Session pooler, port 5432)."
+      );
+    }
+  } catch {
+    /* unparseable URL; pg will report the real error */
+  }
+}
+
+warnIfDirectHost(process.env.DATABASE_URL);
+
 const pool = new pg.Pool({
   connectionString: stripSslMode(process.env.DATABASE_URL),
   ssl: { rejectUnauthorized: false },

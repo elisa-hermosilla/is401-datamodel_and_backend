@@ -67,6 +67,12 @@ Run `npm install` again only if `package.json` changed since your last pull (you
 
 ## What's real and what's mock
 
-These go through the backend to the database: **login / logout**, **create account**, **change password** (Settings → Account), and **classes** (add / edit / delete on the Assignments page, including the Learning Suite iCal link and the Canvas class pick).
+These go through the backend to the database: **login / logout**, **create account**, **change password** (Settings → Account), **classes** (add / edit / delete), **assignments** (add / edit / delete / check off / notes / drag order, on every page), and **Canvas sync**.
 
-Everything else is still a front-end mockup: the assignments under each class, the dashboard, the calendar, notification settings, the sync button, and forgot-password. Sample assignments live in `public/js/data.js` and only appear under classes whose course code matches one in that file (IS 401, IS 402, IS 403, IS 404, ACC 200, STAT 121, REL A 275, FIN 201, Personal). The Canvas class list in the add-class modal is also sample data for now.
+**Canvas sync** works like this: in Canvas go to Account → Settings → Approved Integrations → "+ New Access Token", copy the token, and paste it into Settings → Connected accounts in DueList. Then on the Assignments page add a class with Source = Canvas and pick it from your live Canvas course list. "Sync now" (sidebar or Settings) pulls that class's assignments, due dates, submission status, and links. Only classes you add are synced. Assignments you check off by hand stay checked off; assignments with no due date in Canvas are skipped.
+
+**Category mapping.** Adding or editing a Canvas or Learning Suite class is two steps. Step 1 is the class itself. Step 2 lists the class's categories (Canvas assignment groups, or for Learning Suite the keyword groups Readings, Homework, Quizzes, Exams, Papers, Projects, Discussions, Other) and lets you choose which assignment type each one shows as, whether to include it at all, and for Learning Suite a default due time for all-day items. Finish syncs that class right away. Sync never changes a mapping you've made.
+
+**Learning Suite sync** has no API, so it reads each class's iCalendar feed. In Learning Suite open the course, go to Schedule, and copy the iCal link. On the Assignments page add a class with Source = Learning Suite and paste the link; "Check link" confirms it works and shows what's on it. "Sync now" pulls every dated item on the schedule except the "Topic: ..." lecture rows. Items come in as all-day (due 11:59 PM) unless the schedule has a time, and there's no submission status, so checking them off is up to you. Anything the professor wrote beyond the title becomes the item's starting note.
+
+Still mock: notification settings (the form works but nothing is saved), the streak numbers, and forgot-password.
