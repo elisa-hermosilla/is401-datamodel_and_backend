@@ -85,6 +85,15 @@ async function initApp(activeNav) {
   CANVAS = canvas;
   SYNC = sync;
   renderSidebar(activeNav);
+  startRelTimeTicker();
+}
+
+/* Re-fetch the sidebar sync summary and redraw just the "synced N min ago"
+   note. Call after anything that runs a sync (Settings buttons, the class
+   modal's Finish) so the sidebar doesn't wait for a page reload. */
+async function refreshSyncStatus() {
+  try { SYNC = await API.sync.status(); } catch { /* keep what we have */ }
+  renderSyncNote();
 }
 
 function sourceName(lmsSourceId) {
@@ -144,11 +153,29 @@ function relTime(iso) {
   if (!iso) return "never";
   const m = Math.round((Date.now() - new Date(iso).getTime()) / 60000);
   if (m < 1) return "just now";
-  if (m < 60) return `${m} min ago`;
+  if (m < 60) return `${m} min${m === 1 ? "" : "s"} ago`;
   const h = Math.round(m / 60);
   if (h < 24) return `${h} hr${h === 1 ? "" : "s"} ago`;
   const d = Math.round(h / 24);
   return `${d} day${d === 1 ? "" : "s"} ago`;
+}
+/* relTime() as a span that remembers its timestamp, so tickRelTimes() can
+   recompute the label later without a re-render. Use this for every "N min ago". */
+function relTimeEl(iso) {
+  return `<span class="reltime" data-ts="${esc(iso || "")}">${relTime(iso)}</span>`;
+}
+function tickRelTimes() {
+  document.querySelectorAll(".reltime[data-ts]").forEach(el => {
+    el.textContent = relTime(el.dataset.ts || null);
+  });
+}
+/* Keep relative times moving: every 30s while the tab is open, and immediately
+   when the user comes back to the tab after being away. Safe to call once. */
+let relTimeTicker = null;
+function startRelTimeTicker() {
+  if (relTimeTicker) return;
+  relTimeTicker = setInterval(tickRelTimes, 30000);
+  document.addEventListener("visibilitychange", () => { if (!document.hidden) tickRelTimes(); });
 }
 /* "YYYY-MM-DD" and "HH:MM" in local time, for date/time inputs */
 function toDateInput(d) { return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`; }
@@ -164,11 +191,25 @@ function typeLabel(a) { return a.type_name ? cap(a.type_name) : (a.category_name
 /* Source tag styled as a link. With a real URL (a synced Canvas assignment's
    html_url, or a linked Canvas course) it opens Canvas in a new tab; otherwise
    it just shows a toast, like the mockup did. */
-function sourceTag(cls, label, href) {
+/* The class's page in its LMS, or null when we can't build one. Canvas:
+   <base>/courses/<id>. Learning Suite: <base>/cid-<id>/student/<page>, where
+   the id comes from the iCal link and `page` is "home" (class card) or
+   "gradebook" (the Assignments list, since items have no link of their own). */
+function courseUrl(cls, page) {
+  const id = cls.external_course_id;
+  if (!id) return null;
+  const src = LMS_SOURCES.find(s => s.name === cls.source);
+  const base = (cls.source === "Canvas" && CANVAS.base_url) || (src && src.base_url);
+  if (!base) return null;
+  if (cls.source === "Canvas") return `${base}/courses/${encodeURIComponent(id)}`;
+  if (cls.source === "Learning Suite") return `${base}/cid-${encodeURIComponent(id)}/student/${page || "home"}`;
+  return null;
+}
+
+function sourceTag(cls, label, href, page) {
   if (cls.source === "Manual") return `<span class="tag type">Manual</span>`;
   const isCanvas = cls.source === "Canvas";
-  const link = href || (isCanvas && cls.external_course_id && CANVAS.base_url
-    ? `${CANVAS.base_url}/courses/${encodeURIComponent(cls.external_course_id)}` : null);
+  const link = href || courseUrl(cls, page);
   if (link) {
     return `<a href="${esc(link)}" class="tag link ${isCanvas ? "canvas" : "ls"}" target="_blank" rel="noopener" title="Open in ${cls.source}">${label || cls.source} ${ICONS.external}</a>`;
   }
@@ -202,7 +243,7 @@ function assignmentRow(a, opts = {}) {
           <span class="sep">•</span>
           <span class="submission">${esc(a.submission_type || "No submission")}</span>
           <span class="sep">•</span>
-          ${sourceTag(cls, null, a.external_url)}
+          ${sourceTag(cls, null, a.external_url, "gradebook")}
         </div>
         <div class="notes ${hasNote ? "" : "empty-note"}" data-notes="${a.assignment_id}">
           <span class="notes-text">${hasNote ? esc(a.notes) : "Add a note"}</span>
@@ -248,7 +289,9 @@ function bindChecks(container, onChange, opts = {}) {
   container.querySelectorAll("[data-source]").forEach(el => {
     el.addEventListener("click", e => {
       e.preventDefault(); e.stopPropagation();
-      toast(el.dataset.source === "Canvas" ? "Connect Canvas in Settings to open assignments there" : `${el.dataset.source} sync is not built yet`);
+      toast(el.dataset.source === "Canvas"
+        ? "Connect Canvas in Settings to open assignments there"
+        : "Add this class's iCal link (edit the class) to open it in Learning Suite");
     });
   });
   /* Real external links open Canvas without also opening the edit modal */
@@ -524,9 +567,7 @@ function renderSidebar(active) {
     </nav>
     <div class="sidebar-bottom">
       <button type="button" class="btn btn-secondary btn-block btn-sm" id="sync-btn">${ICONS.sync} Sync now</button>
-      <div class="sync-note">${SYNC.can_sync
-        ? `<span class="dot ${SYNC.canvas_status === "error" ? "bad" : ""}"></span> ${[SYNC.canvas_connected ? "Canvas" : null, SYNC.learning_suite_courses ? "Learning Suite" : null].filter(Boolean).join(" &amp; ")} · synced <span id="sync-time">${relTime(SYNC.last_synced_at)}</span>`
-        : `<span class="dot off"></span> Nothing linked yet · <a href="settings.html">Connect</a>`}</div>
+      <div class="sync-note"></div>
       <div class="user-chip">
         <div class="avatar">${esc(userInitials(USER))}</div>
         <div style="flex:1;min-width:0">
@@ -536,6 +577,7 @@ function renderSidebar(active) {
         <button type="button" class="btn btn-ghost btn-icon" id="logout-btn" title="Sign out">${ICONS.logout}</button>
       </div>
     </div>`;
+  renderSyncNote();
 
   /* Sync pulls Canvas (if connected) and every Learning Suite feed, then reloads the page data. */
   const btn = document.getElementById("sync-btn");
@@ -552,8 +594,9 @@ function renderSidebar(active) {
         ...(r.learning_suite?.errors || []).map(e => `${e.course_code}: ${e.error}`),
       ];
       if (r.nothing_linked) { toast("No Canvas or Learning Suite classes linked yet"); reset(); return; }
-      const timeEl = document.getElementById("sync-time");
-      if (timeEl) timeEl.textContent = "just now";
+      /* Ask the server for the real timestamp instead of assuming "just now";
+         if every feed failed, last_synced_at didn't move. */
+      await refreshSyncStatus();
       toast(problems.length
         ? problems[0]
         : `Synced ${r.assignments_synced} assignment${r.assignments_synced === 1 ? "" : "s"} from ${r.courses_synced} class${r.courses_synced === 1 ? "" : "es"}`);
@@ -569,6 +612,17 @@ function renderSidebar(active) {
     try { await API.logout(); } catch { /* session is gone either way */ }
     window.location.href = "index.html";
   });
+}
+
+/* The "Canvas & Learning Suite · synced 3 min ago" line under the Sync button.
+   Separate from renderSidebar so it can be redrawn without rebinding buttons. */
+function renderSyncNote() {
+  const el = document.querySelector("#sidebar .sync-note");
+  if (!el) return;
+  /* Short on purpose so it doesn't wrap: "Synced just now" / "Synced 2 mins ago" */
+  el.innerHTML = SYNC.can_sync
+    ? `<span class="dot ${SYNC.canvas_status === "error" ? "bad" : ""}"></span> ${SYNC.last_synced_at ? `Synced ${relTimeEl(SYNC.last_synced_at)}` : "Not synced yet"}`
+    : `<span class="dot off"></span> Nothing linked yet · <a href="settings.html">Connect</a>`;
 }
 
 /* ---------- Modal / toast ---------- */

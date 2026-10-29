@@ -21,8 +21,11 @@ export const BUCKETS = {
   reading: "Readings", homework: "Homework", quiz: "Quizzes", exam: "Exams",
   paper: "Papers", project: "Projects", discussion: "Discussions", other: "Other",
 };
+/* The title usually says what kind of item it is; when it doesn't ("Class 14
+   Preparation Report"), the first line of the instructions often does
+   ("Report your pre-reading..."). */
 export function bucketOf(e) {
-  return guessType(e.categories) || guessType(e.title) || "other";
+  return guessType(e.categories) || guessType(e.title) || guessType(e.description_first) || "other";
 }
 
 /* Create the bucket's category row if missing (typed by the keyword guess the
@@ -47,24 +50,14 @@ export function isScheduleNoise(e) {
 }
 
 /* Long first lines (a lecture blurb, say) are cut at a word boundary for the
-   title; the full text lands in the note. */
+   title. The professor's description is not imported anywhere: notes belong
+   to the student and are never autofilled. */
 const TITLE_MAX = 120;
 export function shortTitle(title) {
   const t = String(title || "").trim();
   if (t.length <= TITLE_MAX) return t;
   const cut = t.lastIndexOf(" ", TITLE_MAX - 1);
   return (cut > 40 ? t.slice(0, cut) : t.slice(0, TITLE_MAX - 1)).trim() + "…";
-}
-
-/* Anything in the description beyond the stored title becomes the
-   assignment's starting note (only when first created; later notes are the
-   student's). If the title was shortened, the whole description is kept. */
-function noteFrom(e, storedTitle) {
-  if (!e.description) return null;
-  const lines = e.description.split("\n").map(s => s.trim()).filter(Boolean);
-  if (lines[0] && lines[0].replace(/\s+/g, " ") === storedTitle) lines.shift();
-  const rest = lines.join("\n").trim();
-  return rest && rest !== storedTitle ? rest.slice(0, 2000) : null;
 }
 
 const TIMEOUT_MS = 20000;
@@ -81,6 +74,19 @@ function normalizeFeedUrl(raw) {
   if (/^webcal:\/\//i.test(url)) url = "https://" + url.slice(9);
   if (!/^https?:\/\//i.test(url)) throw new FeedError("The iCalendar link must start with https://");
   return url;
+}
+
+/* The feed link carries the course's Learning Suite id
+   (ical.php?courseID=O-QYBft90H64). The same id names the course's pages:
+   https://learningsuite.byu.edu/cid-<id>/student/home. Stored as the
+   course's external_course_id so the UI can link there. */
+export function courseIdFromFeedUrl(raw) {
+  try {
+    const id = new URL(normalizeFeedUrl(raw)).searchParams.get("courseID");
+    return id && id.trim() ? id.trim().slice(0, 100) : null;
+  } catch {
+    return null;
+  }
 }
 
 /* Download and parse a feed. */
@@ -164,8 +170,8 @@ export async function syncCourse(course, typeIds) {
       const title = shortTitle(e.title);
       await query(
         `insert into assignment (course_id, assignment_category_id, external_assignment_id, title, due_at, due_time_known,
-                                 submission_type, external_url, notes)
-         values ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+                                 submission_type, external_url)
+         values ($1, $2, $3, $4, $5, $6, $7, $8)
          on conflict (course_id, external_assignment_id) do update set
            assignment_category_id = excluded.assignment_category_id,
            title = excluded.title,
@@ -174,7 +180,7 @@ export async function syncCourse(course, typeIds) {
            external_url = coalesce(excluded.external_url, assignment.external_url),
            updated_at = now()`,
         [course.course_id, cat.assignment_category_id, `ics:${e.uid}`, title, dueAt.toISOString(), timeKnown,
-         "No submission", e.url, noteFrom(e, title)]);
+         "No submission", e.url]);
       stored++;
     }
 

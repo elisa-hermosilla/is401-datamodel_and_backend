@@ -367,7 +367,12 @@ function main() {
       } catch (err) {
         msg = `${course.course_code} saved, but sync failed: ${err.message}`;
       }
-      ASSIGNMENTS = await API.assignments.list();
+      /* Sync changed last_synced_at on the course too, so refresh both lists,
+         and the sidebar note (a first linked class flips it from "Nothing linked"). */
+      const [assignments, courses] = await Promise.all([API.assignments.list(), API.courses.list()]);
+      ASSIGNMENTS = assignments;
+      setClasses(courses);
+      refreshSyncStatus();
       closeModal("class-modal");
       render();
       toast(msg);

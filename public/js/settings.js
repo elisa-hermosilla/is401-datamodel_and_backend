@@ -39,17 +39,18 @@ function main() {
     if (CANVAS.connected) {
       const last = CANVAS.last_sync;
       const linked = CANVAS.linked_courses || 0;
+      /* Each part is escaped on its own so the live relTimeEl span survives */
       const detail = [
-        `Last synced ${relTime(CANVAS.last_synced_at)}`,
-        `${linked} linked class${linked === 1 ? "" : "es"}`,
-        last && last.status === "failed" ? `Last sync failed: ${last.error_message || "unknown error"}` : null,
-        last && last.status === "success" ? `${last.assignments_synced} assignment${last.assignments_synced === 1 ? "" : "s"} last time` : null,
+        `Last synced ${relTimeEl(CANVAS.last_synced_at)}`,
+        esc(`${linked} linked class${linked === 1 ? "" : "es"}`),
+        last && last.status === "failed" ? esc(`Last sync failed: ${last.error_message || "unknown error"}`) : null,
+        last && last.status === "success" ? esc(`${last.assignments_synced} assignment${last.assignments_synced === 1 ? "" : "s"} last time`) : null,
       ].filter(Boolean).join(" · ");
       el.innerHTML = `
         <div class="setting-row">
           <div class="info">
             <div class="t">Canvas <span class="tag ${CANVAS.status === "error" ? "type" : "canvas"}">${CANVAS.status === "error" ? "Token rejected" : "Connected"}</span></div>
-            <div class="d">${esc(detail)}</div>
+            <div class="d">${detail}</div>
             ${linked === 0 ? `<div class="d">Link a class: Assignments page → Add class → Canvas.</div>` : ""}
           </div>
           <div class="control">
@@ -66,6 +67,7 @@ function main() {
         } catch (err) { showCanvasError(err.message); }
         CANVAS = await API.canvas.status();
         renderCanvas();
+        refreshSyncStatus();
       });
       document.getElementById("canvas-disconnect").addEventListener("click", async e => {
         e.currentTarget.disabled = true;
@@ -74,6 +76,7 @@ function main() {
           CANVAS = await API.canvas.status();
           toast("Canvas disconnected");
           renderCanvas();
+          refreshSyncStatus();
         } catch (err) { showCanvasError(err.message); }
       });
     } else {
@@ -105,6 +108,7 @@ function main() {
           if (r.sync) toast(`Connected${who}. Synced ${r.sync.assignments_synced} assignment${r.sync.assignments_synced === 1 ? "" : "s"} from ${r.sync.courses_synced} class${r.sync.courses_synced === 1 ? "" : "es"}.`);
           else toast(`Connected${who}`);
           renderCanvas();
+          refreshSyncStatus();
           if (r.sync_error) showCanvasError(`Connected, but the first sync failed: ${r.sync_error}`);
         } catch (err) {
           showCanvasError(err.message);
@@ -126,16 +130,17 @@ function main() {
     const el = document.getElementById("ls-row");
     const n = LS.courses.length;
     const failed = LS.courses.filter(c => c.last_sync && c.last_sync.status === "failed");
+    /* Already-escaped HTML; the relTimeEl span is live so it can tick */
     const detail = n
-      ? [`${n} class${n === 1 ? "" : "es"} with an iCal link`, `last synced ${relTime(LS.last_synced_at)}`,
-         failed.length ? `${failed.length} failed last time` : null].filter(Boolean).join(" · ")
+      ? [esc(`${n} class${n === 1 ? "" : "es"} with an iCal link`), `last synced ${relTimeEl(LS.last_synced_at)}`,
+         failed.length ? esc(`${failed.length} failed last time`) : null].filter(Boolean).join(" · ")
       : "No classes have an iCal link yet. Add one: Assignments → Add class → Learning Suite.";
     el.innerHTML = `
       <div class="setting-row">
         <div class="info">
           <div class="t">Learning Suite <span class="tag ${n ? "ls" : "type"}">${n ? (failed.length ? "Needs attention" : "Linked") : "Not linked"}</span></div>
-          <div class="d">${esc(detail)}</div>
-          ${LS.courses.map(c => `<div class="d">${esc(c.course_code)}: ${c.last_sync ? (c.last_sync.status === "failed" ? `failed, ${esc(c.last_sync.error_message || "")}` : `${c.last_sync.assignments_synced} item${c.last_sync.assignments_synced === 1 ? "" : "s"} ${relTime(c.last_sync.finished_at)}`) : "never synced"}</div>`).join("")}
+          <div class="d">${detail}</div>
+          ${LS.courses.map(c => `<div class="d">${esc(c.course_code)}: ${c.last_sync ? (c.last_sync.status === "failed" ? `failed, ${esc(c.last_sync.error_message || "")}` : `${c.last_sync.assignments_synced} item${c.last_sync.assignments_synced === 1 ? "" : "s"} ${relTimeEl(c.last_sync.finished_at)}`) : "never synced"}</div>`).join("")}
         </div>
         ${n ? `<div class="control"><button class="btn btn-secondary btn-sm" id="ls-sync">Sync now</button></div>` : ""}
       </div>
@@ -152,6 +157,7 @@ function main() {
       }
       LS = await API.learningSuite.status();
       renderLearningSuite();
+      refreshSyncStatus();
     });
   }
   API.learningSuite.status().then(s => { LS = s; renderLearningSuite(); }).catch(() => renderLearningSuite());

@@ -1,9 +1,10 @@
 /* A small iCalendar (RFC 5545) reader: enough to turn a Learning Suite course
-   feed into a list of { uid, title, description, url, due_at, all_day }.
+   feed into a list of { uid, title, description, description_first, url, due_at, all_day }.
 
    Handles line unfolding, VEVENT and VTODO blocks, property parameters
-   (VALUE=DATE, TZID=...), text escapes, UTC "Z" stamps, zoned stamps, and
-   floating stamps (treated as campus time). No dependencies. */
+   (VALUE=DATE, TZID=...), text escapes, UTC "Z" stamps, zoned stamps,
+   floating stamps (treated as campus time), and multi-day all-day events
+   (due on the last day, since DTEND is exclusive). No dependencies. */
 
 /* Campus time zone: dates with no zone, and all-day items, are interpreted here. */
 export const CAMPUS_TZ = process.env.APP_TIMEZONE || "America/Denver";
@@ -57,6 +58,7 @@ function unescapeText(s) {
     .replace(/\\\\/g, "\\")
     .trim();
 }
+function collapseWs(s) { return String(s ?? "").replace(/\s+/g, " ").trim(); }
 
 /* "20261015" | "20261015T140000" | "20261015T200000Z" with VALUE/TZID params -> { date, allDay } */
 function parseStamp(value, params = {}) {
@@ -90,10 +92,8 @@ export function parseIcs(text) {
   if (!/BEGIN:VCALENDAR/i.test(String(text))) throw new Error("That link did not return a calendar (no BEGIN:VCALENDAR)");
   const items = [];
   let cur = null;
-  let prodid = "";
   for (const line of unfold(text)) {
     const upper = line.toUpperCase();
-    if (upper.startsWith("PRODID:")) prodid = line.slice(7);
     if (upper === "BEGIN:VEVENT" || upper === "BEGIN:VTODO") { cur = { kind: upper.slice(6), props: {} }; continue; }
     if (upper === "END:VEVENT" || upper === "END:VTODO") { if (cur) items.push(cur); cur = null; continue; }
     if (!cur) continue;
@@ -108,31 +108,43 @@ export function parseIcs(text) {
     cur.props[name.toUpperCase()] = { value: line.slice(idx + 1), params };
   }
 
-  /* Learning Suite (PRODID ctl.byu.edu) writes SUMMARY as a truncated copy of
-     DESCRIPTION with the line breaks removed, so the description's first line
-     is the real title there. Other feeds use SUMMARY as intended. */
-  const titleFromDescription = /ctl\.byu\.edu/i.test(prodid);
-
   const events = [];
   for (const it of items) {
     const P = it.props;
     const description = unescapeText(P.DESCRIPTION?.value) || null;
-    let title = unescapeText(P.SUMMARY?.value);
-    if (titleFromDescription && description) {
-      const first = description.split("\n").map(s => s.trim()).find(Boolean);
-      if (first) title = first;
-    }
-    title = title.replace(/\s+/g, " ").trim();
+    const first = collapseWs(description ? description.split("\n").map(s => s.trim()).find(Boolean) : "");
+    const summary = collapseWs(unescapeText(P.SUMMARY?.value));
+    /* Learning Suite schedule rows (topics, readings) have no name of their own:
+       their SUMMARY is the description with line breaks removed, cut at ~100
+       chars. Real assignments (exams, reports) have a proper SUMMARY and the
+       instructions in DESCRIPTION. Tell them apart per item: an auto-generated
+       SUMMARY is a prefix of the collapsed description, and then the
+       description's first line is the better title. */
+    const collapsed = collapseWs(description ? description.replace(/\n/g, "") : "");
+    const autoSummary = !summary || summary === first || (collapsed !== "" && collapsed.startsWith(summary));
+    const title = autoSummary && first ? first : summary;
     if (!title) continue;
     /* A to-do's DUE wins; otherwise the start stamp. */
     const stampProp = (it.kind === "VTODO" && P.DUE) ? P.DUE : (P.DTSTART || P.DUE);
-    const stamp = stampProp ? parseStamp(stampProp.value, stampProp.params) : null;
+    let stamp = stampProp ? parseStamp(stampProp.value, stampProp.params) : null;
     if (!stamp) continue;
+    /* An all-day event that spans days has DTSTART = the day it opens and
+       DTEND = the day after it closes (exclusive, RFC 5545). It's due on the
+       last day, not the first. Timed DTENDs are ignored. */
+    if (it.kind === "VEVENT" && stamp.allDay && P.DTEND) {
+      const end = parseStamp(P.DTEND.value, P.DTEND.params);
+      const m = String(P.DTEND.value).trim().match(/^(\d{4})(\d{2})(\d{2})/);
+      if (end && end.allDay && m && end.date > stamp.date) {
+        const [, y, mo, d] = m.map(Number);
+        stamp = { date: zonedToUtc(y, mo, d - 1, ALL_DAY_DUE.hour, ALL_DAY_DUE.minute, 0, CAMPUS_TZ), allDay: true };
+      }
+    }
     const uid = unescapeText(P.UID?.value) || `${title}|${stamp.date.toISOString()}`;
     events.push({
       uid: uid.slice(0, 100),
       title: title.slice(0, 200),
       description,
+      description_first: first || null,
       url: P.URL ? unescapeText(P.URL.value).slice(0, 500) : null,
       categories: P.CATEGORIES ? unescapeText(P.CATEGORIES.value) : null,
       due_at: stamp.date,

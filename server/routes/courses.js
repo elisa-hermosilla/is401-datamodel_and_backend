@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { query } from "../db.js";
 import { requireLogin } from "../middleware/auth.js";
+import { courseIdFromFeedUrl } from "../learningsuite.js";
 
 const router = Router();
 
@@ -55,12 +56,18 @@ async function validateCourse(body, { partial }) {
     out.ics_feed_url = url || null;
   }
 
-  /* Canvas: the course id in Canvas. Optional; null clears it. */
+  /* The course's id in its LMS. Canvas sends it from the class picker;
+     Learning Suite's is taken from the feed link below. Optional; null clears it. */
   if (has("external_course_id")) {
     const id = body.external_course_id == null ? null : String(body.external_course_id).trim();
-    if (id && id.length > 100) throw new ValidationError("Canvas course id must be 100 characters or fewer");
+    if (id && id.length > 100) throw new ValidationError("Course id must be 100 characters or fewer");
     out.external_course_id = id || null;
   }
+  /* A feed link names the Learning Suite course (courseID=...), which is what
+     the "Open in Learning Suite" links need. It always wins over a client value;
+     clearing the link clears the id unless the client set one explicitly. */
+  if (out.ics_feed_url) out.external_course_id = courseIdFromFeedUrl(out.ics_feed_url);
+  else if (has("ics_feed_url") && !has("external_course_id")) out.external_course_id = null;
 
   if (has("is_archived")) {
     if (typeof body.is_archived !== "boolean") throw new ValidationError("is_archived must be true or false");

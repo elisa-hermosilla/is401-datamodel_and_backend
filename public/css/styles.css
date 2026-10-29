@@ -155,7 +155,8 @@ input, select, textarea { font-family: inherit; font-size: 14px; }
 }
 .user-chip .name { font-weight: 600; font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .user-chip .email { font-size: 11px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.sync-note { font-size: 11px; color: var(--muted); padding: 10px 12px 0; line-height: 1.5; }
+/* Sits just under the Sync button, with clear space before the user chip */
+.sync-note { font-size: 11px; color: var(--muted); padding: 2px 12px 14px; line-height: 1.5; }
 .sync-note .dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: var(--ok); margin-right: 4px; vertical-align: middle; }
 .sync-note .dot.off { background: #cbd5e1; }
 .sync-note .dot.bad { background: var(--danger); }
