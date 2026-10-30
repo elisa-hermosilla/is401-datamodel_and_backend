@@ -57,7 +57,7 @@ function main() {
     const items = assignmentsOn(selected);
     const el = document.getElementById("day-list");
     el.innerHTML = items.length
-      ? items.map(a => assignmentRow(a)).join("")
+      ? items.map(a => assignmentRow(a, { noteIconOnly: true })).join("")
       : `<div class="empty">Nothing due ${fmtDayLabel(selected).toLowerCase()}.</div>`;
     bindChecks(el, () => { renderMonth(); renderDay(); });
   }

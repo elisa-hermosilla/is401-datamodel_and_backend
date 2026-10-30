@@ -22,7 +22,7 @@ function main() {
     try {
       await API.changePassword(current, next);
       pwForm.reset();
-      toast("Password changed");
+      toast("Password changed", "success");
     } catch (err) {
       fail(err.message);
     } finally {
@@ -63,7 +63,7 @@ function main() {
         const b = e.currentTarget; b.disabled = true; b.textContent = "Syncing";
         try {
           const r = await API.canvas.sync();
-          toast(`Synced ${r.assignments_synced} assignment${r.assignments_synced === 1 ? "" : "s"} from ${r.courses_synced} class${r.courses_synced === 1 ? "" : "es"}`);
+          toast(`Synced ${r.assignments_synced} assignment${r.assignments_synced === 1 ? "" : "s"} from ${r.courses_synced} class${r.courses_synced === 1 ? "" : "es"}`, "success");
         } catch (err) { showCanvasError(err.message); }
         CANVAS = await API.canvas.status();
         renderCanvas();
@@ -74,7 +74,7 @@ function main() {
         try {
           await API.canvas.disconnect();
           CANVAS = await API.canvas.status();
-          toast("Canvas disconnected");
+          toast("Canvas disconnected", "success");
           renderCanvas();
           refreshSyncStatus();
         } catch (err) { showCanvasError(err.message); }
@@ -94,7 +94,7 @@ function main() {
           <button class="btn btn-primary" type="submit" id="canvas-connect" style="flex:none">Connect</button>
         </form>
         <div class="form-error" id="canvas-error" role="alert" style="margin-top:10px"></div>
-        <div class="hint" style="display:block;margin-top:8px">The token is stored on the DueList server so sync can run. Revoke it any time from the same Canvas page.</div>`;
+        <div class="hint canvas-token-note">The token is stored on the DueList server so sync can run. Revoke it any time from the same Canvas page.</div>`;
       document.getElementById("canvas-form").addEventListener("submit", async e => {
         e.preventDefault();
         const btn = document.getElementById("canvas-connect");
@@ -105,8 +105,8 @@ function main() {
           const r = await API.canvas.connect(token);
           CANVAS = r;
           const who = r.canvas_name ? ` as ${r.canvas_name}` : "";
-          if (r.sync) toast(`Connected${who}. Synced ${r.sync.assignments_synced} assignment${r.sync.assignments_synced === 1 ? "" : "s"} from ${r.sync.courses_synced} class${r.sync.courses_synced === 1 ? "" : "es"}.`);
-          else toast(`Connected${who}`);
+          if (r.sync) toast(`Connected${who}. Synced ${r.sync.assignments_synced} assignment${r.sync.assignments_synced === 1 ? "" : "s"} from ${r.sync.courses_synced} class${r.sync.courses_synced === 1 ? "" : "es"}.`, "success");
+          else toast(`Connected${who}`, "success");
           renderCanvas();
           refreshSyncStatus();
           if (r.sync_error) showCanvasError(`Connected, but the first sync failed: ${r.sync_error}`);
@@ -151,7 +151,7 @@ function main() {
       try {
         const r = await API.learningSuite.sync();
         if (r.errors.length) { const e = document.getElementById("ls-error"); e.textContent = r.errors.map(x => `${x.course_code}: ${x.error}`).join(" · "); e.classList.add("show"); }
-        toast(`Synced ${r.assignments_synced} item${r.assignments_synced === 1 ? "" : "s"} from ${r.courses_synced} class${r.courses_synced === 1 ? "" : "es"}`);
+        toast(`Synced ${r.assignments_synced} item${r.assignments_synced === 1 ? "" : "s"} from ${r.courses_synced} class${r.courses_synced === 1 ? "" : "es"}`, r.errors.length ? "error" : "success");
       } catch (err) {
         const e = document.getElementById("ls-error"); e.textContent = err.message; e.classList.add("show");
       }
@@ -208,7 +208,7 @@ function main() {
       state.minutes.add(amt * unit);
       document.getElementById("custom-amount").value = "";
       renderHours(); renderDndExample();
-      toast(`Added ${fmtDur(amt * unit)} reminder`);
+      toast(`Added ${fmtDur(amt * unit)} reminder`, "success");
     }
   }
   document.getElementById("add-hours").addEventListener("click", addCustom);
@@ -314,7 +314,7 @@ function main() {
   document.getElementById("summary-on").addEventListener("change", () => toggleSection("summary-on", "summary-body"));
   document.getElementById("reminders-on").addEventListener("change", () => toggleSection("reminders-on", "reminders-body"));
 
-  document.getElementById("save").addEventListener("click", () => toast("Settings saved (not persisted yet)"));
+  document.getElementById("save").addEventListener("click", () => toast("Settings saved (not persisted yet)", "success"));
 
   renderDow();
   renderHours();

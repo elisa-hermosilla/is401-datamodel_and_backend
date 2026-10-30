@@ -228,10 +228,15 @@ function assignmentRow(a, opts = {}) {
   const cls = getClassById(a.course_id);
   const d = dueDate(a);
   const handle = opts.handle ? `<div class="handle" title="Drag to reorder">${ICONS.grip}</div>` : "";
+  const check = `<div class="check ${isDone(a) ? "on" : ""}" title="${isDone(a) ? "Mark incomplete" : "Mark complete"}" data-check="${a.assignment_id}">${isDone(a) ? ICONS.check : ""}</div>`;
   const hasNote = a.notes && a.notes.trim();
   const type = typeLabel(a);
+  const noteAddControl = opts.noteIconOnly
+    ? `<button type="button" class="notes-add icon-only" data-edit-note="${a.assignment_id}" title="Add a note" aria-label="Add a note">${ICONS.pencil}</button>`
+    : `<button type="button" class="notes-add" data-edit-note="${a.assignment_id}" title="Add a note">Add a note ${ICONS.pencil}</button>`;
   return `
     <div class="a-row ${opts.handle ? "" : "compact"} ${isDone(a) ? "done" : ""}" data-id="${a.assignment_id}" ${opts.handle ? 'draggable="true"' : ""}>
+      ${check}
       ${handle}
       <div class="bar" style="background:${cls.color_hex}"></div>
       <div class="body" data-open="${a.assignment_id}" title="Edit assignment">
@@ -240,21 +245,17 @@ function assignmentRow(a, opts = {}) {
           <button type="button" class="tag clickable" data-filter-class="${esc(cls.course_code)}" style="background:${cls.color_hex}1a;color:${cls.color_hex}" title="Filter by ${esc(cls.course_code)}">${esc(cls.course_code)}</button>
           ${type ? `<button type="button" class="tag type clickable" data-filter-type="${esc(type)}" title="Filter by ${esc(type)}">${esc(type)}</button>` : ""}
           ${a.estimated_minutes ? `<span class="tag type" title="Estimated effort">${fmtMinutes(a.estimated_minutes)}</span>` : ""}
-          <span class="sep">•</span>
-          <span class="submission">${esc(a.submission_type || "No submission")}</span>
-          <span class="sep">•</span>
+          <span class="submission tag type">${esc(a.submission_type && a.submission_type.toLowerCase() === "no submission" ? "No Submission" : a.submission_type || "No Submission")}</span>
           ${sourceTag(cls, null, a.external_url, "gradebook")}
         </div>
-        <div class="notes ${hasNote ? "" : "empty-note"}" data-notes="${a.assignment_id}">
-          <span class="notes-text">${hasNote ? esc(a.notes) : "Add a note"}</span>
-          <button type="button" class="pencil" data-edit-note="${a.assignment_id}" title="Edit note">${ICONS.pencil}</button>
-        </div>
+      </div>
+      <div class="notes ${hasNote ? "" : "empty-note"}" data-notes="${a.assignment_id}">
+        ${hasNote ? `<span class="notes-text">${esc(a.notes)}</span><button type="button" class="pencil" data-edit-note="${a.assignment_id}" title="Edit note" aria-label="Edit note">${ICONS.pencil}</button>` : noteAddControl}
       </div>
       <div class="due ${dueClass(a)}">
         <div class="d">${fmtDayLabel(d)}</div>
         <div class="t">${a.due_time_known === false ? "All day" : fmtTime(d)}</div>
       </div>
-      <div class="check ${isDone(a) ? "on" : ""}" title="${isDone(a) ? "Mark incomplete" : "Mark complete"}" data-check="${a.assignment_id}">${isDone(a) ? ICONS.check : ""}</div>
     </div>`;
 }
 
@@ -263,10 +264,10 @@ async function saveAssignment(id, fields, onChange, successMsg) {
   try {
     const row = await API.assignments.update(id, fields);
     replaceAssignment(row);
-    if (successMsg) toast(successMsg);
+    if (successMsg) toast(successMsg, "success");
     if (onChange) onChange();
   } catch (err) {
-    toast(err.message);
+    toast(err.message, "error");
     if (onChange) onChange();
   }
 }
@@ -291,7 +292,7 @@ function bindChecks(container, onChange, opts = {}) {
       e.preventDefault(); e.stopPropagation();
       toast(el.dataset.source === "Canvas"
         ? "Connect Canvas in Settings to open assignments there"
-        : "Add this class's iCal link (edit the class) to open it in Learning Suite");
+        : "Add this class's iCal link (edit the class) to open it in Learning Suite", "error");
     });
   });
   /* Real external links open Canvas without also opening the edit modal */
@@ -315,15 +316,17 @@ function bindChecks(container, onChange, opts = {}) {
   });
   /* Notes: clicks inside the notes block never open the edit modal */
   container.querySelectorAll("[data-notes]").forEach(el => {
-    el.addEventListener("click", e => e.stopPropagation());
     el.addEventListener("dragstart", e => e.stopPropagation());
   });
-  container.querySelectorAll("[data-edit-note]").forEach(btn => {
-    btn.addEventListener("click", e => {
+  if (!container.dataset.noteActionsBound) {
+    container.dataset.noteActionsBound = "true";
+    container.addEventListener("click", e => {
+      const btn = e.target.closest("[data-edit-note]");
+      if (!btn || !container.contains(btn)) return;
       e.stopPropagation();
       inlineNoteEditor(container.querySelector(`[data-notes="${btn.dataset.editNote}"]`), Number(btn.dataset.editNote), onChange);
     });
-  });
+  }
 }
 
 /* Swap a row's notes line for an inline textarea with Save / Cancel */
@@ -337,7 +340,7 @@ function inlineNoteEditor(notesEl, id, onChange) {
     <div class="notes-actions">
       <button type="button" class="btn btn-primary btn-sm" data-save>Save</button>
       <button type="button" class="btn btn-ghost btn-sm" data-cancel>Cancel</button>
-      ${a.notes && a.notes.trim() ? `<button type="button" class="btn btn-ghost btn-sm" data-clear style="margin-left:auto;color:var(--danger)">Delete note</button>` : ""}
+      ${a.notes && a.notes.trim() ? `<button type="button" class="btn btn-ghost btn-sm" data-clear style="margin-left:auto;color:var(--danger)">Delete Note</button>` : ""}
     </div>`;
   const ta = notesEl.querySelector("textarea");
   ta.focus(); ta.setSelectionRange(ta.value.length, ta.value.length);
@@ -412,7 +415,7 @@ function ensureAssignmentModal() {
         <div class="modal-actions">
           <button type="button" class="btn btn-ghost" id="a-delete" style="margin-right:auto;color:var(--danger)">${ICONS.trash} Delete</button>
           <button type="button" class="btn btn-secondary" data-close="assignment-modal">Cancel</button>
-          <button type="submit" class="btn btn-primary" id="a-submit">Add assignment</button>
+          <button type="submit" class="btn btn-primary" id="a-submit">Add Assignment</button>
         </div>
       </form>
     </div>`;
@@ -463,7 +466,7 @@ function ensureAssignmentModal() {
       const row = id ? await API.assignments.update(Number(id), fields) : await API.assignments.create(fields);
       replaceAssignment(row);
       closeModal("assignment-modal");
-      toast(id ? "Assignment saved" : "Assignment added");
+      toast(id ? "Assignment saved" : "Assignment added", "success");
       if (wrap._onChange) wrap._onChange();
     } catch (err) {
       errorBox.textContent = err.message;
@@ -479,7 +482,7 @@ function ensureAssignmentModal() {
     const id = Number(document.getElementById("a-id").value);
     if (!id) return;
     if (!armed) {
-      del.innerHTML = `${ICONS.trash} Confirm delete`;
+      del.innerHTML = `${ICONS.trash} Confirm Delete`;
       del.classList.add("btn-danger"); del.classList.remove("btn-ghost"); del.style.color = "";
       armed = setTimeout(() => disarm(), 4000);
       return;
@@ -490,7 +493,7 @@ function ensureAssignmentModal() {
       await API.assignments.remove(id);
       ASSIGNMENTS = ASSIGNMENTS.filter(a => a.assignment_id !== id);
       closeModal("assignment-modal");
-      toast("Assignment deleted");
+      toast("Assignment deleted", "success");
       if (wrap._onChange) wrap._onChange();
     } catch (err) {
       errorBox.textContent = err.message;
@@ -537,7 +540,7 @@ function openAssignmentModal(opts = {}, onChange) {
   document.getElementById("a-notes").value = a ? (a.notes || "") : "";
 
   document.getElementById("a-modal-title").textContent = a ? "Edit assignment" : "Add an assignment";
-  document.getElementById("a-submit").textContent = a ? "Save" : "Add assignment";
+  document.getElementById("a-submit").textContent = a ? "Save" : "Add Assignment";
   document.getElementById("a-delete").style.display = a ? "" : "none";
   openModal("assignment-modal");
   setTimeout(() => document.getElementById("a-title").focus(), 50);
@@ -597,13 +600,12 @@ function renderSidebar(active) {
       /* Ask the server for the real timestamp instead of assuming "just now";
          if every feed failed, last_synced_at didn't move. */
       await refreshSyncStatus();
-      toast(problems.length
-        ? problems[0]
-        : `Synced ${r.assignments_synced} assignment${r.assignments_synced === 1 ? "" : "s"} from ${r.courses_synced} class${r.courses_synced === 1 ? "" : "es"}`);
+      if (problems.length) toast(problems[0], "error");
+      else toast(`Synced ${r.assignments_synced} assignment${r.assignments_synced === 1 ? "" : "s"} from ${r.courses_synced} class${r.courses_synced === 1 ? "" : "es"}`, "success");
       if (r.courses_synced) setTimeout(() => window.location.reload(), problems.length ? 2200 : 900);
       else reset();
     } catch (err) {
-      toast(err.message);
+      toast(err.message, "error");
       reset();
     }
   });
@@ -635,10 +637,25 @@ document.addEventListener("click", e => {
 });
 
 let toastTimer;
-function toast(msg) {
+function toast(msg, type = "info") {
+  const kind = type === "error" || type === "success" ? type : "info";
   let t = document.querySelector(".toast");
   if (!t) { t = document.createElement("div"); t.className = "toast"; document.body.appendChild(t); }
-  t.textContent = msg;
+  t.className = `toast toast-${kind}`;
+  t.setAttribute("role", kind === "error" ? "alert" : "status");
+  t.setAttribute("aria-atomic", "true");
+  t.replaceChildren();
+  if (kind !== "info") {
+    const icon = document.createElement("span");
+    icon.className = "toast-icon";
+    icon.setAttribute("aria-hidden", "true");
+    icon.innerHTML = kind === "error" ? ICONS.alert : ICONS.check;
+    t.appendChild(icon);
+  }
+  const message = document.createElement("span");
+  message.className = "toast-message";
+  message.textContent = String(msg ?? "");
+  t.appendChild(message);
   t.classList.add("show");
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => t.classList.remove("show"), 2200);

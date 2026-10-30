@@ -29,13 +29,13 @@ function main() {
     const byDue = l => [...l].sort((x, y) => dueDate(x) - dueDate(y));
     const weekClasses = [...new Set(b.week.map(a => a.course_id))].length;
     const stats = [
-      { cls: "danger", icon: ICONS.alert, label: "Past due",     value: b.past.length,     foot: b.past.length ? `Oldest: ${fmtDayLabel(dueDate(byDue(b.past)[0]))}` : "None past due" },
-      { cls: "warn",   icon: ICONS.clock, label: "Due today",    value: b.today.length,    foot: b.today.length ? `Next: ${fmtTime(dueDate(byDue(b.today)[0]))}` : "Nothing left today" },
-      { cls: "info",   icon: ICONS.sun,   label: "Due tomorrow", value: b.tomorrow.length, foot: b.tomorrow.length ? `${esc(byDue(b.tomorrow)[0].course_code)} first` : "Nothing due tomorrow" },
-      { cls: "ok",     icon: ICONS.week,  label: "Next 7 days",  value: b.week.length,     foot: `${weekClasses} class${weekClasses === 1 ? "" : "es"}` },
+      { cls: "danger", icon: ICONS.alert, label: "Past due",     value: b.past.length,     foot: b.past.length ? `Oldest: ${fmtDayLabel(dueDate(byDue(b.past)[0]))}` : "None past due", size: "large" },
+      { cls: "warn",   icon: ICONS.clock, label: "Due today",    value: b.today.length,    foot: b.today.length ? `Next: ${fmtTime(dueDate(byDue(b.today)[0]))}` : "Nothing left today", size: "large" },
+      { cls: "info",   icon: ICONS.sun,   label: "Due tomorrow", value: b.tomorrow.length, foot: b.tomorrow.length ? `${esc(byDue(b.tomorrow)[0].course_code)} first` : "Nothing due tomorrow", size: "small" },
+      { cls: "ok",     icon: ICONS.week,  label: "Next 7 days",  value: b.week.length,     foot: `${weekClasses} class${weekClasses === 1 ? "" : "es"}`, size: "small" },
     ];
     document.getElementById("stat-grid").innerHTML = stats.map(s => `
-      <a class="card stat ${s.cls}" href="calendar.html" title="Open in calendar">
+      <a class="card stat ${s.cls} stat-${s.size}" href="calendar.html" title="Open in calendar">
         <div class="label"><span class="ico">${s.icon}</span>${s.label}</div>
         <div class="value">${s.value}</div>
         <div class="foot">${s.foot}</div>
@@ -46,6 +46,7 @@ function main() {
   function renderNext() {
     const open = openItems().sort((a, b) => dueDate(a) - dueDate(b));
     const next = open[0];
+    const nextIsOverdue = next && dueDate(next) < new Date();
     const done = ASSIGNMENTS.filter(isDone).length;
     const pct = ASSIGNMENTS.length ? Math.round((done / ASSIGNMENTS.length) * 100) : 0;
 
@@ -53,7 +54,7 @@ function main() {
     const type = next ? typeLabel(next) : "";
     el.innerHTML = `
       <div class="card next-card">
-        <div class="eyebrow">Work on this next</div>
+        <div class="eyebrow ${nextIsOverdue ? "overdue" : ""}">${nextIsOverdue ? `${ICONS.alert} Overdue: Do this now` : "Work on this next"}</div>
         ${next ? `
           <h3>${esc(next.title)}</h3>
           <div class="meta">
@@ -63,8 +64,8 @@ function main() {
             <span>Due ${fmtDayLabel(dueDate(next))} · ${fmtTime(dueDate(next))}</span>
           </div>
           <div class="actions">
-            <button type="button" class="btn btn-light" data-open-next="${next.assignment_id}">View details</button>
-            <button type="button" class="btn btn-outline" data-done-next="${next.assignment_id}">Mark complete</button>
+            <button type="button" class="btn btn-light" data-open-next="${next.assignment_id}">View Details</button>
+            <button type="button" class="btn btn-light" data-done-next="${next.assignment_id}">Mark Complete</button>
           </div>` : `
           <h3>Nothing open</h3>
           <p class="empty-next">${CLASSES.length ? "No open assignments." : "Add a class on the Assignments page to get started."}</p>`}
@@ -92,7 +93,7 @@ function main() {
         <div class="flame ${pastDueStreak ? "" : "off"}">${ICONS.flame}</div>
         <div>
           <div class="num">${pastDueStreak}<small>days</small></div>
-          <div class="title">No past-due assignments</div>
+          <div class="title">${b.past.length ? "Streak Lost! Assignments Past-due." : "No past-due assignments"}</div>
           <div class="meta">${pastDueStreak ? `Best streak: ${USER.no_past_due_best_streak} days` : `${b.past.length} past due · Best: ${USER.no_past_due_best_streak} days`}</div>
           <div class="streak-dots">${dots(pastDueStreak)}</div>
         </div>
@@ -206,8 +207,8 @@ function main() {
         order.forEach((id, i) => { getAssignment(id).sort_order = i; });
         sortSel.value = "custom";
         renderList();
-        try { await API.assignments.reorder(order); toast("Order saved"); }
-        catch (err) { toast(err.message); }
+        try { await API.assignments.reorder(order); toast("Order saved", "success"); }
+        catch (err) { toast(err.message, "error"); }
       });
     });
   }
