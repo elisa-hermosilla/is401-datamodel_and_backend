@@ -3,12 +3,13 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Sign in to DueList to manage your Canvas and Learning Suite assignments in one place.">
   <title>Sign in · DueList</title>
   <link rel="icon" href="favicon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="css/styles.css">
 </head>
 <body>
-  <div class="auth-wrap">
+  <div class="auth-wrap auth-login">
     <section class="auth-hero">
       <div>
         <div class="brand"><span class="brand-mark">D</span> DueList</div>
@@ -41,8 +42,8 @@
             <input class="input" id="pass" type="password" placeholder="Password" autocomplete="current-password">
           </div>
           <div class="between" style="margin-bottom:18px">
-            <label style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--muted)">
-              <input type="checkbox" checked> Keep me signed in
+            <label for="keep-signed-in" style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--muted)">
+              <input type="checkbox" id="keep-signed-in" checked> Keep me signed in
             </label>
           </div>
           <button class="btn btn-primary btn-block" type="submit" id="login-btn">Sign in</button>

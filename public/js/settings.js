@@ -89,7 +89,7 @@ function main() {
         </div>
         <form id="canvas-form" novalidate class="row" style="max-width:560px;align-items:flex-start">
           <div class="field" style="margin:0;flex:1">
-            <input class="input" id="canvas-token" type="password" placeholder="Paste access token" autocomplete="off" spellcheck="false">
+            <input class="input" id="canvas-token" type="password" aria-label="Canvas access token" placeholder="Paste access token" autocomplete="off" spellcheck="false">
           </div>
           <button class="btn btn-primary" type="submit" id="canvas-connect" style="flex:none">Connect</button>
         </form>

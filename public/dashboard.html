@@ -3,6 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="See upcoming, overdue, and completed assignments in your DueList dashboard.">
+  <meta name="robots" content="noindex, nofollow">
   <title>Dashboard · DueList</title>
   <link rel="icon" href="favicon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="css/styles.css">
@@ -21,10 +23,10 @@
       </div>
 
       <!-- Due-window widgets -->
-      <div class="stat-grid" id="stat-grid"></div>
-
       <!-- Work on this next + completed progress -->
       <div class="next-grid" id="next-grid"></div>
+
+      <div class="stat-grid" id="stat-grid"></div>
 
       <!-- Streaks -->
       <div class="streak-grid" id="streak-grid"></div>
@@ -37,7 +39,7 @@
             <p class="sub">Drag rows to set your own order, pick a sort, or click a class or type tag to filter.</p>
           </div>
           <div class="toolbar">
-            <label style="font-size:13px;color:var(--muted)">Sort by</label>
+            <label for="sort" style="font-size:13px;color:var(--muted)">Sort by</label>
             <select class="select" id="sort" style="width:auto">
               <option value="due">Due date</option>
               <option value="class">Class</option>
@@ -51,7 +53,9 @@
         </div>
         <div class="filter-bar">
           <span class="label">Filter</span>
+          <label class="visually-hidden" for="f-class">Filter by class</label>
           <select class="select" id="f-class"></select>
+          <label class="visually-hidden" for="f-type">Filter by assignment type</label>
           <select class="select" id="f-type"></select>
           <div class="active-filters" id="active-filters"></div>
           <span class="filter-count" id="filter-count"></span>

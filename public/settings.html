@@ -3,6 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Manage your DueList account, assignment reminders, notifications, and connected services.">
+  <meta name="robots" content="noindex, nofollow">
   <title>Settings · DueList</title>
   <link rel="icon" href="favicon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="css/styles.css">
@@ -59,7 +61,7 @@
               <h3>Summary notifications</h3>
               <p class="sub">A digest of what's due, sent on the days and time you choose.</p>
             </div>
-            <label class="switch"><input type="checkbox" id="summary-on" checked><span class="slider"></span></label>
+            <label class="switch"><input type="checkbox" id="summary-on" aria-label="Enable summary notifications" checked><span class="slider"></span></label>
           </div>
           <div id="summary-body">
             <div class="setting-row">
@@ -75,6 +77,7 @@
                 <div class="d">When the summary arrives on those days.</div>
               </div>
               <div class="control">
+                <label class="visually-hidden" for="summary-time">Summary notification time</label>
                 <input class="input" type="time" id="summary-time" value="07:30">
               </div>
             </div>
@@ -84,6 +87,7 @@
                 <div class="d">What the digest covers.</div>
               </div>
               <div class="control">
+                <label class="visually-hidden" for="summary-range">Assignments to include in summary</label>
                 <select class="select" id="summary-range">
                   <option>Due today</option>
                   <option selected>Due today &amp; tomorrow</option>
@@ -102,7 +106,7 @@
               <h3>Assignment reminders</h3>
               <p class="sub">A reminder before each assignment is due.</p>
             </div>
-            <label class="switch"><input type="checkbox" id="reminders-on" checked><span class="slider"></span></label>
+            <label class="switch"><input type="checkbox" id="reminders-on" aria-label="Enable assignment reminders" checked><span class="slider"></span></label>
           </div>
           <div id="reminders-body">
             <div class="setting-row">
@@ -113,7 +117,9 @@
             </div>
             <div class="chips" id="hours-chips"></div>
             <div class="row" style="margin-top:12px;max-width:420px">
+              <label class="visually-hidden" for="custom-amount">Custom reminder amount</label>
               <input class="input" type="number" id="custom-amount" min="1" max="999" placeholder="Custom amount">
+              <label class="visually-hidden" for="custom-unit">Custom reminder unit</label>
               <select class="select" id="custom-unit" style="flex:none;width:auto">
                 <option value="1">minutes</option>
                 <option value="60" selected>hours</option>
@@ -128,16 +134,16 @@
                 <div class="d">Pause notifications during these hours. Time inside quiet hours is skipped when counting down to a reminder, so the reminder arrives before quiet hours start.</div>
               </div>
               <div class="control">
-                <label class="switch"><input type="checkbox" id="dnd-on" checked><span class="slider"></span></label>
+                <label class="switch"><input type="checkbox" id="dnd-on" aria-label="Enable quiet hours" checked><span class="slider"></span></label>
               </div>
             </div>
             <div class="row" id="dnd-times" style="max-width:420px">
               <div class="field" style="margin:0">
-                <label>Quiet from</label>
+                <label for="dnd-start">Quiet from</label>
                 <input class="input" type="time" id="dnd-start" value="23:00">
               </div>
               <div class="field" style="margin:0">
-                <label>Until</label>
+                <label for="dnd-end">Until</label>
                 <input class="input" type="time" id="dnd-end" value="08:00">
               </div>
             </div>
@@ -158,11 +164,11 @@
           </div>
           <div class="setting-row">
             <div class="info"><div class="t">Push notifications</div><div class="d">Phone and desktop.</div></div>
-            <div class="control"><label class="switch"><input type="checkbox" checked><span class="slider"></span></label></div>
+            <div class="control"><label class="switch"><input type="checkbox" aria-label="Enable push notifications" checked><span class="slider"></span></label></div>
           </div>
           <div class="setting-row">
             <div class="info"><div class="t">Email</div><div class="d" id="delivery-email"></div></div>
-            <div class="control"><label class="switch"><input type="checkbox"><span class="slider"></span></label></div>
+            <div class="control"><label class="switch"><input type="checkbox" aria-label="Enable email notifications"><span class="slider"></span></label></div>
           </div>
           <div class="setting-row">
             <div class="info"><div class="t">Text message</div><div class="d">Not connected</div></div>
