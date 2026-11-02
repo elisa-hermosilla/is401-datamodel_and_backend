@@ -25,8 +25,8 @@ This approach fits our team and project because, between the four core classes, 
   <li>Install Node.js (version 18 or newer) from https://nodejs.org. Check with <code>node -v</code>. on your terminal</li>
   <li>Clone the repo: <br> <code>git clone https://github.com/elisa-hermosilla/is401-datamodel_and_backend.git</code> and then open the path to the directory with <code>cd is401-datamodel_and_backend</code></li>
   <li>Install dependencies (they are not stored in the repo) <br> <code>npm install</code></li>
-  <li>Create your <code>.env</code> file by copying the <code>.env.example</code> file an renaming it <code>.env</code> in the project root file, then open the <code>.env</code> file and change the SESSION_SECRET to a long random string of your choice</li><br>
-  <p>Note: If you are trying to run this on VS code, make sure the <code>.env</code> is next to the <code>package.json</code>.</p><br>
+  <li>Create your <code>.env</code> file by copying the <code>.env.example</code> file an renaming it <code>.env</code> in the project root file, then open the <code>.env</code> file and change the SESSION_SECRET to a long random string of your choice</li>
+  <p>Note: If you are trying to run this on VS code, make sure the <code>.env</code> is next to the <code>package.json</code>.</p>
   <p>Also, if it can't find the correct "DATABASE_URL", please contact Devin Fisher (dfishy03@byu.edu) for the updated "DATABASE_URL".</p>
 </ol>
 <br>
