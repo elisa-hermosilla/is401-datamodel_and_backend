@@ -56,7 +56,7 @@ function main() {
       <div class="card next-card">
         <div class="eyebrow ${nextIsOverdue ? "overdue" : ""}">${nextIsOverdue ? `${ICONS.alert} Overdue: Do this now` : "Work on this next"}</div>
         ${next ? `
-          <h3>${esc(next.title)}</h3>
+          <h2>${esc(next.title)}</h2>
           <div class="meta">
             <span class="tag">${esc(next.course_code)}</span>
             ${type ? `<span class="tag">${esc(type)}</span>` : ""}
@@ -67,7 +67,7 @@ function main() {
             <button type="button" class="btn btn-light" data-open-next="${next.assignment_id}">View Details</button>
             <button type="button" class="btn btn-light" data-done-next="${next.assignment_id}">Mark Complete</button>
           </div>` : `
-          <h3>Nothing open</h3>
+          <h2>Nothing open</h2>
           <p class="empty-next">${CLASSES.length ? "No open assignments." : "Add a class on the Assignments page to get started."}</p>`}
       </div>
       <div class="card progress-card">

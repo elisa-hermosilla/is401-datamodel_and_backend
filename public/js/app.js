@@ -566,7 +566,7 @@ function renderSidebar(active) {
   el.innerHTML = `
     <a class="brand" href="dashboard.html"><span class="brand-mark">D</span><span>DueList</span></a>
     <nav class="nav">
-      ${items.map(i => `<a href="${i.href}" class="${i.key === active ? "active" : ""}">${i.icon}<span>${i.label}</span></a>`).join("")}
+      ${items.map(i => `<a href="${i.href}" class="${i.key === active ? "active" : ""}" aria-label="${i.label}">${i.icon}<span>${i.label}</span></a>`).join("")}
     </nav>
     <div class="sidebar-bottom">
       <button type="button" class="btn btn-secondary btn-block btn-sm" id="sync-btn">${ICONS.sync} Sync now</button>
