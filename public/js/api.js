@@ -75,5 +75,6 @@ const API = {
     update: (id, fields) => apiFetch(`/api/assignments/${id}`, { method: "PUT", body: fields }),
     remove: id => apiFetch(`/api/assignments/${id}`, { method: "DELETE" }),
     reorder: ids => apiFetch("/api/assignments/reorder", { method: "POST", body: { assignment_ids: ids } }),
+    resetOrder: () => apiFetch("/api/assignments/reorder", { method: "POST", body: { reset: true } }),
   },
 };

@@ -1,6 +1,7 @@
 /* ---------- Shared helpers, sidebar, and UI bits ---------- */
 
 const ICONS = {
+  search: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>',
   dashboard: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg>',
   calendar:  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>',
   list:      '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6h11M9 12h11M9 18h11"/><path d="M4 6h.01M4 12h.01M4 18h.01"/></svg>',
@@ -223,19 +224,65 @@ function dueClass(a) {
   return "";
 }
 
+/* ---------- Search helpers ---------- */
+/* Lowercase, accents stripped ("Café" -> "cafe"), for matching and highlighting. */
+function normText(s) {
+  return String(s ?? "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
+}
+/* HTML for `text` with every occurrence of each (already normalized) token
+   wrapped in <mark>. Matching is case- and accent-insensitive; the original
+   characters are kept and escaped. */
+function highlightText(text, tokens) {
+  const raw = String(text ?? "");
+  if (!tokens || !tokens.length || !raw) return esc(raw);
+  /* Normalize one character at a time so each normalized index maps back to its original index */
+  let norm = "";
+  const origIndex = [];
+  for (let i = 0; i < raw.length; i++) {
+    const n = normText(raw[i]);
+    for (let k = 0; k < n.length; k++) origIndex.push(i);
+    norm += n;
+  }
+  const hits = new Array(raw.length).fill(false);
+  for (const t of tokens) {
+    if (!t) continue;
+    let from = 0, at;
+    while ((at = norm.indexOf(t, from)) !== -1) {
+      for (let k = at; k < at + t.length; k++) hits[origIndex[k]] = true;
+      from = at + 1;
+    }
+  }
+  let out = "", i = 0;
+  while (i < raw.length) {
+    const on = hits[i];
+    let j = i;
+    while (j < raw.length && hits[j] === on) j++;
+    const seg = esc(raw.slice(i, j));
+    out += on ? `<mark class="hl">${seg}</mark>` : seg;
+    i = j;
+  }
+  return out;
+}
+
 /* ---------- Assignment row ---------- */
 function assignmentRow(a, opts = {}) {
   const cls = getClassById(a.course_id);
   const d = dueDate(a);
-  const handle = opts.handle ? `<div class="handle" title="Drag to reorder">${ICONS.grip}</div>` : "";
+  /* opts.handle: draggable with a grip. opts.gutter: no grip, but keep the
+     grip's column so rows line up the same in every sort mode (dashboard).
+     Neither: the compact layout used on the other pages. */
+  const gutter = opts.handle || opts.gutter;
+  const handle = opts.handle
+    ? `<div class="handle" title="Drag to reorder">${ICONS.grip}</div>`
+    : gutter ? `<div class="handle spacer" aria-hidden="true">${ICONS.grip}</div>` : "";
   const hasNote = a.notes && a.notes.trim();
   const type = typeLabel(a);
   return `
-    <div class="a-row ${opts.handle ? "" : "compact"} ${isDone(a) ? "done" : ""}" data-id="${a.assignment_id}" ${opts.handle ? 'draggable="true"' : ""}>
+    <div class="a-row ${gutter ? "" : "compact"} ${isDone(a) ? "done" : ""}" data-id="${a.assignment_id}" ${opts.handle ? 'draggable="true"' : ""}>
       ${handle}
       <div class="bar" style="background:${cls.color_hex}"></div>
       <div class="body" data-open="${a.assignment_id}" title="Edit assignment">
-        <div class="title">${esc(a.title)}</div>
+        <div class="title">${opts.highlight && opts.highlight.length ? highlightText(a.title, opts.highlight) : esc(a.title)}</div>
         <div class="meta">
           <button type="button" class="tag clickable" data-filter-class="${esc(cls.course_code)}" style="background:${cls.color_hex}1a;color:${cls.color_hex}" title="Filter by ${esc(cls.course_code)}">${esc(cls.course_code)}</button>
           ${type ? `<button type="button" class="tag type clickable" data-filter-type="${esc(type)}" title="Filter by ${esc(type)}">${esc(type)}</button>` : ""}
@@ -579,33 +626,43 @@ function renderSidebar(active) {
     </div>`;
   renderSyncNote();
 
-  /* Sync pulls Canvas (if connected) and every Learning Suite feed, then reloads the page data. */
+  /* Sync goes class by class (each linked Canvas class, each Learning Suite
+     feed) so the toast can say which one is in progress, then reloads the
+     page data. One class failing doesn't stop the others. */
   const btn = document.getElementById("sync-btn");
   btn.addEventListener("click", async () => {
     if (!SYNC.can_sync) { toast("Connect Canvas in Settings or add a Learning Suite class with an iCal link"); return; }
+    const targets = CLASSES.filter(c => !c.is_archived && (
+      (c.source === "Canvas" && c.external_course_id && SYNC.canvas_connected) ||
+      (c.source === "Learning Suite" && c.ics_feed_url)));
+    if (!targets.length) { toast("No Canvas or Learning Suite classes linked yet"); return; }
+
     btn.disabled = true;
     btn.classList.add("syncing");
     btn.innerHTML = `${ICONS.sync} Syncing`;
     const reset = () => { btn.disabled = false; btn.classList.remove("syncing"); btn.innerHTML = `${ICONS.sync} Sync now`; };
-    try {
-      const r = await API.sync.run();
-      const problems = [
-        r.canvas_error ? `Canvas: ${r.canvas_error}` : null,
-        ...(r.learning_suite?.errors || []).map(e => `${e.course_code}: ${e.error}`),
-      ];
-      if (r.nothing_linked) { toast("No Canvas or Learning Suite classes linked yet"); reset(); return; }
-      /* Ask the server for the real timestamp instead of assuming "just now";
-         if every feed failed, last_synced_at didn't move. */
-      await refreshSyncStatus();
-      toast(problems.length
-        ? problems[0]
-        : `Synced ${r.assignments_synced} assignment${r.assignments_synced === 1 ? "" : "s"} from ${r.courses_synced} class${r.courses_synced === 1 ? "" : "es"}`);
-      if (r.courses_synced) setTimeout(() => window.location.reload(), problems.length ? 2200 : 900);
-      else reset();
-    } catch (err) {
-      toast(err.message);
-      reset();
+
+    let assignments = 0, synced = 0;
+    const problems = [];
+    for (let i = 0; i < targets.length; i++) {
+      const c = targets[i];
+      toast(`Syncing ${c.course_code} from ${c.source} (${i + 1} of ${targets.length})…`, { sticky: true });
+      try {
+        const r = await API.courses.sync(c.course_id);
+        assignments += r.assignments_synced || 0;
+        synced++;
+      } catch (err) {
+        problems.push(`${c.course_code}: ${err.message}`);
+      }
     }
+    /* Ask the server for the real timestamp instead of assuming "just now";
+       if every class failed, last_synced_at didn't move. */
+    await refreshSyncStatus();
+    toast(problems.length
+      ? problems[0]
+      : `Synced ${assignments} assignment${assignments === 1 ? "" : "s"} from ${synced} class${synced === 1 ? "" : "es"}`);
+    if (synced) setTimeout(() => window.location.reload(), problems.length ? 2200 : 900);
+    else reset();
   });
 
   document.getElementById("logout-btn").addEventListener("click", async () => {
@@ -635,11 +692,14 @@ document.addEventListener("click", e => {
 });
 
 let toastTimer;
-function toast(msg) {
+/* Bottom-centre message. Hides itself after ~2s unless { sticky: true }, which
+   keeps it up (for live progress) until the next toast() call replaces it. */
+function toast(msg, { sticky = false } = {}) {
+  if (!msg) return; // never show an empty box
   let t = document.querySelector(".toast");
   if (!t) { t = document.createElement("div"); t.className = "toast"; document.body.appendChild(t); }
   t.textContent = msg;
   t.classList.add("show");
   clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => t.classList.remove("show"), 2200);
+  if (!sticky) toastTimer = setTimeout(() => t.classList.remove("show"), 2200);
 }
