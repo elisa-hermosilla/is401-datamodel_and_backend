@@ -1,11 +1,8 @@
-/* Dashboard: deadlines, a paged assignment queue, and a seven-day workload. */
+/* Dashboard: deadlines, a scrolling assignment queue, and a seven-day workload. */
 initApp("dashboard").then(main);
 
 function main() {
   const $ = id => document.getElementById(id);
-  const rowsPerPage = () => window.innerHeight >= 1000 ? 6 : window.innerHeight >= 850 ? 5 : 3;
-  let pageSize = rowsPerPage();
-  let page = 0;
   let scope = "all";
   let selectedDate = null;
   const filters = { classes: new Set(), types: new Set() };
@@ -48,7 +45,7 @@ function main() {
   }
   const scopeName = () => ({ all: showDone.checked ? "All assignments" : "All open assignments", past: "Past due", today: "Still due today", tomorrow: "Due tomorrow", week: "Due in the next 7 days", date: selectedDate ? `Due ${fmtDayLabel(selectedDate).toLowerCase()}` : "" })[scope];
   function setScope(value, date = null) {
-    scope = value; selectedDate = date; page = 0;
+    scope = value; selectedDate = date;
     renderStats(); renderWeek(); renderList();
   }
 
@@ -128,7 +125,7 @@ function main() {
     ].filter(Boolean).join(" | "));
     return searchTokens.every(t => hay.includes(t));
   }
-  function updateSearch() { searchTokens = tokensOf(searchEl.value); page = 0; renderList(); }
+  function updateSearch() { searchTokens = tokensOf(searchEl.value); renderList(); }
   let searchTimer = null;
   searchEl.addEventListener("input", () => { clearTimeout(searchTimer); searchTimer = setTimeout(updateSearch, 120); });
   searchEl.addEventListener("keydown", e => {
@@ -213,9 +210,6 @@ function main() {
 
   function renderList() {
     const list = sorted();
-    const pages = Math.max(1, Math.ceil(list.length / pageSize));
-    page = Math.min(page, pages - 1);
-    const start = page * pageSize;
     const el = $("assignment-list");
     /* Drag handles and the Reset button only make sense in Custom mode, and
        Reset only when the custom order actually differs from due-date order.
@@ -227,12 +221,9 @@ function main() {
     if (!showReset) disarmReset();
     const hasFilters = filters.classes.size || filters.types.size || scope !== "all";
     el.innerHTML = list.length
-      ? list.slice(start, start + pageSize).map(a => compactAssignmentRow(a, { handle: custom, gutter: true, highlight: searchTokens })).join("")
+      ? list.map(a => compactAssignmentRow(a, { handle: custom, gutter: true, highlight: searchTokens })).join("")
       : `<div class="empty queue-empty"><span class="empty-icon" aria-hidden="true">${ICONS.list}</span><strong>${ASSIGNMENTS.length ? "No assignments to show" : "Your assignments will appear here"}</strong><p>${searchTokens.length ? `Nothing matches “${esc(searchEl.value.trim())}”${hasFilters ? " with these filters" : ""}.` : ASSIGNMENTS.length ? "Try another date range or adjust your filters." : "Add a class to start planning your week."}</p>${ASSIGNMENTS.length ? '<button type="button" class="btn btn-secondary btn-sm" id="reset-queue">Reset filters</button>' : '<a class="btn btn-secondary btn-sm" href="assignments.html">Add a class</a>'}</div>`;
-    $("filter-count").textContent = list.length ? `${start + 1}–${Math.min(start + pageSize, list.length)} of ${list.length}` : "0 assignments";
-    $("queue-page").textContent = `${page + 1} / ${pages}`;
-    $("queue-prev").disabled = page === 0;
-    $("queue-next").disabled = page >= pages - 1;
+    $("filter-count").textContent = `${list.length} assignment${list.length === 1 ? "" : "s"}`;
     $("queue-scope").textContent = scopeName();
     $("all-open").setAttribute("aria-pressed", scope === "all");
     sortSel.title = custom ? "Drag rows to reorder. Your order is saved automatically." : "Choose Custom order to drag rows into your own order.";
@@ -274,21 +265,24 @@ function main() {
   function resetQueue() {
     filters.classes.clear(); filters.types.clear(); scope = "all"; selectedDate = null;
     searchEl.value = ""; searchTokens = []; showDone.checked = false;
-    page = 0; renderAll();
+    renderAll();
   }
 
-  /* While a row is being dragged near the top or bottom of the window, scroll
-     the page in that direction. The speed starts slow and ramps up the longer
-     the pointer stays in the edge zone, and is faster the closer it is to the
+  /* While a row is being dragged near the top or bottom of the list, scroll
+     the list in that direction (the page instead, when the list has no
+     scrollbar of its own). The speed starts slow and ramps up the longer the
+     pointer stays in the edge zone, and is faster the closer it is to the
      edge. HTML5 drag events keep firing while the pointer is held still, so a
      frame loop driven by the last known pointer Y is enough. */
   const autoScroll = (() => {
-    const ZONE = 90, MIN = 2, MAX = 24, ACCEL = 0.012; // px/frame, and px/frame gained per ms in the zone
-    let y = null, raf = null, enteredAt = null;
+    const ZONE = 70, MIN = 2, MAX = 24, ACCEL = 0.012; // px/frame, and px/frame gained per ms in the zone
+    let y = null, raf = null, enteredAt = null, box = null;
     const onDragOver = e => { y = e.clientY; };
     function frame() {
       if (y != null) {
-        const fromTop = y, fromBottom = window.innerHeight - y;
+        const own = box && box.scrollHeight > box.clientHeight + 1;
+        const r = own ? box.getBoundingClientRect() : { top: 0, bottom: window.innerHeight };
+        const fromTop = y - r.top, fromBottom = r.bottom - y;
         let dir = 0, depth = 0;
         if (fromTop < ZONE) { dir = -1; depth = 1 - Math.max(0, fromTop) / ZONE; }
         else if (fromBottom < ZONE) { dir = 1; depth = 1 - Math.max(0, fromBottom) / ZONE; }
@@ -296,9 +290,13 @@ function main() {
           if (enteredAt == null) enteredAt = performance.now();
           const ramp = Math.min(MAX, MIN + (performance.now() - enteredAt) * ACCEL);
           const v = (0.3 + 0.7 * depth) * ramp;
-          const maxY = document.documentElement.scrollHeight - window.innerHeight;
-          const next = Math.max(0, Math.min(maxY, window.scrollY + dir * v));
-          if (next !== window.scrollY) window.scrollTo(0, next);
+          if (own) {
+            box.scrollTop = Math.max(0, Math.min(box.scrollHeight - box.clientHeight, box.scrollTop + dir * v));
+          } else {
+            const maxY = document.documentElement.scrollHeight - window.innerHeight;
+            const next = Math.max(0, Math.min(maxY, window.scrollY + dir * v));
+            if (next !== window.scrollY) window.scrollTo(0, next);
+          }
         } else {
           enteredAt = null;
         }
@@ -306,8 +304,8 @@ function main() {
       raf = requestAnimationFrame(frame);
     }
     return {
-      start() { y = null; enteredAt = null; document.addEventListener("dragover", onDragOver); if (!raf) raf = requestAnimationFrame(frame); },
-      stop() { document.removeEventListener("dragover", onDragOver); cancelAnimationFrame(raf); raf = null; y = null; enteredAt = null; },
+      start(el) { box = el; y = null; enteredAt = null; document.addEventListener("dragover", onDragOver); if (!raf) raf = requestAnimationFrame(frame); },
+      stop() { document.removeEventListener("dragover", onDragOver); cancelAnimationFrame(raf); raf = null; y = null; enteredAt = null; box = null; },
     };
   })();
 
@@ -320,7 +318,7 @@ function main() {
     const dropAfter = (row, e) => { const r = row.getBoundingClientRect(); return e.clientY > r.top + r.height / 2; };
     el.querySelectorAll(".compact-assignment").forEach(row => {
       row.addEventListener("dragstart", e => {
-        dragId = Number(row.dataset.id); row.classList.add("dragging"); autoScroll.start();
+        dragId = Number(row.dataset.id); row.classList.add("dragging"); autoScroll.start(el);
         e.dataTransfer.setData("text/plain", String(dragId)); e.dataTransfer.effectAllowed = "move";
       });
       row.addEventListener("dragend", () => { row.classList.remove("dragging"); clearMarkers(); autoScroll.stop(); });
@@ -342,7 +340,7 @@ function main() {
         visible.splice(visible.indexOf(dragId), 1);
         visible.splice(visible.indexOf(targetId) + (after ? 1 : 0), 0, dragId);
         /* Save every assignment, not just the visible ones: rows hidden by a
-           filter, the scope, paging, or the completed toggle keep their places
+           filter, the scope, or the completed toggle keep their places
            relative to the visible rows instead of being renumbered over. */
         const visibleSet = new Set(visible);
         let v = 0;
@@ -356,22 +354,16 @@ function main() {
     });
   }
 
-  function refresh() { page = 0; renderFilterControls(); renderList(); }
+  function refresh() { renderFilterControls(); renderList(); }
   function renderAll() { renderStats(); renderNext(); renderWeek(); renderFilterControls(); renderList(); }
   $("f-class").addEventListener("change", () => { if ($("f-class").value) { filters.classes.add($("f-class").value); refresh(); } });
   $("f-type").addEventListener("change", () => { if ($("f-type").value) { filters.types.add($("f-type").value); refresh(); } });
-  sortSel.addEventListener("change", () => { rememberSort(); page = 0; renderList(); });
-  showDone.addEventListener("change", () => { page = 0; renderList(); });
+  sortSel.addEventListener("change", () => { rememberSort(); renderList(); });
+  showDone.addEventListener("change", renderList);
   $("all-open").addEventListener("click", resetQueue);
-  $("queue-prev").addEventListener("click", () => { page--; renderList(); });
-  $("queue-next").addEventListener("click", () => { page++; renderList(); });
   $("add-assignment").addEventListener("click", () => {
     if (!CLASSES.length) { location.href = "assignments.html"; return; }
     openAssignmentModal({}, renderAll);
-  });
-  window.addEventListener("resize", () => {
-    const size = rowsPerPage();
-    if (size !== pageSize) { pageSize = size; page = 0; renderList(); }
   });
   renderAll();
 

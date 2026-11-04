@@ -610,9 +610,15 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--navy); }
 .stat-icon { display: grid; place-items: center; width: 36px; height: 36px; border-radius: 10px; background: rgba(255,255,255,.7); grid-row: 1 / 3; align-self: center; }
 .stat-icon svg { width: 20px; height: 20px; }
 .dashboard-layout { display: grid; grid-template-columns: minmax(0, 1fr) minmax(320px, 29%); gap: 22px; align-items: stretch; min-height: calc(100dvh - 250px); }
-.queue-panel { min-width: 0; display: flex; flex-direction: column; }
-.queue-panel > .compact-list { flex: 1; }
-.queue-panel .compact-assignment { flex: 1; }
+.queue-panel { min-width: 0; display: flex; flex-direction: column; max-height: max(480px, calc(100dvh - 250px)); }
+/* The list scrolls inside the card instead of paging. The top padding leaves
+   room for the drop line above the first row. */
+.queue-panel > .compact-list { flex: 1; min-height: 0; overflow-y: auto; padding: 6px 2px 0; scrollbar-gutter: stable; }
+.queue-panel .compact-assignment { min-height: 54px; padding: 7px 10px; margin-bottom: 6px; }
+.queue-panel .assignment-open { gap: 1px; }
+.queue-panel .assignment-name { font-size: 14px; }
+.queue-panel .assignment-meta { font-size: 12px; }
+.queue-panel .assignment-deadline { gap: 2px; font-size: 12.5px; }
 .queue-heading { display: flex; align-items: center; gap: 12px; }
 .queue-heading .text-button[aria-pressed="true"] { color: var(--muted); }
 .queue-controls { display: grid; grid-template-columns: minmax(140px, 1fr) minmax(80px, .55fr) minmax(75px, .45fr) 125px; gap: 8px; }
@@ -800,6 +806,9 @@ mark.hl { background: #fef08a; color: inherit; border-radius: 3px; padding: 0 1p
   .overview-stats .label { font-size: 14px; }
   .dashboard-layout { grid-template-columns: minmax(0, 1fr); gap: 14px; }
   .dashboard-rail { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+  /* One column: let the page scroll instead of a box inside it */
+  .queue-panel { max-height: none; }
+  .queue-panel > .compact-list { overflow: visible; }
   .overview-main .card { padding: 18px; }
   .overview-main .cal-layout { grid-template-columns: minmax(0, 1fr); gap: 14px; }
   .month-panel { height: 590px; }
