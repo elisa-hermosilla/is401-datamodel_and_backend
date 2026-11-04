@@ -160,8 +160,8 @@ function main() {
         const previousSort = $("sort").value;
         order.forEach((id, index) => { getAssignment(id).sort_order = index; });
         $("sort").value = "custom"; renderList();
-        try { await API.assignments.reorder(order); toast("Order saved"); }
-        catch (err) { previous.forEach(([id, sort]) => { getAssignment(id).sort_order = sort; }); $("sort").value = previousSort; renderList(); toast(err.message); }
+        try { await API.assignments.reorder(order); toast("Order saved", "success"); }
+        catch (err) { previous.forEach(([id, sort]) => { getAssignment(id).sort_order = sort; }); $("sort").value = previousSort; renderList(); toast(err.message, "error"); }
       });
     });
   }

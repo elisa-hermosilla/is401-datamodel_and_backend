@@ -179,9 +179,18 @@ router.put("/assignments/:id", requireLogin, async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
-/* POST /api/assignments/reorder { assignment_ids: [...] } — persists the dashboard's drag order */
+/* POST /api/assignments/reorder { assignment_ids: [...] } — persists the dashboard's drag order.
+   { reset: true } clears it instead (every sort_order back to null). */
 router.post("/assignments/reorder", requireLogin, async (req, res, next) => {
   try {
+    if (req.body?.reset === true) {
+      await query(
+        `update assignment set sort_order = null, updated_at = now()
+          where sort_order is not null
+            and course_id in (select course_id from course where user_id = $1)`,
+        [req.session.userId]);
+      return res.status(204).end();
+    }
     const ids = Array.isArray(req.body?.assignment_ids) ? req.body.assignment_ids.map(Number) : null;
     if (!ids || ids.some(n => !Number.isInteger(n) || n <= 0)) throw new ValidationError("assignment_ids must be a list of ids");
     await query(

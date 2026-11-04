@@ -1,6 +1,7 @@
 /* ---------- Shared helpers, sidebar, and UI bits ---------- */
 
 const ICONS = {
+  search: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>',
   dashboard: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg>',
   calendar:  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>',
   list:      '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6h11M9 12h11M9 18h11"/><path d="M4 6h.01M4 12h.01M4 18h.01"/></svg>',
@@ -223,38 +224,85 @@ function dueClass(a) {
   return "";
 }
 
+/* ---------- Search helpers ---------- */
+/* Lowercase, accents stripped ("Café" -> "cafe"), for matching and highlighting. */
+function normText(s) {
+  return String(s ?? "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
+}
+/* HTML for `text` with every occurrence of each (already normalized) token
+   wrapped in <mark>. Matching is case- and accent-insensitive; the original
+   characters are kept and escaped. */
+function highlightText(text, tokens) {
+  const raw = String(text ?? "");
+  if (!tokens || !tokens.length || !raw) return esc(raw);
+  /* Normalize one character at a time so each normalized index maps back to its original index */
+  let norm = "";
+  const origIndex = [];
+  for (let i = 0; i < raw.length; i++) {
+    const n = normText(raw[i]);
+    for (let k = 0; k < n.length; k++) origIndex.push(i);
+    norm += n;
+  }
+  const hits = new Array(raw.length).fill(false);
+  for (const t of tokens) {
+    if (!t) continue;
+    let from = 0, at;
+    while ((at = norm.indexOf(t, from)) !== -1) {
+      for (let k = at; k < at + t.length; k++) hits[origIndex[k]] = true;
+      from = at + 1;
+    }
+  }
+  let out = "", i = 0;
+  while (i < raw.length) {
+    const on = hits[i];
+    let j = i;
+    while (j < raw.length && hits[j] === on) j++;
+    const seg = esc(raw.slice(i, j));
+    out += on ? `<mark class="hl">${seg}</mark>` : seg;
+    i = j;
+  }
+  return out;
+}
+
 /* ---------- Assignment row ---------- */
 function assignmentRow(a, opts = {}) {
   const cls = getClassById(a.course_id);
   const d = dueDate(a);
-  const handle = opts.handle ? `<div class="handle" title="Drag to reorder">${ICONS.grip}</div>` : "";
+  /* opts.handle: draggable with a grip. opts.gutter: no grip, but keep the
+     grip's column so rows line up the same in every sort mode (dashboard).
+     Neither: the compact layout used on the other pages. */
+  const gutter = opts.handle || opts.gutter;
+  const handle = opts.handle
+    ? `<div class="handle" title="Drag to reorder">${ICONS.grip}</div>`
+    : gutter ? `<div class="handle spacer" aria-hidden="true">${ICONS.grip}</div>` : "";
+  const check = `<div class="check ${isDone(a) ? "on" : ""}" title="${isDone(a) ? "Mark incomplete" : "Mark complete"}" data-check="${a.assignment_id}">${isDone(a) ? ICONS.check : ""}</div>`;
   const hasNote = a.notes && a.notes.trim();
   const type = typeLabel(a);
+  const noteAddControl = opts.noteIconOnly
+    ? `<button type="button" class="notes-add icon-only" data-edit-note="${a.assignment_id}" title="Add a note" aria-label="Add a note">${ICONS.pencil}</button>`
+    : `<button type="button" class="notes-add" data-edit-note="${a.assignment_id}" title="Add a note">Add a note ${ICONS.pencil}</button>`;
   return `
-    <div class="a-row ${opts.handle ? "" : "compact"} ${isDone(a) ? "done" : ""}" data-id="${a.assignment_id}" ${opts.handle ? 'draggable="true"' : ""}>
+    <div class="a-row ${gutter ? "" : "compact"} ${isDone(a) ? "done" : ""}" data-id="${a.assignment_id}" ${opts.handle ? 'draggable="true"' : ""}>
+      ${check}
       ${handle}
       <div class="bar" style="background:${cls.color_hex}"></div>
       <div class="body" data-open="${a.assignment_id}" title="Edit assignment">
-        <div class="title">${esc(a.title)}</div>
+        <div class="title">${opts.highlight && opts.highlight.length ? highlightText(a.title, opts.highlight) : esc(a.title)}</div>
         <div class="meta">
           <button type="button" class="tag course clickable" data-filter-class="${esc(cls.course_code)}" style="--course-color:${cls.color_hex}" title="Filter by ${esc(cls.course_code)}">${esc(cls.course_code)}</button>
           ${type ? `<button type="button" class="tag type clickable" data-filter-type="${esc(type)}" title="Filter by ${esc(type)}">${esc(type)}</button>` : ""}
           ${a.estimated_minutes ? `<span class="tag type" title="Estimated effort">${fmtMinutes(a.estimated_minutes)}</span>` : ""}
-          <span class="sep">•</span>
-          <span class="submission">${esc(a.submission_type || "No submission")}</span>
-          <span class="sep">•</span>
+          <span class="submission tag type">${esc(a.submission_type && a.submission_type.toLowerCase() === "no submission" ? "No Submission" : a.submission_type || "No Submission")}</span>
           ${sourceTag(cls, null, a.external_url, "gradebook")}
         </div>
-        <div class="notes ${hasNote ? "" : "empty-note"}" data-notes="${a.assignment_id}">
-          <span class="notes-text">${hasNote ? esc(a.notes) : "Add a note"}</span>
-          <button type="button" class="pencil" data-edit-note="${a.assignment_id}" title="Edit note">${ICONS.pencil}</button>
-        </div>
+      </div>
+      <div class="notes ${hasNote ? "" : "empty-note"}" data-notes="${a.assignment_id}">
+        ${hasNote ? `<span class="notes-text">${esc(a.notes)}</span><button type="button" class="pencil" data-edit-note="${a.assignment_id}" title="Edit note" aria-label="Edit note">${ICONS.pencil}</button>` : noteAddControl}
       </div>
       <div class="due ${dueClass(a)}">
         <div class="d">${fmtDayLabel(d)}</div>
         <div class="t">${a.due_time_known === false ? "All day" : fmtTime(d)}</div>
       </div>
-      <div class="check ${isDone(a) ? "on" : ""}" title="${isDone(a) ? "Mark incomplete" : "Mark complete"}" data-check="${a.assignment_id}">${isDone(a) ? ICONS.check : ""}</div>
     </div>`;
 }
 
@@ -280,10 +328,10 @@ async function saveAssignment(id, fields, onChange, successMsg) {
   try {
     const row = await API.assignments.update(id, fields);
     replaceAssignment(row);
-    if (successMsg) toast(successMsg);
+    if (successMsg) toast(successMsg, "success");
     if (onChange) onChange();
   } catch (err) {
-    toast(err.message);
+    toast(err.message, "error");
     if (onChange) onChange();
   }
 }
@@ -308,7 +356,7 @@ function bindChecks(container, onChange, opts = {}) {
       e.preventDefault(); e.stopPropagation();
       toast(el.dataset.source === "Canvas"
         ? "Connect Canvas in Settings to open assignments there"
-        : "Add this class's iCal link (edit the class) to open it in Learning Suite");
+        : "Add this class's iCal link (edit the class) to open it in Learning Suite", "error");
     });
   });
   /* Real external links open Canvas without also opening the edit modal */
@@ -332,15 +380,17 @@ function bindChecks(container, onChange, opts = {}) {
   });
   /* Notes: clicks inside the notes block never open the edit modal */
   container.querySelectorAll("[data-notes]").forEach(el => {
-    el.addEventListener("click", e => e.stopPropagation());
     el.addEventListener("dragstart", e => e.stopPropagation());
   });
-  container.querySelectorAll("[data-edit-note]").forEach(btn => {
-    btn.addEventListener("click", e => {
+  if (!container.dataset.noteActionsBound) {
+    container.dataset.noteActionsBound = "true";
+    container.addEventListener("click", e => {
+      const btn = e.target.closest("[data-edit-note]");
+      if (!btn || !container.contains(btn)) return;
       e.stopPropagation();
       inlineNoteEditor(container.querySelector(`[data-notes="${btn.dataset.editNote}"]`), Number(btn.dataset.editNote), onChange);
     });
-  });
+  }
 }
 
 /* Swap a row's notes line for an inline textarea with Save / Cancel */
@@ -354,7 +404,7 @@ function inlineNoteEditor(notesEl, id, onChange) {
     <div class="notes-actions">
       <button type="button" class="btn btn-primary btn-sm" data-save>Save</button>
       <button type="button" class="btn btn-ghost btn-sm" data-cancel>Cancel</button>
-      ${a.notes && a.notes.trim() ? `<button type="button" class="btn btn-ghost btn-sm" data-clear style="margin-left:auto;color:var(--danger)">Delete note</button>` : ""}
+      ${a.notes && a.notes.trim() ? `<button type="button" class="btn btn-ghost btn-sm" data-clear style="margin-left:auto;color:var(--danger)">Delete Note</button>` : ""}
     </div>`;
   const ta = notesEl.querySelector("textarea");
   ta.focus(); ta.setSelectionRange(ta.value.length, ta.value.length);
@@ -429,7 +479,7 @@ function ensureAssignmentModal() {
         <div class="modal-actions">
           <button type="button" class="btn btn-ghost" id="a-delete" style="margin-right:auto;color:var(--danger)">${ICONS.trash} Delete</button>
           <button type="button" class="btn btn-secondary" data-close="assignment-modal">Cancel</button>
-          <button type="submit" class="btn btn-primary" id="a-submit">Add assignment</button>
+          <button type="submit" class="btn btn-primary" id="a-submit">Add Assignment</button>
         </div>
       </form>
     </div>`;
@@ -480,7 +530,7 @@ function ensureAssignmentModal() {
       const row = id ? await API.assignments.update(Number(id), fields) : await API.assignments.create(fields);
       replaceAssignment(row);
       closeModal("assignment-modal");
-      toast(id ? "Assignment saved" : "Assignment added");
+      toast(id ? "Assignment saved" : "Assignment added", "success");
       if (wrap._onChange) wrap._onChange();
     } catch (err) {
       errorBox.textContent = err.message;
@@ -496,7 +546,7 @@ function ensureAssignmentModal() {
     const id = Number(document.getElementById("a-id").value);
     if (!id) return;
     if (!armed) {
-      del.innerHTML = `${ICONS.trash} Confirm delete`;
+      del.innerHTML = `${ICONS.trash} Confirm Delete`;
       del.classList.add("btn-danger"); del.classList.remove("btn-ghost"); del.style.color = "";
       armed = setTimeout(() => disarm(), 4000);
       return;
@@ -507,7 +557,7 @@ function ensureAssignmentModal() {
       await API.assignments.remove(id);
       ASSIGNMENTS = ASSIGNMENTS.filter(a => a.assignment_id !== id);
       closeModal("assignment-modal");
-      toast("Assignment deleted");
+      toast("Assignment deleted", "success");
       if (wrap._onChange) wrap._onChange();
     } catch (err) {
       errorBox.textContent = err.message;
@@ -554,7 +604,7 @@ function openAssignmentModal(opts = {}, onChange) {
   document.getElementById("a-notes").value = a ? (a.notes || "") : "";
 
   document.getElementById("a-modal-title").textContent = a ? "Edit assignment" : "Add an assignment";
-  document.getElementById("a-submit").textContent = a ? "Save" : "Add assignment";
+  document.getElementById("a-submit").textContent = a ? "Save" : "Add Assignment";
   document.getElementById("a-delete").style.display = a ? "" : "none";
   openModal("assignment-modal");
   setTimeout(() => document.getElementById("a-title").focus(), 50);
@@ -596,39 +646,54 @@ function renderSidebar(active) {
     </div>`;
   renderSyncNote();
 
-  /* Sync pulls Canvas (if connected) and every Learning Suite feed, then reloads the page data. */
+  /* Sync goes class by class (each linked Canvas class, each Learning Suite
+     feed) so the toast can say which one is in progress, then reloads the
+     page data. One class failing doesn't stop the others. */
   const btn = document.getElementById("sync-btn");
   btn.addEventListener("click", async () => {
     if (!SYNC.can_sync) { toast("Connect Canvas in Settings or add a Learning Suite class with an iCal link"); return; }
+    const targets = CLASSES.filter(c => !c.is_archived && (
+      (c.source === "Canvas" && c.external_course_id && SYNC.canvas_connected) ||
+      (c.source === "Learning Suite" && c.ics_feed_url)));
+    if (!targets.length) { toast("No Canvas or Learning Suite classes linked yet"); return; }
+
     btn.disabled = true;
     btn.classList.add("syncing");
     btn.innerHTML = `${ICONS.sync} Syncing`;
     const reset = () => { btn.disabled = false; btn.classList.remove("syncing"); btn.innerHTML = `${ICONS.sync} Sync now`; };
-    try {
-      const r = await API.sync.run();
-      const problems = [
-        r.canvas_error ? `Canvas: ${r.canvas_error}` : null,
-        ...(r.learning_suite?.errors || []).map(e => `${e.course_code}: ${e.error}`),
-      ];
-      if (r.nothing_linked) { toast("No Canvas or Learning Suite classes linked yet"); reset(); return; }
-      /* Ask the server for the real timestamp instead of assuming "just now";
-         if every feed failed, last_synced_at didn't move. */
-      await refreshSyncStatus();
-      toast(problems.length
-        ? problems[0]
-        : `Synced ${r.assignments_synced} assignment${r.assignments_synced === 1 ? "" : "s"} from ${r.courses_synced} class${r.courses_synced === 1 ? "" : "es"}`);
-      if (r.courses_synced) setTimeout(() => window.location.reload(), problems.length ? 2200 : 900);
-      else reset();
-    } catch (err) {
-      toast(err.message);
-      reset();
+
+    let assignments = 0, synced = 0, removed = 0;
+    const problems = [];
+    for (let i = 0; i < targets.length; i++) {
+      const c = targets[i];
+      toast(`Syncing ${c.course_code} from ${c.source} (${i + 1} of ${targets.length})…`, { sticky: true });
+      try {
+        const r = await API.courses.sync(c.course_id);
+        assignments += r.assignments_synced || 0;
+        removed += r.assignments_removed || 0;
+        synced++;
+      } catch (err) {
+        problems.push(`${c.course_code}: ${err.message}`);
+      }
     }
+    /* Ask the server for the real timestamp instead of assuming "just now";
+       if every class failed, last_synced_at didn't move. */
+    await refreshSyncStatus();
+    if (problems.length) toast(problems[0], "error");
+    else toast(`Synced ${assignments} assignment${assignments === 1 ? "" : "s"} from ${synced} class${synced === 1 ? "" : "es"}${removedNote(removed)}`, "success");
+    if (synced) setTimeout(() => window.location.reload(), problems.length ? 2200 : 900);
+    else reset();
   });
 
   document.getElementById("logout-btn").addEventListener("click", async () => {
     try { await API.logout(); } catch { /* session is gone either way */ }
     window.location.href = "index.html";
   });
+}
+
+/* ", 2 removed" for a sync summary, or "" when nothing was deleted at the source */
+function removedNote(n) {
+  return n ? `, ${n} removed` : "";
 }
 
 /* The "Canvas & Learning Suite · synced 3 min ago" line under the Sync button.
@@ -652,11 +717,32 @@ document.addEventListener("click", e => {
 });
 
 let toastTimer;
-function toast(msg) {
+/* Bottom-centre message. The second argument is either a kind ("info",
+   "success", "error": picks the colour and icon) or an options object
+   { type, sticky }. Sticky keeps the toast up (for live sync progress) until
+   the next toast() call replaces it; otherwise it hides itself after ~2s. */
+function toast(msg, opts = "info") {
+  if (!msg) return; // never show an empty box
+  const { type = "info", sticky = false } = typeof opts === "string" ? { type: opts } : (opts || {});
+  const kind = type === "error" || type === "success" ? type : "info";
   let t = document.querySelector(".toast");
   if (!t) { t = document.createElement("div"); t.className = "toast"; document.body.appendChild(t); }
-  t.textContent = msg;
+  t.className = `toast toast-${kind}`;
+  t.setAttribute("role", kind === "error" ? "alert" : "status");
+  t.setAttribute("aria-atomic", "true");
+  t.replaceChildren();
+  if (kind !== "info") {
+    const icon = document.createElement("span");
+    icon.className = "toast-icon";
+    icon.setAttribute("aria-hidden", "true");
+    icon.innerHTML = kind === "error" ? ICONS.alert : ICONS.check;
+    t.appendChild(icon);
+  }
+  const message = document.createElement("span");
+  message.className = "toast-message";
+  message.textContent = String(msg ?? "");
+  t.appendChild(message);
   t.classList.add("show");
   clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => t.classList.remove("show"), 2200);
+  if (!sticky) toastTimer = setTimeout(() => t.classList.remove("show"), 2200);
 }

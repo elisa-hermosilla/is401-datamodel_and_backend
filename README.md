@@ -26,6 +26,8 @@ This approach fits our team and project because, between the four core classes, 
   <li>Clone the repo: <br> <code>git clone https://github.com/elisa-hermosilla/is401-datamodel_and_backend.git</code> and then open the path to the directory with <code>cd is401-datamodel_and_backend</code></li>
   <li>Install dependencies (they are not stored in the repo) <br> <code>npm install</code></li>
   <li>Create your <code>.env</code> file by copying the <code>.env.example</code> file an renaming it <code>.env</code> in the project root file, then open the <code>.env</code> file and change the SESSION_SECRET to a long random string of your choice</li>
+  <p>Note: If you are trying to run this on VS code, make sure the <code>.env</code> is next to the <code>package.json</code>.</p>
+  <p>Also, if it can't find the correct "DATABASE_URL", please contact Devin Fisher (dfishy03@byu.edu) for the updated "DATABASE_URL".</p>
 </ol>
 <br>
 Note: We know that having the credentials in the <code>.env.example</code> file isn't the greatest idea. We currently have them there for the sake of easy testing, but they will be removed later on
@@ -53,6 +55,22 @@ Run <code>npm install</code> again only if <code>package.json</code> changed sin
   <li>Type in the Course Code, Course Name, and pick a color for the class, then hit "Add Class"</li>
 </ol>
 <br>
+<h2>Behavioral Requirements</h2>
+<ol>
+  <li>COMPLETE: The System will prompt the user to enter the following: first and last name, a username, email, password, and which schools they attend to create an account.</li>
+  <li>COMPLETE: When the user has filled in all the required fields, the system will create the user's account with the information and save it to the platform.</li>
+  <li>INCOMPLETE: When the user has created the account and it’s saved, the system will send a confirmation email to the user with a notification saying they have successfully created an account on the platform.</li>
+  <li>COMPLETE: (Failure/Error Case) When not all required fields are filled in, or the email is unable to send because it isn’t a valid address, the system will give the user a notice to re-enter the information and ensure it is correct.</li>
+  <li>COMPLETE: When the account has been saved, the system will send the user to the Dashboard page.</li>
+  <li>COMPLETE: The system will show a dashboard upon logging in, which provides a summary of the current assignments, upcoming due dates, and upcoming assignments for the user.</li>
+  <li>COMPLETE: When a user clicks on the integrate button, the system will prompt the user to enter a Canvas Access Token.</li>
+  <li>COMPLETE: The system will then use the token to transfer over the user’s selected Canvas classes and add all classes and assignments to their account.</li>
+  <li>COMPLETE: The System will list all assignments in a table for the dashboard with the following information: Class name, Type of assignment, and due date.</li>
+  <li>COMPLETE: When the user clicks on the Sync button, the system will pull assignments from their Canvas integration and update assignments to reflect the most current information on the dashboard.</li>
+  <li>COMPLETE: (Failure/Error Case) When the assignment fails to sync or upload to the platform, the system notifies the student that it didn’t sync and that an assignment may be missing. </li>
+  <li>COMPLETE: The system will allow the user to select what days of the week and what times of day they will receive a summary notification.</li>
+  <li>INCOMPLETE: The system will automatically send push notifications to the user according to their selected schedule, mentioned in requirement 13.</li>
+</ol>
 
 **Claude AI was used for brainstorming and generating the ERD**
 
