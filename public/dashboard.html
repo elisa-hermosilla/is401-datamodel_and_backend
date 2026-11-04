@@ -8,73 +8,55 @@
   <title>Dashboard · DueList</title>
   <link rel="icon" href="favicon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="css/styles.css">
-  <script defer src="js/api.js"></script>
-  <script defer src="js/data.js"></script>
-  <script defer src="js/app.js"></script>
-  <script defer src="js/dashboard.js"></script>
 </head>
 <body>
-  <div class="app dashboard-app">
+  <div class="app overview-app">
     <aside id="sidebar"></aside>
-
-    <main class="main is-loading">
-      <div class="page-header">
-        <div>
-          <h1 id="greeting">Dashboard</h1>
-          <p class="sub" id="today-line"></p>
+    <main class="main overview-main dashboard-main is-loading">
+      <header class="page-header">
+        <div><h1 id="greeting">Dashboard</h1><p class="sub" id="today-line"></p></div>
+        <div class="toolbar">
+          <a class="btn btn-secondary btn-sm" href="calendar.html">View calendar</a>
+          <button class="btn btn-primary btn-sm" id="add-assignment">Add assignment</button>
         </div>
-        <a class="btn btn-secondary" href="assignments.html">View classes</a>
-      </div>
+      </header>
 
-      <!-- Due-window widgets -->
-      <!-- Work on this next + completed progress -->
-      <div class="next-grid" id="next-grid"></div>
+      <div class="stat-grid overview-stats" id="stat-grid" aria-label="Filter assignments by due date"></div>
 
-      <div class="stat-grid" id="stat-grid"></div>
-
-      <!-- Streaks -->
-      <div class="streak-grid" id="streak-grid"></div>
-
-      <!-- Upcoming list -->
-      <div class="card">
-        <div class="card-header">
-          <div>
-            <h2>Up next</h2>
-            <p class="sub">Pick a sort, choose Custom to drag rows into your own order, or click a class or type tag to filter.</p>
+      <div class="dashboard-layout">
+        <section class="card queue-panel" aria-labelledby="queue-heading">
+          <div class="card-header">
+            <div class="queue-heading"><h2 id="queue-heading">Assignments</h2><button class="text-button" id="all-open" aria-pressed="true">All open</button></div>
+            <label class="check-label"><input type="checkbox" id="show-done"> Include completed</label>
           </div>
-          <div class="toolbar">
-            <button type="button" class="btn btn-ghost btn-sm" id="reset-order" hidden title="Clear your custom order">Reset order</button>
-            <label for="sort" style="font-size:13px;color:var(--muted)">Sort by</label>
-            <select class="select" id="sort" style="width:auto">
-              <option value="due">Due date</option>
-              <option value="class">Class</option>
-              <option value="type">Assignment type</option>
-              <option value="custom">Custom (drag)</option>
+          <div class="queue-controls">
+            <input class="input" id="assignment-search" type="search" aria-label="Search assignments" placeholder="Search name, class, submission, or type" title="Press / to search">
+            <select class="select" id="f-class" aria-label="Filter by class"></select>
+            <select class="select" id="f-type" aria-label="Filter by assignment type"></select>
+            <select class="select" id="sort" aria-label="Sort assignments">
+              <option value="due">Due date</option><option value="class">Class</option>
+              <option value="type">Type</option><option value="custom">Custom order</option>
             </select>
-            <label style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--muted);margin-left:8px">
-              <input type="checkbox" id="show-done"> Show completed
-            </label>
           </div>
-        </div>
-        <div class="filter-bar">
-          <span class="label">Filter</span>
-          <label class="visually-hidden" for="f-class">Filter by class</label>
-          <select class="select" id="f-class"></select>
-          <label class="visually-hidden" for="f-type">Filter by assignment type</label>
-          <select class="select" id="f-type"></select>
-          <div class="active-filters" id="active-filters"></div>
-          <span class="filter-count" id="filter-count"></span>
-        </div>
-        <div class="search-bar">
-          <span class="search-icon" id="search-icon" aria-hidden="true"></span>
-          <input class="input" type="search" id="search" placeholder="Search by name, class, submission, or type" autocomplete="off" spellcheck="false" aria-label="Search assignments">
-          <button type="button" class="btn btn-ghost btn-icon" id="search-clear" title="Clear search (Esc)" aria-label="Clear search" style="display:none"></button>
-          <span class="search-hint">Press / to search</span>
-        </div>
-        <div class="a-list" id="assignment-list"></div>
+          <div class="queue-context"><span id="queue-scope">All open assignments</span><div class="active-filters" id="active-filters"></div><button type="button" class="btn btn-ghost btn-sm reset-order" id="reset-order" style="display:none" title="Clear your custom order">Reset order</button></div>
+          <div class="compact-list" id="assignment-list"></div>
+          <div class="list-footer">
+            <span id="filter-count" role="status"></span>
+          </div>
+        </section>
+
+        <aside class="dashboard-rail" aria-label="Planning overview">
+          <section class="card focus-card" id="next-grid" aria-label="Next deadline"></section>
+          <section class="card week-card" aria-labelledby="week-heading">
+            <div class="card-header"><h2 id="week-heading">Next 7 days</h2><a class="subtle-link" href="calendar.html">Calendar ↗</a></div>
+            <div class="week-strip" id="week-strip"></div>
+            <p class="workload-summary" id="week-summary"></p>
+            <div class="week-progress" id="week-progress"></div>
+          </section>
+        </aside>
       </div>
     </main>
   </div>
-
+  <script src="js/api.js"></script><script src="js/data.js"></script><script src="js/app.js"></script><script src="js/dashboard.js"></script>
 </body>
 </html>

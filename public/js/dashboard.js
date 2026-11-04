@@ -1,211 +1,22 @@
-/* Dashboard. Classes and assignments come from the API. */
-
+/* Dashboard: deadlines, a scrolling assignment queue, and a seven-day workload. */
 initApp("dashboard").then(main);
 
 function main() {
-  /* Greeting */
-  (function () {
-    const h = new Date().getHours();
-    const g = h < 12 ? "Good morning" : h < 17 ? "Good afternoon" : "Good evening";
-    document.getElementById("greeting").textContent = `${g}, ${USER.first_name}`;
-    document.getElementById("today-line").textContent = fmtLongDate(new Date());
-  })();
-
-  /* ---------- Buckets ---------- */
-  function openItems() { return ASSIGNMENTS.filter(a => !isDone(a)); }
-  function bucket() {
-    const now = new Date();
-    const list = openItems();
-    return {
-      past:     list.filter(a => dueDate(a) < now),
-      today:    list.filter(a => dayDiff(dueDate(a)) === 0 && dueDate(a) >= now),
-      tomorrow: list.filter(a => dayDiff(dueDate(a)) === 1),
-      week:     list.filter(a => { const d = dayDiff(dueDate(a)); return d >= 0 && d <= 7 && dueDate(a) >= now; }),
-    };
-  }
-
-  function renderStats() {
-    const b = bucket();
-    const byDue = l => [...l].sort((x, y) => dueDate(x) - dueDate(y));
-    const weekClasses = [...new Set(b.week.map(a => a.course_id))].length;
-    const stats = [
-      { cls: "danger", icon: ICONS.alert, label: "Past due",     value: b.past.length,     foot: b.past.length ? `Oldest: ${fmtDayLabel(dueDate(byDue(b.past)[0]))}` : "None past due", size: "large" },
-      { cls: "warn",   icon: ICONS.clock, label: "Due today",    value: b.today.length,    foot: b.today.length ? `Next: ${fmtTime(dueDate(byDue(b.today)[0]))}` : "Nothing left today", size: "large" },
-      { cls: "info",   icon: ICONS.sun,   label: "Due tomorrow", value: b.tomorrow.length, foot: b.tomorrow.length ? `${esc(byDue(b.tomorrow)[0].course_code)} first` : "Nothing due tomorrow", size: "small" },
-      { cls: "ok",     icon: ICONS.week,  label: "Next 7 days",  value: b.week.length,     foot: `${weekClasses} class${weekClasses === 1 ? "" : "es"}`, size: "small" },
-    ];
-    document.getElementById("stat-grid").innerHTML = stats.map(s => `
-      <a class="card stat ${s.cls} stat-${s.size}" href="calendar.html" title="Open in calendar">
-        <div class="label"><span class="ico">${s.icon}</span>${s.label}</div>
-        <div class="value">${s.value}</div>
-        <div class="foot">${s.foot}</div>
-      </a>`).join("");
-  }
-
-  /* ---------- Work on this next + progress (structure from Danny's mockup) ---------- */
-  function renderNext() {
-    const open = openItems().sort((a, b) => dueDate(a) - dueDate(b));
-    const next = open[0];
-    const nextIsOverdue = next && dueDate(next) < new Date();
-    const done = ASSIGNMENTS.filter(isDone).length;
-    const pct = ASSIGNMENTS.length ? Math.round((done / ASSIGNMENTS.length) * 100) : 0;
-
-    const el = document.getElementById("next-grid");
-    const type = next ? typeLabel(next) : "";
-    el.innerHTML = `
-      <div class="card next-card">
-        <div class="eyebrow ${nextIsOverdue ? "overdue" : ""}">${nextIsOverdue ? `${ICONS.alert} Overdue: Do this now` : "Work on this next"}</div>
-        ${next ? `
-          <h2>${esc(next.title)}</h2>
-          <div class="meta">
-            <span class="tag">${esc(next.course_code)}</span>
-            ${type ? `<span class="tag">${esc(type)}</span>` : ""}
-            ${next.estimated_minutes ? `<span class="tag">${fmtMinutes(next.estimated_minutes)} estimated</span>` : ""}
-            <span>Due ${fmtDayLabel(dueDate(next))} · ${fmtTime(dueDate(next))}</span>
-          </div>
-          <div class="actions">
-            <button type="button" class="btn btn-light" data-open-next="${next.assignment_id}">View Details</button>
-            <button type="button" class="btn btn-light" data-done-next="${next.assignment_id}">Mark Complete</button>
-          </div>` : `
-          <h2>Nothing open</h2>
-          <p class="empty-next">${CLASSES.length ? "No open assignments." : "Add a class on the Assignments page to get started."}</p>`}
-      </div>
-      <div class="card progress-card">
-        <div class="label" style="font-size:13px;font-weight:600;color:var(--muted)">Completed</div>
-        <div class="num">${done}<small>of ${ASSIGNMENTS.length}</small></div>
-        <div class="progress-track"><div style="width:${pct}%"></div></div>
-        <div class="foot">${pct}% of this semester's assignments</div>
-      </div>`;
-
-    const openBtn = el.querySelector("[data-open-next]");
-    if (openBtn) openBtn.addEventListener("click", () => openAssignmentModal({ assignment: getAssignment(Number(openBtn.dataset.openNext)) }, renderAll));
-    const doneBtn = el.querySelector("[data-done-next]");
-    if (doneBtn) doneBtn.addEventListener("click", () => saveAssignment(Number(doneBtn.dataset.doneNext), { completed: true }, renderAll, "Marked complete"));
-  }
-
-  /* ---------- Streaks ---------- */
-  function renderStreaks() {
-    const b = bucket();
-    const pastDueStreak = b.past.length ? 0 : 12;
-    const dots = n => Array.from({ length: 7 }, (_, i) => `<span class="${i < Math.min(n, 7) ? "on" : ""}"></span>`).join("");
-    document.getElementById("streak-grid").innerHTML = `
-      <div class="card streak">
-        <div class="flame ${pastDueStreak ? "" : "off"}">${ICONS.flame}</div>
-        <div>
-          <div class="num">${pastDueStreak}<small>days</small></div>
-          <div class="title">${b.past.length ? "Streak Lost! Assignments Past-due." : "No past-due assignments"}</div>
-          <div class="meta">${pastDueStreak ? `Best streak: ${USER.no_past_due_best_streak} days` : `${b.past.length} past due · Best: ${USER.no_past_due_best_streak} days`}</div>
-          <div class="streak-dots">${dots(pastDueStreak)}</div>
-        </div>
-      </div>
-      <div class="card streak blue">
-        <div class="flame">${ICONS.calCheck}</div>
-        <div>
-          <div class="num">${STREAKS.checkInCurrent}<small>days</small></div>
-          <div class="title">Daily check-in streak</div>
-          <div class="meta">Opened every day since ${fmtDate(addDays(today(), -STREAKS.checkInCurrent + 1))} · Best: ${USER.check_in_best_streak}</div>
-          <div class="streak-dots">${dots(7)}</div>
-        </div>
-      </div>`;
-  }
-
-  /* ---------- Filters ---------- */
+  const $ = id => document.getElementById(id);
+  let scope = "all";
+  let selectedDate = null;
   const filters = { classes: new Set(), types: new Set() };
-  (function readUrlFilters() {
-    const p = new URLSearchParams(location.search);
-    if (p.get("class") && getClass(p.get("class"))) filters.classes.add(p.get("class"));
-    if (p.get("type")) filters.types.add(p.get("type"));
-  })();
+  const params = new URLSearchParams(location.search);
+  if (params.get("class") && getClass(params.get("class"))) filters.classes.add(params.get("class"));
+  if (params.get("type")) filters.types.add(params.get("type"));
+  const h = new Date().getHours();
+  $("greeting").textContent = `${h < 12 ? "Good morning" : h < 17 ? "Good afternoon" : "Good evening"}, ${USER.first_name}`;
+  $("today-line").textContent = fmtLongDate(new Date());
 
-  const fClass = document.getElementById("f-class");
-  const fType = document.getElementById("f-type");
-  const typeNames = () => ASSIGNMENT_TYPES.map(t => cap(t.name));
-
-  function renderFilterControls() {
-    fClass.innerHTML = `<option value="">+ Class</option>` +
-      CLASSES.filter(c => !filters.classes.has(c.course_code)).map(c => `<option value="${esc(c.course_code)}">${esc(c.course_code)}</option>`).join("");
-    fType.innerHTML = `<option value="">+ Type</option>` +
-      typeNames().filter(t => !filters.types.has(t)).map(t => `<option value="${esc(t)}">${esc(t)}</option>`).join("");
-
-    const chips = [
-      ...[...filters.classes].map(code => `<span class="filter-chip" style="background:${getClass(code).color_hex}">${esc(code)}<button type="button" data-rm-class="${esc(code)}" title="Remove filter">${ICONS.x}</button></span>`),
-      ...[...filters.types].map(t => `<span class="filter-chip type">${esc(t)}<button type="button" data-rm-type="${esc(t)}" title="Remove filter">${ICONS.x}</button></span>`),
-    ];
-    const el = document.getElementById("active-filters");
-    el.innerHTML = chips.length
-      ? chips.join("") + `<button type="button" class="btn btn-ghost btn-sm" id="clear-filters">Clear all</button>`
-      : `<span style="font-size:13px;color:var(--muted)">No filters</span>`;
-
-    el.querySelectorAll("[data-rm-class]").forEach(b => b.addEventListener("click", () => { filters.classes.delete(b.dataset.rmClass); refresh(); }));
-    el.querySelectorAll("[data-rm-type]").forEach(b => b.addEventListener("click", () => { filters.types.delete(b.dataset.rmType); refresh(); }));
-    const clear = document.getElementById("clear-filters");
-    if (clear) clear.addEventListener("click", () => { filters.classes.clear(); filters.types.clear(); refresh(); });
-  }
-  fClass.addEventListener("change", () => { if (fClass.value) { filters.classes.add(fClass.value); refresh(); } });
-  fType.addEventListener("change", () => { if (fType.value) { filters.types.add(fType.value); refresh(); } });
-
-  function addClassFilter(code) { filters.classes.add(code); refresh(); toast(`Filtering by ${code}`); }
-  function addTypeFilter(t) { filters.types.add(t); refresh(); toast(`Filtering by ${t}`); }
-
-  /* ---------- Search ---------- */
-  /* Every word typed must appear somewhere in the row's name, class code or
-     name, submission type, or assignment type (case- and accent-insensitive).
-     Class codes are also matched without their spaces, so "is401" finds
-     "IS 401". Typing is debounced; Esc clears; "/" focuses the box. */
-  const searchEl = document.getElementById("search");
-  const searchClear = document.getElementById("search-clear");
-  document.getElementById("search-icon").innerHTML = ICONS.search;
-  searchClear.innerHTML = ICONS.x;
-  let searchTokens = [];
-  const tokensOf = q => normText(q).split(/\s+/).filter(Boolean);
-  function matchesSearch(a) {
-    if (!searchTokens.length) return true;
-    const cls = getClassById(a.course_id);
-    const hay = normText([
-      a.title, a.course_code, String(a.course_code || "").replace(/\s+/g, ""),
-      cls && cls.course_name, a.submission_type, typeLabel(a),
-    ].filter(Boolean).join(" | "));
-    return searchTokens.every(t => hay.includes(t));
-  }
-  function updateSearch() {
-    searchTokens = tokensOf(searchEl.value);
-    searchClear.style.display = searchEl.value ? "" : "none";
-    renderList();
-  }
-  let searchTimer = null;
-  searchEl.addEventListener("input", () => { clearTimeout(searchTimer); searchTimer = setTimeout(updateSearch, 120); });
-  searchEl.addEventListener("keydown", e => {
-    if (e.key !== "Escape") return;
-    e.preventDefault();
-    if (searchEl.value) { searchEl.value = ""; updateSearch(); } else searchEl.blur();
-  });
-  searchClear.addEventListener("click", () => { searchEl.value = ""; updateSearch(); searchEl.focus(); });
-  document.addEventListener("keydown", e => {
-    if (e.key !== "/" || e.ctrlKey || e.metaKey || e.altKey) return;
-    const el = document.activeElement;
-    if (el && (["INPUT", "TEXTAREA", "SELECT"].includes(el.tagName) || el.isContentEditable)) return;
-    e.preventDefault();
-    searchEl.focus();
-    searchEl.select();
-  });
-  /* ?q=... in the URL pre-fills the search (the first render below applies it) */
-  const q0 = new URLSearchParams(location.search).get("q");
-  if (q0) { searchEl.value = q0; searchTokens = tokensOf(q0); searchClear.style.display = ""; }
-
-  function applyFilters(list) {
-    return list.filter(a =>
-      (filters.classes.size === 0 || filters.classes.has(a.course_code)) &&
-      (filters.types.size === 0 || filters.types.has(typeLabel(a))) &&
-      matchesSearch(a));
-  }
-
-  function refresh() { renderFilterControls(); renderList(); }
-  function renderAll() { renderStats(); renderNext(); renderStreaks(); renderList(); }
-
-  /* ---------- Sortable list ---------- */
-  const sortSel = document.getElementById("sort");
-  const showDone = document.getElementById("show-done");
-  const resetBtn = document.getElementById("reset-order");
+  const sortSel = $("sort");
+  const showDone = $("show-done");
+  const resetBtn = $("reset-order");
+  const searchEl = $("assignment-search");
 
   /* The chosen sort survives leaving the page: it's a preference, so it lives
      in localStorage (per browser, keyed by user so shared machines don't mix).
@@ -220,15 +31,129 @@ function main() {
     try { localStorage.setItem(SORT_KEY, sortSel.value); } catch { /* storage blocked; nothing to do */ }
   }
 
-  /* The custom order. Rows the student has dragged carry a sort_order; rows
-     that arrived since (a newly synced assignment, a new manual one) have none.
-     Instead of dumping those at the bottom, slot each one where it disturbs
-     due-date order the least: the position with the most rows above it due at
-     or before it, plus rows below it due at or after it. On a list that's
+  const openItems = () => ASSIGNMENTS.filter(a => !isDone(a));
+  // Seven calendar days, including today. Completed items use their due date too.
+  const inWeek = a => dayDiff(dueDate(a)) >= 0 && dayDiff(dueDate(a)) < 7;
+  function inScope(a) {
+    const d = dueDate(a);
+    if (scope === "past") return d < new Date();
+    if (scope === "today") return sameDay(d, today()) && d >= new Date();
+    if (scope === "tomorrow") return dayDiff(d) === 1;
+    if (scope === "week") return inWeek(a) && d >= new Date();
+    if (scope === "date") return sameDay(d, selectedDate);
+    return true;
+  }
+  const scopeName = () => ({ all: showDone.checked ? "All assignments" : "All open assignments", past: "Past due", today: "Still due today", tomorrow: "Due tomorrow", week: "Due in the next 7 days", date: selectedDate ? `Due ${fmtDayLabel(selectedDate).toLowerCase()}` : "" })[scope];
+  function setScope(value, date = null) {
+    scope = value; selectedDate = date;
+    renderStats(); renderWeek(); renderList();
+  }
+
+  function renderStats() {
+    const open = openItems();
+    const now = new Date();
+    const stats = [
+      { key: "past", label: "Past due", cls: "danger", icon: ICONS.alert, items: open.filter(a => dueDate(a) < now), foot: "Needs attention" },
+      { key: "today", label: "Due today", cls: "warn", icon: ICONS.clock, items: open.filter(a => sameDay(dueDate(a), today()) && dueDate(a) >= now), foot: "Before tonight" },
+      { key: "tomorrow", label: "Due tomorrow", cls: "info", icon: ICONS.sun, items: open.filter(a => dayDiff(dueDate(a)) === 1), foot: fmtDate(addDays(today(), 1)) },
+      { key: "week", label: "Next 7 days", cls: "ok", icon: ICONS.week, items: open.filter(a => inWeek(a) && dueDate(a) >= now), foot: "Including today" },
+    ];
+    $("stat-grid").innerHTML = stats.map(s => `<button type="button" class="card stat ${s.cls} ${scope === s.key ? "is-selected" : ""}" data-scope="${s.key}" aria-pressed="${scope === s.key}"><span class="stat-copy"><span class="stat-icon" aria-hidden="true">${s.icon}</span><span class="label">${s.label}</span><span class="foot">${s.items.length ? s.foot : "Nothing due"}</span></span><span class="value">${s.items.length}</span></button>`).join("");
+    $("stat-grid").querySelectorAll("[data-scope]").forEach(btn => btn.addEventListener("click", () => setScope(scope === btn.dataset.scope ? "all" : btn.dataset.scope)));
+  }
+
+  function renderNext() {
+    const next = openItems().sort((a, b) => dueDate(a) - dueDate(b))[0];
+    const el = $("next-grid");
+    if (!next) {
+      el.innerHTML = `<div class="eyebrow">Your next step</div><h2>${CLASSES.length ? "You're all caught up" : "Start with a class"}</h2><p class="focus-meta">${CLASSES.length ? "No open assignments. New deadlines will appear here." : "Connect your courses or add a class to see your deadlines."}</p><a class="subtle-link" href="assignments.html">${CLASSES.length ? "View classes" : "Add a class"} ↗</a>`;
+      return;
+    }
+    const due = dueDate(next);
+    const past = due < new Date();
+    el.innerHTML = `<div class="focus-top"><span class="eyebrow">Next deadline</span>${past ? '<span class="status-past">Past due</span>' : ""}</div>
+      <h2><button class="focus-title" type="button" data-open="${next.assignment_id}">${esc(next.title)}</button></h2>
+      <p class="focus-meta">${esc(next.course_code)}${next.estimated_minutes ? ` · ${fmtMinutes(next.estimated_minutes)} estimated` : ""}</p>
+      <p class="focus-due">${fmtDayLabel(due)} · ${next.due_time_known === false ? "All day" : fmtTime(due)}</p>
+      <div class="focus-actions"><button type="button" class="btn btn-primary btn-sm" data-check="${next.assignment_id}">${ICONS.check} Complete</button><button type="button" class="btn btn-secondary btn-sm" data-open="${next.assignment_id}">Details</button></div>`;
+    bindChecks(el, renderAll);
+  }
+
+  function renderWeek() {
+    const open = openItems();
+    const days = Array.from({ length: 7 }, (_, i) => {
+      const date = addDays(today(), i);
+      return { date, items: open.filter(a => sameDay(dueDate(a), date)) };
+    });
+    $("week-strip").innerHTML = days.map(({ date, items }, i) => `<button type="button" class="week-day ${i === 0 ? "is-today" : ""}" data-day="${i}" aria-pressed="${scope === "date" && sameDay(date, selectedDate)}" aria-label="${fmtLongDate(date)}: ${items.length} open assignments"><span>${DOW[date.getDay()]}</span><strong>${date.getDate()}</strong><span class="week-count ${items.length ? "has-work" : ""}">${items.length || "–"}</span></button>`).join("");
+    $("week-strip").querySelectorAll("[data-day]").forEach(btn => btn.addEventListener("click", () => setScope("date", addDays(today(), Number(btn.dataset.day)))));
+    const work = open.filter(inWeek);
+    const estimated = work.filter(a => Number(a.estimated_minutes) > 0);
+    const minutes = estimated.reduce((sum, a) => sum + Number(a.estimated_minutes), 0);
+    $("week-summary").textContent = minutes ? `${fmtMinutes(minutes)} estimated · ${estimated.length} of ${work.length} open assignments` : `${work.length} open assignment${work.length === 1 ? "" : "s"} · No time estimates`;
+    const week = ASSIGNMENTS.filter(inWeek);
+    const done = week.filter(isDone).length;
+    const pct = week.length ? Math.round(done / week.length * 100) : 0;
+    $("week-progress").innerHTML = `<div class="between"><span>Completed for these 7 days</span><strong>${done} / ${week.length}</strong></div><div class="progress-track" role="progressbar" aria-label="Assignments completed for the next seven days" aria-valuenow="${pct}" aria-valuemin="0" aria-valuemax="100"><div style="width:${pct}%"></div></div>`;
+  }
+
+  function renderFilterControls() {
+    $("f-class").innerHTML = '<option value="">Class</option>' + CLASSES.filter(c => !filters.classes.has(c.course_code)).map(c => `<option value="${esc(c.course_code)}">${esc(c.course_code)}</option>`).join("");
+    const types = [...new Set(ASSIGNMENTS.map(typeLabel).filter(Boolean))].sort();
+    $("f-type").innerHTML = '<option value="">Type</option>' + types.filter(t => !filters.types.has(t)).map(t => `<option value="${esc(t)}">${esc(t)}</option>`).join("");
+    $("active-filters").innerHTML = [
+      ...[...filters.classes].map(c => `<button type="button" class="removable-filter" data-rm-class="${esc(c)}" aria-label="Remove ${esc(c)} filter">${esc(c)} ${ICONS.x}</button>`),
+      ...[...filters.types].map(t => `<button type="button" class="removable-filter" data-rm-type="${esc(t)}" aria-label="Remove ${esc(t)} filter">${esc(t)} ${ICONS.x}</button>`),
+    ].join("");
+    $("active-filters").querySelectorAll("[data-rm-class]").forEach(btn => btn.addEventListener("click", () => { filters.classes.delete(btn.dataset.rmClass); refresh(); }));
+    $("active-filters").querySelectorAll("[data-rm-type]").forEach(btn => btn.addEventListener("click", () => { filters.types.delete(btn.dataset.rmType); refresh(); }));
+  }
+
+  /* ---------- Search ---------- */
+  /* Every word typed must appear somewhere in the row's name, class code or
+     name, submission type, or assignment type (case- and accent-insensitive).
+     Class codes are also matched without their spaces, so "is401" finds
+     "IS 401". Typing is debounced; Esc clears; "/" focuses the box. */
+  let searchTokens = [];
+  const tokensOf = q => normText(q).split(/\s+/).filter(Boolean);
+  function matchesSearch(a) {
+    if (!searchTokens.length) return true;
+    const cls = getClassById(a.course_id);
+    const hay = normText([
+      a.title, a.course_code, String(a.course_code || "").replace(/\s+/g, ""),
+      cls && cls.course_name, a.submission_type, typeLabel(a),
+    ].filter(Boolean).join(" | "));
+    return searchTokens.every(t => hay.includes(t));
+  }
+  function updateSearch() { searchTokens = tokensOf(searchEl.value); renderList(); }
+  let searchTimer = null;
+  searchEl.addEventListener("input", () => { clearTimeout(searchTimer); searchTimer = setTimeout(updateSearch, 120); });
+  searchEl.addEventListener("keydown", e => {
+    if (e.key !== "Escape") return;
+    e.preventDefault();
+    if (searchEl.value) { searchEl.value = ""; updateSearch(); } else searchEl.blur();
+  });
+  document.addEventListener("keydown", e => {
+    if (e.key !== "/" || e.ctrlKey || e.metaKey || e.altKey) return;
+    const el = document.activeElement;
+    if (el && (["INPUT", "TEXTAREA", "SELECT"].includes(el.tagName) || el.isContentEditable)) return;
+    e.preventDefault();
+    searchEl.focus();
+    searchEl.select();
+  });
+  /* ?q=... in the URL pre-fills the search (the first render below applies it) */
+  if (params.get("q")) { searchEl.value = params.get("q"); searchTokens = tokensOf(params.get("q")); }
+
+  /* ---------- Custom order ---------- */
+  /* Rows the student has dragged carry a sort_order; rows that arrived since
+     (a newly synced assignment, a new manual one) have none. Instead of
+     dumping those at the bottom, slot each one where it disturbs due-date
+     order the least: the position with the most rows above it due at or
+     before it, plus rows below it due at or after it. On a list that's
      already in due order that is simply "before the first row due at or after
      it"; a single row the student pinned out of order can't pull new rows
-     along with it. Ties go to the earlier spot, so a new row sits ahead of rows
-     due at the same time. The next drag saves these positions for real. */
+     along with it. Ties go to the earlier spot, so a new row sits ahead of
+     rows due at the same time. The next drag saves these positions for real. */
   function customOrder(list) {
     const byDueThenId = (a, b) => dueDate(a) - dueDate(b) || a.assignment_id - b.assignment_id;
     const result = list.filter(a => a.sort_order != null)
@@ -262,49 +187,49 @@ function main() {
     return result;
   }
 
-  function sorted() {
-    let list = applyFilters(showDone.checked ? [...ASSIGNMENTS] : openItems());
-    const mode = sortSel.value;
-    if (mode === "custom") {
-      list = customOrder(list);
-    } else if (mode === "class") {
-      list.sort((a, b) => a.course_code.localeCompare(b.course_code) || dueDate(a) - dueDate(b));
-    } else if (mode === "type") {
-      list.sort((a, b) => typeLabel(a).localeCompare(typeLabel(b)) || dueDate(a) - dueDate(b));
-    } else {
-      list.sort((a, b) => dueDate(a) - dueDate(b));
-    }
-    return list;
-  }
-
-  function renderList() {
-    const el = document.getElementById("assignment-list");
-    const list = sorted();
-    const hasFilters = filters.classes.size || filters.types.size || searchTokens.length;
-    /* Drag handles and the Reset button only make sense in Custom mode */
-    const custom = sortSel.value === "custom";
-    /* Reset is offered only in Custom mode, and only when the custom order
-       actually differs from plain due-date order (otherwise there's nothing
-       to reset). style.display, not the hidden attribute: the .btn display
-       rule would override `hidden`. */
-    const showReset = custom && customDiffersFromDue();
-    resetBtn.style.display = showReset ? "" : "none";
-    if (!showReset) disarmReset();
-    el.innerHTML = list.length
-      ? list.map(a => assignmentRow(a, { handle: custom, gutter: true, highlight: searchTokens })).join("")
-      : `<div class="empty">${searchTokens.length
-          ? `No assignments match “${esc(searchEl.value.trim())}”${filters.classes.size || filters.types.size ? " with these filters" : ""}.`
-          : hasFilters ? "No assignments match these filters." : "Nothing due."}</div>`;
-    document.getElementById("filter-count").textContent = `${list.length} assignment${list.length === 1 ? "" : "s"}`;
-    bindChecks(el, renderAll, { onFilterClass: addClassFilter, onFilterType: addTypeFilter });
-    if (custom) bindDrag(el);
-  }
-
   /* Does the student's custom order (over every assignment) differ from due-date order? */
   function customDiffersFromDue() {
     const byDue = [...ASSIGNMENTS].sort((a, b) => dueDate(a) - dueDate(b) || a.assignment_id - b.assignment_id);
     const custom = customOrder(ASSIGNMENTS);
     return custom.some((a, i) => a.assignment_id !== byDue[i].assignment_id);
+  }
+
+  function sorted() {
+    const list = ASSIGNMENTS.filter(a => (showDone.checked || !isDone(a)) && inScope(a)
+      && (!filters.classes.size || filters.classes.has(a.course_code))
+      && (!filters.types.size || filters.types.has(typeLabel(a)))
+      && matchesSearch(a));
+    const mode = sortSel.value;
+    if (mode === "custom") return customOrder(list);
+    return list.sort((a, b) => {
+      if (mode === "class") return a.course_code.localeCompare(b.course_code) || dueDate(a) - dueDate(b);
+      if (mode === "type") return typeLabel(a).localeCompare(typeLabel(b)) || dueDate(a) - dueDate(b);
+      return dueDate(a) - dueDate(b);
+    });
+  }
+
+  function renderList() {
+    const list = sorted();
+    const el = $("assignment-list");
+    /* Drag handles and the Reset button only make sense in Custom mode, and
+       Reset only when the custom order actually differs from due-date order.
+       style.display, not the hidden attribute: the .btn display rule would
+       override `hidden`. */
+    const custom = sortSel.value === "custom";
+    const showReset = custom && customDiffersFromDue();
+    resetBtn.style.display = showReset ? "" : "none";
+    if (!showReset) disarmReset();
+    const hasFilters = filters.classes.size || filters.types.size || scope !== "all";
+    el.innerHTML = list.length
+      ? list.map(a => compactAssignmentRow(a, { handle: custom, gutter: true, highlight: searchTokens })).join("")
+      : `<div class="empty queue-empty"><span class="empty-icon" aria-hidden="true">${ICONS.list}</span><strong>${ASSIGNMENTS.length ? "No assignments to show" : "Your assignments will appear here"}</strong><p>${searchTokens.length ? `Nothing matches “${esc(searchEl.value.trim())}”${hasFilters ? " with these filters" : ""}.` : ASSIGNMENTS.length ? "Try another date range or adjust your filters." : "Add a class to start planning your week."}</p>${ASSIGNMENTS.length ? '<button type="button" class="btn btn-secondary btn-sm" id="reset-queue">Reset filters</button>' : '<a class="btn btn-secondary btn-sm" href="assignments.html">Add a class</a>'}</div>`;
+    $("filter-count").textContent = `${list.length} assignment${list.length === 1 ? "" : "s"}`;
+    $("queue-scope").textContent = scopeName();
+    $("all-open").setAttribute("aria-pressed", scope === "all");
+    sortSel.title = custom ? "Drag rows to reorder. Your order is saved automatically." : "Choose Custom order to drag rows into your own order.";
+    bindChecks(el, renderAll);
+    if (custom) bindDrag(el);
+    $("reset-queue")?.addEventListener("click", resetQueue);
   }
 
   /* Reset order: first click arms the button, a second click within 4s clears
@@ -337,21 +262,27 @@ function main() {
     }
   });
 
-  /* While dragging, a blue line shows the gap the row will land in: above the
-     row under the pointer when the pointer is in its top half, below it
-     otherwise. The drop uses the same rule. */
-  /* While a row is being dragged near the top or bottom of the window, scroll
-     the page in that direction. The speed starts slow and ramps up the longer
-     the pointer stays in the edge zone, and is faster the closer it is to the
+  function resetQueue() {
+    filters.classes.clear(); filters.types.clear(); scope = "all"; selectedDate = null;
+    searchEl.value = ""; searchTokens = []; showDone.checked = false;
+    renderAll();
+  }
+
+  /* While a row is being dragged near the top or bottom of the list, scroll
+     the list in that direction (the page instead, when the list has no
+     scrollbar of its own). The speed starts slow and ramps up the longer the
+     pointer stays in the edge zone, and is faster the closer it is to the
      edge. HTML5 drag events keep firing while the pointer is held still, so a
      frame loop driven by the last known pointer Y is enough. */
   const autoScroll = (() => {
-    const ZONE = 90, MIN = 2, MAX = 24, ACCEL = 0.012; // px/frame, and px/frame gained per ms in the zone
-    let y = null, raf = null, enteredAt = null;
+    const ZONE = 70, MIN = 2, MAX = 24, ACCEL = 0.012; // px/frame, and px/frame gained per ms in the zone
+    let y = null, raf = null, enteredAt = null, box = null;
     const onDragOver = e => { y = e.clientY; };
     function frame() {
       if (y != null) {
-        const fromTop = y, fromBottom = window.innerHeight - y;
+        const own = box && box.scrollHeight > box.clientHeight + 1;
+        const r = own ? box.getBoundingClientRect() : { top: 0, bottom: window.innerHeight };
+        const fromTop = y - r.top, fromBottom = r.bottom - y;
         let dir = 0, depth = 0;
         if (fromTop < ZONE) { dir = -1; depth = 1 - Math.max(0, fromTop) / ZONE; }
         else if (fromBottom < ZONE) { dir = 1; depth = 1 - Math.max(0, fromBottom) / ZONE; }
@@ -359,9 +290,13 @@ function main() {
           if (enteredAt == null) enteredAt = performance.now();
           const ramp = Math.min(MAX, MIN + (performance.now() - enteredAt) * ACCEL);
           const v = (0.3 + 0.7 * depth) * ramp;
-          const maxY = document.documentElement.scrollHeight - window.innerHeight;
-          const next = Math.max(0, Math.min(maxY, window.scrollY + dir * v));
-          if (next !== window.scrollY) window.scrollTo(0, next);
+          if (own) {
+            box.scrollTop = Math.max(0, Math.min(box.scrollHeight - box.clientHeight, box.scrollTop + dir * v));
+          } else {
+            const maxY = document.documentElement.scrollHeight - window.innerHeight;
+            const next = Math.max(0, Math.min(maxY, window.scrollY + dir * v));
+            if (next !== window.scrollY) window.scrollTo(0, next);
+          }
         } else {
           enteredAt = null;
         }
@@ -369,17 +304,23 @@ function main() {
       raf = requestAnimationFrame(frame);
     }
     return {
-      start() { y = null; enteredAt = null; document.addEventListener("dragover", onDragOver); if (!raf) raf = requestAnimationFrame(frame); },
-      stop() { document.removeEventListener("dragover", onDragOver); cancelAnimationFrame(raf); raf = null; y = null; enteredAt = null; },
+      start(el) { box = el; y = null; enteredAt = null; document.addEventListener("dragover", onDragOver); if (!raf) raf = requestAnimationFrame(frame); },
+      stop() { document.removeEventListener("dragover", onDragOver); cancelAnimationFrame(raf); raf = null; y = null; enteredAt = null; box = null; },
     };
   })();
 
+  /* While dragging, a line shows the gap the row will land in: above the row
+     under the pointer when the pointer is in its top half, below it otherwise.
+     The drop uses the same rule. */
   function bindDrag(el) {
     let dragId = null;
     const clearMarkers = () => el.querySelectorAll(".drop-before, .drop-after").forEach(r => r.classList.remove("drop-before", "drop-after"));
     const dropAfter = (row, e) => { const r = row.getBoundingClientRect(); return e.clientY > r.top + r.height / 2; };
-    el.querySelectorAll(".a-row").forEach(row => {
-      row.addEventListener("dragstart", () => { dragId = Number(row.dataset.id); row.classList.add("dragging"); autoScroll.start(); });
+    el.querySelectorAll(".compact-assignment").forEach(row => {
+      row.addEventListener("dragstart", e => {
+        dragId = Number(row.dataset.id); row.classList.add("dragging"); autoScroll.start(el);
+        e.dataTransfer.setData("text/plain", String(dragId)); e.dataTransfer.effectAllowed = "move";
+      });
       row.addEventListener("dragend", () => { row.classList.remove("dragging"); clearMarkers(); autoScroll.stop(); });
       row.addEventListener("dragover", e => {
         e.preventDefault();
@@ -399,28 +340,32 @@ function main() {
         visible.splice(visible.indexOf(dragId), 1);
         visible.splice(visible.indexOf(targetId) + (after ? 1 : 0), 0, dragId);
         /* Save every assignment, not just the visible ones: rows hidden by a
-           filter or the Show-completed toggle keep their places relative to
-           the visible rows, instead of being renumbered over. */
+           filter, the scope, or the completed toggle keep their places
+           relative to the visible rows instead of being renumbered over. */
         const visibleSet = new Set(visible);
         let v = 0;
         const order = customOrder(ASSIGNMENTS).map(a => (visibleSet.has(a.assignment_id) ? visible[v++] : a.assignment_id));
+        const previous = ASSIGNMENTS.map(a => [a.assignment_id, a.sort_order]);
         order.forEach((id, i) => { getAssignment(id).sort_order = i + 1; });
-        sortSel.value = "custom";
-        rememberSort();
         renderList();
         try { await API.assignments.reorder(order); toast("Order saved", "success"); }
-        catch (err) { toast(err.message, "error"); }
+        catch (err) { previous.forEach(([id, sort]) => { getAssignment(id).sort_order = sort; }); renderList(); toast(err.message, "error"); }
       });
     });
   }
 
+  function refresh() { renderFilterControls(); renderList(); }
+  function renderAll() { renderStats(); renderNext(); renderWeek(); renderFilterControls(); renderList(); }
+  $("f-class").addEventListener("change", () => { if ($("f-class").value) { filters.classes.add($("f-class").value); refresh(); } });
+  $("f-type").addEventListener("change", () => { if ($("f-type").value) { filters.types.add($("f-type").value); refresh(); } });
   sortSel.addEventListener("change", () => { rememberSort(); renderList(); });
   showDone.addEventListener("change", renderList);
-
-  renderStats();
-  renderNext();
-  renderStreaks();
-  refresh();
+  $("all-open").addEventListener("click", resetQueue);
+  $("add-assignment").addEventListener("click", () => {
+    if (!CLASSES.length) { location.href = "assignments.html"; return; }
+    openAssignmentModal({}, renderAll);
+  });
+  renderAll();
 
   /* Everything is rendered: show the page, sections fading in top to bottom */
   const mainEl = document.querySelector("main.main");
