@@ -21,6 +21,7 @@ const ICONS = {
   note:      '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><polyline points="14 3 14 9 20 9"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="13" y2="17"/></svg>',
   sync:      '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>',
   x:         '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>',
+  link:      '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>',
   pencil:    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>',
   trash:     '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>',
   flame:     '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22c4.4 0 7-2.9 7-6.5 0-3-2-5-3.5-6.5-.5 2-1.5 3-2.5 3 .5-3-.5-6-3-8-.5 3.5-3 5-4.5 7.5C4 13.5 5 22 12 22z"/></svg>',
@@ -216,6 +217,15 @@ function sourceTag(cls, label, href, page) {
   }
   return `<a href="#" class="tag link ${isCanvas ? "canvas" : "ls"}" data-source="${cls.source}" title="Open in ${cls.source}">${label || cls.source} ${ICONS.external}</a>`;
 }
+/* The page for one assignment at its source: Canvas links each assignment;
+   Learning Suite has no per-assignment pages, so its class gradebook; Manual
+   classes have nothing. */
+function assignmentUrl(a, cls) {
+  cls = cls || getClassById(a.course_id);
+  if (!cls || cls.source === "Manual") return null;
+  return a.external_url || courseUrl(cls, "gradebook");
+}
+
 function dueClass(a) {
   if (isDone(a)) return "";
   const diff = dayDiff(dueDate(a));
@@ -320,13 +330,24 @@ function compactAssignmentRow(a, { handle = false, gutter = false, agenda = fals
     ? `<span class="drag-handle" aria-hidden="true" title="Drag to reorder">${ICONS.grip}</span>`
     : sortable ? `<span class="drag-handle spacer" aria-hidden="true">${ICONS.grip}</span>` : "";
   const name = highlight && highlight.length ? highlightText(a.title, highlight) : esc(a.title);
+  const notes = a.notes && a.notes.trim();
+  /* Hover actions: open the assignment at its source (Canvas has a page per
+     assignment; Learning Suite only has the class gradebook; Manual has
+     nothing), and edit. Clicking the row itself just shows the details. */
+  const url = assignmentUrl(a, cls);
+  const actions = `<span class="row-actions">
+      ${url ? `<a class="row-action" href="${esc(url)}" target="_blank" rel="noopener" data-tip="Open this assignment on ${esc(cls.source)}" aria-label="Open this assignment on ${esc(cls.source)}">${ICONS.link}</a>` : ""}
+      <button type="button" class="row-action" data-edit="${a.assignment_id}" data-tip="Edit this assignment" aria-label="Edit this assignment">${ICONS.pencil}</button>
+    </span>`;
   return `<div style="--course-color:${cls.color_hex}" class="compact-assignment ${isDone(a) ? "done" : ""} ${sortable ? "sortable" : ""}" data-id="${a.assignment_id}" ${handle ? 'draggable="true"' : ""}>
     ${grip}
     <button type="button" class="assignment-toggle ${isDone(a) ? "on" : ""}" data-check="${a.assignment_id}" aria-label="${isDone(a) ? "Mark incomplete" : "Mark complete"}: ${esc(a.title)}" aria-pressed="${isDone(a)}">${isDone(a) ? ICONS.check : ""}</button>
-    <button type="button" class="assignment-open" data-open="${a.assignment_id}" title="${esc(a.title)}">
+    <button type="button" class="assignment-open" data-view="${a.assignment_id}" title="${esc(a.title)}">
       <span class="assignment-name">${name}</span>
-      <span class="assignment-meta"><span class="course-marker" style="--course-color:${cls.color_hex}"></span>${esc(a.course_code)}${typeLabel(a) ? ` · ${esc(typeLabel(a))}` : ""}${a.estimated_minutes ? ` · ${fmtMinutes(a.estimated_minutes)}` : ""}${a.notes?.trim() ? ' · Note' : ""}</span>
+      <span class="assignment-meta"><span class="course-marker" style="--course-color:${cls.color_hex}"></span>${esc(a.course_code)}${typeLabel(a) ? ` · ${esc(typeLabel(a))}` : ""}${a.estimated_minutes ? ` · ${fmtMinutes(a.estimated_minutes)}` : ""}</span>
+      ${notes ? `<span class="assignment-notes" title="${esc(notes)}">${esc(notes)}</span>` : ""}
     </button>
+    ${actions}
     <div class="assignment-deadline ${status}"><span>${agenda ? (a.due_time_known === false ? "All day" : fmtTime(due)) : fmtDayLabel(due)}</span><small>${isDone(a) ? "Completed" : status === "overdue" ? "Past due" : agenda ? "" : a.due_time_known === false ? "All day" : fmtTime(due)}</small></div>
   </div>`;
 }
@@ -385,6 +406,17 @@ function bindChecks(container, onChange, opts = {}) {
   });
   container.querySelectorAll("[data-open]").forEach(el => {
     el.addEventListener("click", () => openAssignmentModal({ assignment: getAssignment(Number(el.dataset.open)) }, onChange));
+  });
+  /* Compact rows: the row shows details; its hover buttons edit / open at the source */
+  container.querySelectorAll("[data-view]").forEach(el => {
+    el.addEventListener("click", () => openAssignmentView(Number(el.dataset.view), onChange));
+  });
+  container.querySelectorAll("[data-edit]").forEach(el => {
+    el.addEventListener("click", e => { e.stopPropagation(); openAssignmentModal({ assignment: getAssignment(Number(el.dataset.edit)) }, onChange); });
+  });
+  container.querySelectorAll("a.row-action[target=_blank]").forEach(el => {
+    el.addEventListener("click", e => e.stopPropagation());
+    el.addEventListener("dragstart", e => e.preventDefault());
   });
   /* Notes: clicks inside the notes block never open the edit modal */
   container.querySelectorAll("[data-notes]").forEach(el => {
@@ -620,6 +652,71 @@ function openAssignmentModal(opts = {}, onChange) {
 
 /* Kept for pages that still call it: opens the edit modal for that assignment. */
 function openDetail(id) { openAssignmentModal({ assignment: getAssignment(id) }); }
+
+/* ---------- View-only assignment modal ---------- */
+function ensureAssignmentView() {
+  if (document.getElementById("assignment-view")) return;
+  const wrap = document.createElement("div");
+  wrap.className = "modal-backdrop";
+  wrap.id = "assignment-view";
+  wrap.innerHTML = `
+    <div class="modal" role="dialog" aria-labelledby="v-title">
+      <div class="view-head">
+        <h3 id="v-title"></h3>
+        <div class="view-status" id="v-status"></div>
+      </div>
+      <div class="detail-grid" id="v-grid"></div>
+      <div class="view-notes" id="v-notes"></div>
+      <div class="modal-actions">
+        <a class="btn btn-secondary" id="v-open" target="_blank" rel="noopener" style="margin-right:auto">${ICONS.link} Open</a>
+        <button type="button" class="btn btn-secondary" data-close="assignment-view">Close</button>
+        <button type="button" class="btn btn-primary" id="v-edit">${ICONS.pencil} Edit</button>
+      </div>
+    </div>`;
+  document.body.appendChild(wrap);
+  document.getElementById("v-edit").addEventListener("click", () => {
+    const a = getAssignment(Number(wrap.dataset.id));
+    closeModal("assignment-view");
+    if (a) openAssignmentModal({ assignment: a }, wrap._onChange);
+  });
+}
+
+/* Show one assignment read-only. onChange is handed to the edit modal if the
+   student goes on to edit from here. */
+function openAssignmentView(id, onChange) {
+  ensureAssignmentView();
+  const a = getAssignment(id);
+  if (!a) return;
+  const cls = getClassById(a.course_id);
+  const wrap = document.getElementById("assignment-view");
+  wrap.dataset.id = a.assignment_id;
+  wrap._onChange = onChange;
+  const d = dueDate(a);
+  const status = isDone(a)
+    ? { cls: "done", text: a.completed_at ? `Completed ${fmtDate(new Date(a.completed_at))}` : "Completed" }
+    : dueClass(a) === "overdue" ? { cls: "overdue", text: "Past due" }
+    : dueClass(a) === "today" ? { cls: "today", text: "Due today" }
+    : { cls: "", text: "Open" };
+  const row = (k, v) => `<div><div class="k">${k}</div><div class="v">${v}</div></div>`;
+  document.getElementById("v-title").textContent = a.title;
+  document.getElementById("v-status").innerHTML = `<span class="view-pill ${status.cls}">${status.text}</span>`;
+  document.getElementById("v-grid").innerHTML =
+    row("Class", `<span class="course-marker" style="--course-color:${cls.color_hex}"></span>${esc(cls.course_code)}${cls.course_name ? ` <span class="view-sub">${esc(cls.course_name)}</span>` : ""}`) +
+    row("Due", `${fmtDayLabel(d)} · ${a.due_time_known === false ? "All day" : fmtTime(d)}`) +
+    row("Type", typeLabel(a) ? esc(typeLabel(a)) : "—") +
+    row("Submission", esc(a.submission_type || "No submission")) +
+    row("Estimated time", a.estimated_minutes ? fmtMinutes(a.estimated_minutes) : "—") +
+    row("Source", esc(cls.source));
+  const notes = a.notes && a.notes.trim();
+  const notesEl = document.getElementById("v-notes");
+  notesEl.style.display = notes ? "" : "none";
+  notesEl.innerHTML = notes ? `<div class="k">Notes</div><div class="text">${esc(notes)}</div>` : "";
+  const url = assignmentUrl(a, cls);
+  const open = document.getElementById("v-open");
+  open.style.display = url ? "" : "none";
+  if (url) { open.href = url; open.innerHTML = `${ICONS.link} Open on ${esc(cls.source)}`; }
+  openModal("assignment-view");
+}
 
 /* ---------- Sidebar ---------- */
 function userInitials(u) {
