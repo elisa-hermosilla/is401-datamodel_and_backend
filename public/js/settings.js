@@ -63,7 +63,7 @@ function main() {
         const b = e.currentTarget; b.disabled = true; b.textContent = "Syncing";
         try {
           const r = await API.canvas.sync();
-          toast(`Synced ${r.assignments_synced} assignment${r.assignments_synced === 1 ? "" : "s"} from ${r.courses_synced} class${r.courses_synced === 1 ? "" : "es"}`);
+          toast(`Synced ${r.assignments_synced} assignment${r.assignments_synced === 1 ? "" : "s"} from ${r.courses_synced} class${r.courses_synced === 1 ? "" : "es"}${removedNote(r.assignments_removed)}`);
         } catch (err) { showCanvasError(err.message); }
         CANVAS = await API.canvas.status();
         renderCanvas();
@@ -151,7 +151,7 @@ function main() {
       try {
         const r = await API.learningSuite.sync();
         if (r.errors.length) { const e = document.getElementById("ls-error"); e.textContent = r.errors.map(x => `${x.course_code}: ${x.error}`).join(" · "); e.classList.add("show"); }
-        toast(`Synced ${r.assignments_synced} item${r.assignments_synced === 1 ? "" : "s"} from ${r.courses_synced} class${r.courses_synced === 1 ? "" : "es"}`);
+        toast(`Synced ${r.assignments_synced} item${r.assignments_synced === 1 ? "" : "s"} from ${r.courses_synced} class${r.courses_synced === 1 ? "" : "es"}${removedNote(r.assignments_removed)}`);
       } catch (err) {
         const e = document.getElementById("ls-error"); e.textContent = err.message; e.classList.add("show");
       }

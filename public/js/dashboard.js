@@ -339,13 +339,47 @@ function main() {
   /* While dragging, a blue line shows the gap the row will land in: above the
      row under the pointer when the pointer is in its top half, below it
      otherwise. The drop uses the same rule. */
+  /* While a row is being dragged near the top or bottom of the window, scroll
+     the page in that direction. The speed starts slow and ramps up the longer
+     the pointer stays in the edge zone, and is faster the closer it is to the
+     edge. HTML5 drag events keep firing while the pointer is held still, so a
+     frame loop driven by the last known pointer Y is enough. */
+  const autoScroll = (() => {
+    const ZONE = 90, MIN = 2, MAX = 24, ACCEL = 0.012; // px/frame, and px/frame gained per ms in the zone
+    let y = null, raf = null, enteredAt = null;
+    const onDragOver = e => { y = e.clientY; };
+    function frame() {
+      if (y != null) {
+        const fromTop = y, fromBottom = window.innerHeight - y;
+        let dir = 0, depth = 0;
+        if (fromTop < ZONE) { dir = -1; depth = 1 - Math.max(0, fromTop) / ZONE; }
+        else if (fromBottom < ZONE) { dir = 1; depth = 1 - Math.max(0, fromBottom) / ZONE; }
+        if (dir) {
+          if (enteredAt == null) enteredAt = performance.now();
+          const ramp = Math.min(MAX, MIN + (performance.now() - enteredAt) * ACCEL);
+          const v = (0.3 + 0.7 * depth) * ramp;
+          const maxY = document.documentElement.scrollHeight - window.innerHeight;
+          const next = Math.max(0, Math.min(maxY, window.scrollY + dir * v));
+          if (next !== window.scrollY) window.scrollTo(0, next);
+        } else {
+          enteredAt = null;
+        }
+      }
+      raf = requestAnimationFrame(frame);
+    }
+    return {
+      start() { y = null; enteredAt = null; document.addEventListener("dragover", onDragOver); if (!raf) raf = requestAnimationFrame(frame); },
+      stop() { document.removeEventListener("dragover", onDragOver); cancelAnimationFrame(raf); raf = null; y = null; enteredAt = null; },
+    };
+  })();
+
   function bindDrag(el) {
     let dragId = null;
     const clearMarkers = () => el.querySelectorAll(".drop-before, .drop-after").forEach(r => r.classList.remove("drop-before", "drop-after"));
     const dropAfter = (row, e) => { const r = row.getBoundingClientRect(); return e.clientY > r.top + r.height / 2; };
     el.querySelectorAll(".a-row").forEach(row => {
-      row.addEventListener("dragstart", () => { dragId = Number(row.dataset.id); row.classList.add("dragging"); });
-      row.addEventListener("dragend", () => { row.classList.remove("dragging"); clearMarkers(); });
+      row.addEventListener("dragstart", () => { dragId = Number(row.dataset.id); row.classList.add("dragging"); autoScroll.start(); });
+      row.addEventListener("dragend", () => { row.classList.remove("dragging"); clearMarkers(); autoScroll.stop(); });
       row.addEventListener("dragover", e => {
         e.preventDefault();
         if (Number(row.dataset.id) === dragId) return;

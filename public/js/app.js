@@ -642,7 +642,7 @@ function renderSidebar(active) {
     btn.innerHTML = `${ICONS.sync} Syncing`;
     const reset = () => { btn.disabled = false; btn.classList.remove("syncing"); btn.innerHTML = `${ICONS.sync} Sync now`; };
 
-    let assignments = 0, synced = 0;
+    let assignments = 0, synced = 0, removed = 0;
     const problems = [];
     for (let i = 0; i < targets.length; i++) {
       const c = targets[i];
@@ -650,6 +650,7 @@ function renderSidebar(active) {
       try {
         const r = await API.courses.sync(c.course_id);
         assignments += r.assignments_synced || 0;
+        removed += r.assignments_removed || 0;
         synced++;
       } catch (err) {
         problems.push(`${c.course_code}: ${err.message}`);
@@ -660,7 +661,7 @@ function renderSidebar(active) {
     await refreshSyncStatus();
     toast(problems.length
       ? problems[0]
-      : `Synced ${assignments} assignment${assignments === 1 ? "" : "s"} from ${synced} class${synced === 1 ? "" : "es"}`);
+      : `Synced ${assignments} assignment${assignments === 1 ? "" : "s"} from ${synced} class${synced === 1 ? "" : "es"}${removedNote(removed)}`);
     if (synced) setTimeout(() => window.location.reload(), problems.length ? 2200 : 900);
     else reset();
   });
@@ -669,6 +670,11 @@ function renderSidebar(active) {
     try { await API.logout(); } catch { /* session is gone either way */ }
     window.location.href = "index.html";
   });
+}
+
+/* ", 2 removed" for a sync summary, or "" when nothing was deleted at the source */
+function removedNote(n) {
+  return n ? `, ${n} removed` : "";
 }
 
 /* The "Canvas & Learning Suite · synced 3 min ago" line under the Sync button.

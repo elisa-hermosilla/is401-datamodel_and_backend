@@ -49,9 +49,12 @@ export async function canvasGet(baseUrl, token, path, params = {}) {
   }
   if (!url.searchParams.has("per_page")) url.searchParams.set("per_page", String(PAGE_SIZE));
 
+  /* `items.truncated` is set when the page cap stopped the walk early; callers
+     that remove rows missing from the list must not do so from a partial list. */
   const items = [];
   let next = url.toString();
-  for (let page = 0; next && page < MAX_PAGES; page++) {
+  for (let page = 0; next; page++) {
+    if (page >= MAX_PAGES) { items.truncated = true; break; }
     let res;
     try {
       res = await fetch(next, {
@@ -168,7 +171,9 @@ const PLANNER_FUTURE_DAYS = 200;
 
 /* Pull the planner feed for one course and upsert the non-assignment items.
    `seen` holds "title|due_at" keys of the assignments already synced for the
-   course so the same item is never stored twice. Returns the count stored. */
+   course so the same item is never stored twice. Returns { stored, removed }:
+   removed counts planner rows (page:/discussion:/quiz:) due inside the window
+   that Canvas no longer lists, i.e. items the professor deleted. */
 async function syncPlannerItems(baseUrl, token, course, typeIds, seen) {
   const start = new Date(Date.now() - PLANNER_PAST_DAYS * 86400000).toISOString();
   const end = new Date(Date.now() + PLANNER_FUTURE_DAYS * 86400000).toISOString();
@@ -177,6 +182,14 @@ async function syncPlannerItems(baseUrl, token, course, typeIds, seen) {
     "start_date": start,
     "end_date": end,
   });
+
+  /* Everything Canvas still lists, keyed the way we store it, before any of
+     the skips below: a skipped item still exists and must not be pruned. */
+  const live = [];
+  for (const item of items) {
+    const kind = PLANNER_KINDS[item.plannable_type];
+    if (kind) live.push(`${kind.prefix}:${(item.plannable || {}).id ?? item.plannable_id}`);
+  }
 
   const categoryCache = {};
   let stored = 0;
@@ -223,7 +236,22 @@ async function syncPlannerItems(baseUrl, token, course, typeIds, seen) {
        done ? new Date().toISOString() : null]);
     stored++;
   }
-  return stored;
+
+  /* Planner rows inside the fetched window that Canvas no longer returns were
+     deleted there. Only when the list is complete; manual rows (null external
+     id) and Canvas assignments (bare numeric id) never match these prefixes. */
+  let removed = 0;
+  if (!items.truncated) {
+    const { rowCount } = await query(
+      `delete from assignment
+        where course_id = $1
+          and (external_assignment_id like 'page:%' or external_assignment_id like 'discussion:%' or external_assignment_id like 'quiz:%')
+          and due_at between $2 and $3
+          and not (external_assignment_id = any($4::text[]))`,
+      [course.course_id, start, end, live]);
+    removed = rowCount;
+  }
+  return { stored, removed };
 }
 
 /* Upsert a course's assignment groups as categories. The type is guessed from
@@ -282,7 +310,7 @@ export async function syncUser(userId, courseId = null) {
         order by course_code`,
       [userId, conn.lms_source_id, courseId]);
 
-    let coursesSynced = 0, assignmentsSynced = 0, skippedUndated = 0, plannerSynced = 0;
+    let coursesSynced = 0, assignmentsSynced = 0, skippedUndated = 0, plannerSynced = 0, removed = 0;
     for (const course of courses) {
       const seen = new Set(); // "title|due_at" of everything stored for this course this run
       /* Assignment groups -> assignment_category */
@@ -321,10 +349,25 @@ export async function syncUser(userId, courseId = null) {
         assignmentsSynced++;
       }
 
+      /* Canvas drops deleted assignments from the list, so a stored Canvas row
+         (bare numeric id) that isn't in this run's list was deleted there.
+         The live set is the whole list, before the skips above: unpublished,
+         undated or excluded items still exist. Skipped when the list was cut
+         short. Manual rows have a null external id and never match. */
+      if (!assignments.truncated) {
+        const { rowCount } = await query(
+          `delete from assignment
+            where course_id = $1 and external_assignment_id ~ '^[0-9]+$'
+              and not (external_assignment_id = any($2::text[]))`,
+          [course.course_id, assignments.map(a => String(a.id))]);
+        removed += rowCount;
+      }
+
       /* Readings, events, ungraded discussions, practice quizzes */
       const extra = await syncPlannerItems(baseUrl, conn.access_token, course, typeIds, seen);
-      plannerSynced += extra;
-      assignmentsSynced += extra;
+      plannerSynced += extra.stored;
+      assignmentsSynced += extra.stored;
+      removed += extra.removed;
 
       await query("update course set last_synced_at = now(), connected_account_id = $2 where course_id = $1", [course.course_id, conn.connected_account_id]);
       coursesSynced++;
@@ -334,7 +377,7 @@ export async function syncUser(userId, courseId = null) {
     await query(
       `update sync_log set finished_at = now(), status = 'success', courses_synced = $2, assignments_synced = $3 where sync_log_id = $1`,
       [log.sync_log_id, coursesSynced, assignmentsSynced]);
-    return { courses_synced: coursesSynced, assignments_synced: assignmentsSynced, planner_items: plannerSynced, skipped_undated: skippedUndated, finished_at: new Date().toISOString() };
+    return { courses_synced: coursesSynced, assignments_synced: assignmentsSynced, assignments_removed: removed, planner_items: plannerSynced, skipped_undated: skippedUndated, finished_at: new Date().toISOString() };
   } catch (err) {
     await query("update sync_log set finished_at = now(), status = 'failed', error_message = $2 where sync_log_id = $1",
       [log.sync_log_id, String(err.message).slice(0, 2000)]);
