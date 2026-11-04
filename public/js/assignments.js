@@ -4,7 +4,7 @@
 initApp("assignments").then(main);
 
 function main() {
-  document.getElementById("add-class-btn").innerHTML = `${ICONS.plus} Add class`;
+  document.getElementById("add-class-btn").innerHTML = `${ICONS.plus} Add Class`;
   const showDone = document.getElementById("show-done");
 
   /* ---------- Render class cards ---------- */
@@ -26,12 +26,12 @@ function main() {
             <div class="class-title">
               <div class="swatch" style="background:${c.color_hex}"></div>
               <div>
-                <div class="code">${esc(c.course_code)} ${c.course_name ? `<span style="font-weight:500;color:var(--muted);font-size:14px">· ${esc(c.course_name)}</span>` : ""}</div>
+                <div class="code"><span style="color:${esc(c.color_hex)}">Class: ${esc(c.course_code)}</span> ${c.course_name ? `<span style="font-weight:500;color:var(--muted);font-size:14px">· ${esc(c.course_name)}</span>` : ""}</div>
                 <div class="cname">${sourceTag(c)} &nbsp;${openCount} open assignment${openCount === 1 ? "" : "s"}${c.is_archived ? " &nbsp;<span class=\"tag type\">Archived</span>" : ""}</div>
               </div>
             </div>
             <div class="class-actions">
-              <button class="btn btn-secondary btn-sm" data-add="${c.course_id}">${ICONS.plus} Add assignment</button>
+              <button class="btn btn-secondary btn-sm add-assignment-btn" data-add="${c.course_id}">${ICONS.plus} Add Assignment</button>
               <button class="btn btn-ghost btn-sm" data-edit="${c.course_id}" title="Edit class">${ICONS.pencil} Edit</button>
               <button class="btn btn-ghost btn-sm" data-delete="${c.course_id}" title="Delete class" style="color:var(--danger)">${ICONS.trash} Delete</button>
             </div>
@@ -153,7 +153,7 @@ function main() {
       note.textContent = ICS_DEFAULT_NOTE;
       setFieldError("c-ics", err.message);
     } finally {
-      btn.disabled = false; btn.textContent = "Check link";
+      btn.disabled = false; btn.textContent = "Check Link";
     }
   });
 
@@ -195,7 +195,7 @@ function main() {
   /* The submit button's label depends on the source chip */
   function refreshSubmitLabel() {
     const editing = !!document.getElementById("c-id").value;
-    classSubmit.textContent = currentSourceName() === "Manual" ? (editing ? "Save" : "Add class") : "Next";
+    classSubmit.textContent = currentSourceName() === "Manual" ? (editing ? "Save" : "Add Class") : "Next";
     stepLabel(1);
   }
 
@@ -276,7 +276,7 @@ function main() {
 
       if (source === "Manual") {
         closeModal("class-modal");
-        toast(id ? `${saved.course_code} saved` : `${saved.course_code} added`);
+        toast(id ? `${saved.course_code} saved` : `${saved.course_code} added`, "success");
         const card = document.getElementById(`class-${saved.course_id}`);
         if (card) card.scrollIntoView({ behavior: "smooth", block: "center" });
       } else {
@@ -361,10 +361,12 @@ function main() {
       const rows = readCategoryTable();
       if (rows.length) await API.courses.saveCategories(course.course_id, rows);
       let msg = `${course.course_code} saved`;
+      let syncFailed = false;
       try {
         const r = await API.courses.sync(course.course_id);
         msg = `${course.course_code}: synced ${r.assignments_synced} item${r.assignments_synced === 1 ? "" : "s"}`;
       } catch (err) {
+        syncFailed = true;
         msg = `${course.course_code} saved, but sync failed: ${err.message}`;
       }
       /* Sync changed last_synced_at on the course too, so refresh both lists,
@@ -375,7 +377,7 @@ function main() {
       refreshSyncStatus();
       closeModal("class-modal");
       render();
-      toast(msg);
+      toast(msg, syncFailed ? "error" : "success");
       const card = document.getElementById(`class-${course.course_id}`);
       if (card) card.scrollIntoView({ behavior: "smooth", block: "center" });
     } catch (err) {
@@ -413,7 +415,7 @@ function main() {
       ASSIGNMENTS = ASSIGNMENTS.filter(a => a.course_id !== cls.course_id);
       closeModal("confirm-modal");
       render();
-      toast(`${cls.course_code} deleted`);
+      toast(`${cls.course_code} deleted`, "success");
     } catch (err) {
       showFormError(confirmError, err.message);
     } finally {

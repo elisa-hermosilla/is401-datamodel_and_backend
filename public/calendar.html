@@ -3,6 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="View your assignment due dates by month and see what is scheduled each day.">
+  <meta name="robots" content="noindex, nofollow">
   <title>Calendar · DueList</title>
   <link rel="icon" href="favicon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="css/styles.css">
@@ -25,8 +27,8 @@
           <div class="cal-head">
             <h3 id="month-label"></h3>
             <div class="cal-nav">
-              <button class="btn btn-secondary btn-icon" id="prev-month" title="Previous month"></button>
-              <button class="btn btn-secondary btn-icon" id="next-month" title="Next month"></button>
+              <button class="btn btn-secondary btn-icon" id="prev-month" title="Previous month" aria-label="Previous month"></button>
+              <button class="btn btn-secondary btn-icon" id="next-month" title="Next month" aria-label="Next month"></button>
             </div>
           </div>
           <div class="cal-grid" id="cal-grid"></div>
@@ -35,12 +37,12 @@
 
         <div class="card day-panel">
           <div class="day-nav">
-            <button class="btn btn-secondary btn-icon" id="prev-day" title="Previous day"></button>
+            <button class="btn btn-secondary btn-icon" id="prev-day" title="Previous day" aria-label="Previous day"></button>
             <div style="text-align:center">
               <h3 id="day-label"></h3>
               <div class="sub" id="day-sub"></div>
             </div>
-            <button class="btn btn-secondary btn-icon" id="next-day" title="Next day"></button>
+            <button class="btn btn-secondary btn-icon" id="next-day" title="Next day" aria-label="Next day"></button>
           </div>
           <div class="a-list" id="day-list"></div>
         </div>
