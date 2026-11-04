@@ -389,15 +389,26 @@ function main() {
   renderStreaks(null);
   API.streaks().then(renderStreaks).catch(() => renderStreaks(null));
 
-  /* The queue card takes the rail's height so the two columns end on the same
-     line, whatever the rail's cards contain; the list scrolls inside. On
-     one-column layouts the card keeps its natural height. */
+  /* Fit to the window: the rail is stretched to the room left under the stat
+     cards (its cards share the extra height), and the queue card takes the
+     rail's height so the two columns end on the same line; the list scrolls
+     inside. When the rail needs more than the window, the page scrolls. On
+     one-column layouts everything keeps its natural height. */
+  const layout = document.querySelector(".dashboard-layout");
   const rail = document.querySelector(".dashboard-rail");
   const queue = document.querySelector(".queue-panel");
   const twoColumns = window.matchMedia("(min-width: 761px)");
+  const fitRail = () => {
+    if (!twoColumns.matches) { rail.style.minHeight = ""; return; }
+    const top = layout.getBoundingClientRect().top + window.scrollY;
+    const bottomPad = parseFloat(getComputedStyle(document.querySelector("main.main")).paddingBottom) || 0;
+    rail.style.minHeight = `${Math.max(0, window.innerHeight - top - bottomPad)}px`;
+  };
   const fitQueue = () => { queue.style.height = twoColumns.matches ? `${rail.offsetHeight}px` : ""; };
   new ResizeObserver(fitQueue).observe(rail);
-  twoColumns.addEventListener("change", fitQueue);
+  window.addEventListener("resize", fitRail);
+  twoColumns.addEventListener("change", () => { fitRail(); fitQueue(); });
+  fitRail();
   fitQueue();
 
   /* Everything is rendered: show the page, sections fading in top to bottom */
