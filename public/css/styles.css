@@ -623,6 +623,8 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--navy); }
 .removable-filter { display: inline-flex; align-items: center; gap: 4px; border: 1px solid var(--control-border); border-radius: 4px; padding: 2px 5px; background: var(--navy-100); color: var(--navy); font-size: 11px; }
 .removable-filter svg { width: 12px; height: 12px; }
 .compact-list { display: flex; flex-direction: column; }
+/* The list can be height-limited and scroll; rows must never shrink to fit */
+.compact-list > .compact-assignment { flex: none; }
 .compact-assignment { display: grid; grid-template-columns: 24px minmax(0, 1fr) auto auto; align-items: center; gap: 12px; min-height: 78px; padding: 12px 10px; border: 1px solid #b4c7dc; border-left: 4px solid var(--course-color, var(--navy)); border-radius: 9px; background: color-mix(in srgb, var(--course-color, #245b91) 5%, white); margin-bottom: 8px; }
 .compact-assignment.sortable { grid-template-columns: 12px 22px minmax(0, 1fr) auto auto; gap: 8px; }
 .compact-assignment:hover { background: #f6f8fa; }
