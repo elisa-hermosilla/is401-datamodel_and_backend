@@ -32,7 +32,7 @@ form.addEventListener("submit", async e => {
   btn.textContent = "Creating account";
   try {
     await API.register(fields);
-    window.location.href = "dashboard.html";
+    window.location.href = "/dashboard";
   } catch (err) {
     showError(err.message);
     btn.disabled = false;

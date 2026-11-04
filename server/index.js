@@ -20,6 +20,7 @@ const { default: canvasRoutes } = await import("./routes/canvas.js");
 const { default: syncRoutes } = await import("./routes/sync.js");
 const { default: categoryRoutes } = await import("./routes/categories.js");
 const { default: streakRoutes } = await import("./routes/streaks.js");
+const { default: pageRoutes } = await import("./routes/pages.js");
 const { checkInOnActivity } = await import("./middleware/checkin.js");
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -46,7 +47,11 @@ app.use(session({
   },
 }));
 
+/* Pages are EJS views in views/; css, js and the favicon are still static files */
+app.set("view engine", "ejs");
+app.set("views", path.join(__dirname, "..", "views"));
 app.use(express.static(path.join(__dirname, "..", "public")));
+app.use(pageRoutes);
 
 /* First API request of the day from a signed-in user records a check-in */
 app.use("/api", checkInOnActivity);
@@ -59,21 +64,27 @@ app.use("/api", syncRoutes);
 app.use("/api", categoryRoutes);
 app.use("/api", streakRoutes);
 
-/* JSON 404 for anything under /api that didn't match */
+/* JSON 404 for anything under /api that didn't match; a page for everything else */
 app.use("/api", (req, res) => {
   res.status(404).json({ error: "Not found" });
 });
+app.use((req, res) => {
+  res.status(404).render("error", { code: 404, message: "There's nothing at this address.", signedIn: !!req.session?.userId });
+});
 
-/* JSON error handler. Validation errors carry their message; everything else is generic. */
+/* Error handler: JSON under /api (validation errors carry their message,
+   everything else is generic), an error page for the HTML routes. */
 app.use((err, req, res, next) => {
-  if (err.status === 400) {
+  const api = req.path.startsWith("/api");
+  if (api && err.status === 400) {
     return res.status(400).json({ error: err.message });
   }
-  if (err.type === "entity.parse.failed") {
+  if (api && err.type === "entity.parse.failed") {
     return res.status(400).json({ error: "Request body must be valid JSON" });
   }
   console.error(`${req.method} ${req.originalUrl} failed:`, err);
-  res.status(500).json({ error: "Something went wrong" });
+  if (api) return res.status(500).json({ error: "Something went wrong" });
+  res.status(500).render("error", { code: 500, message: "Something went wrong. Try again in a moment.", signedIn: !!req.session?.userId });
 });
 
 app.listen(PORT, () => {

@@ -1,0 +1,15 @@
+<%# Left panel of the sign-in style pages. Locals: heading, blurb, sources (show the Canvas / Learning Suite pills). %>
+    <section class="auth-hero">
+      <div>
+        <div class="brand"><span class="brand-mark">D</span> DueList</div>
+        <h1><%= heading %></h1>
+        <p><%= blurb %></p>
+<% if (locals.sources) { -%>
+        <div class="hero-sources">
+          <span class="source-pill"><span class="source-dot" style="background:#f87171"></span> Canvas</span>
+          <span class="source-pill"><span class="source-dot" style="background:#60a5fa"></span> Learning Suite</span>
+        </div>
+<% } -%>
+      </div>
+      <div></div>
+    </section>

@@ -1,0 +1,14 @@
+<%# Not-found / server-error page. Locals: code, message, signedIn. %>
+<%- include("partials/head", { title: code === 404 ? "Page not found" : "Something went wrong", description: "DueList error page" }) %>
+  <div class="auth-wrap">
+<%- include("partials/auth-hero", { heading: code === 404 ? "That page doesn't exist." : "Something went wrong.", blurb: message }) %>
+    <section class="auth-panel">
+      <div class="auth-card">
+        <h2><%= code %></h2>
+        <p class="sub"><%= message %></p>
+        <a class="btn btn-primary btn-block" href="<%= signedIn ? "/dashboard" : "/login" %>"><%= signedIn ? "Back to dashboard" : "Back to sign in" %></a>
+      </div>
+    </section>
+  </div>
+</body>
+</html>

@@ -77,7 +77,7 @@ function main() {
     page = Math.min(page, pages - 1);
     const start = page * pageSize;
     const el = $("day-list");
-    el.innerHTML = items.length ? items.slice(start, start + pageSize).map(a => compactAssignmentRow(a, { agenda: true })).join("") : `<div class="empty agenda-empty"><span class="empty-icon" aria-hidden="true">${ICONS.calCheck}</span><strong>${CLASSES.length ? "Nothing due" : "No classes yet"}</strong><p>${CLASSES.length ? "A little room in your schedule." : "Add a class to see your deadlines."}</p>${CLASSES.length ? '<button type="button" class="text-button" id="add-on-day">Add an assignment</button>' : '<a class="subtle-link" href="assignments.html">Add a class ↗</a>'}</div>`;
+    el.innerHTML = items.length ? items.slice(start, start + pageSize).map(a => compactAssignmentRow(a, { agenda: true })).join("") : `<div class="empty agenda-empty"><span class="empty-icon" aria-hidden="true">${ICONS.calCheck}</span><strong>${CLASSES.length ? "Nothing due" : "No classes yet"}</strong><p>${CLASSES.length ? "A little room in your schedule." : "Add a class to see your deadlines."}</p>${CLASSES.length ? '<button type="button" class="text-button" id="add-on-day">Add an assignment</button>' : '<a class="subtle-link" href="/assignments">Add a class ↗</a>'}</div>`;
     bindChecks(el, renderAll);
     $("add-on-day")?.addEventListener("click", addAssignment);
     $("day-pagination").hidden = items.length <= pageSize;
@@ -95,7 +95,7 @@ function main() {
     selectDay(new Date(next.getFullYear(), next.getMonth(), Math.min(selected.getDate(), last)));
   }
   function addAssignment() {
-    if (!CLASSES.length) { location.href = "assignments.html"; return; }
+    if (!CLASSES.length) { location.href = "/assignments"; return; }
     openAssignmentModal({ due_date: selected, course_id: Number($("calendar-class").value) || undefined }, renderAll);
   }
   function renderAll() { renderMonth(); renderDay(); }

@@ -11,6 +11,13 @@ const MIN_PASSWORD = 8;
 
 function bad(res, message) { return res.status(400).json({ error: message }); }
 
+/* The signed-in user's row (the fields the client sees), or null if the
+   account is gone. Used by GET /api/me and by the page routes. */
+export async function findUser(userId) {
+  const { rows } = await query(`select ${USER_COLUMNS} from app_user where user_id = $1`, [userId]);
+  return rows[0] || null;
+}
+
 /* POST /api/register  { username, email, first_name, last_name, password }
    Creates the account, hashes the password with pgcrypto's bcrypt, and signs
    the new user in. */
@@ -124,12 +131,12 @@ router.post("/login", async (req, res, next) => {
 router.get("/me", async (req, res, next) => {
   try {
     if (!req.session.userId) return res.status(401).json({ error: "Not logged in" });
-    const { rows } = await query(`select ${USER_COLUMNS} from app_user where user_id = $1`, [req.session.userId]);
-    if (rows.length === 0) {
+    const user = await findUser(req.session.userId);
+    if (!user) {
       req.session.destroy(() => {});
       return res.status(401).json({ error: "Not logged in" });
     }
-    res.json(rows[0]);
+    res.json(user);
   } catch (err) {
     next(err);
   }

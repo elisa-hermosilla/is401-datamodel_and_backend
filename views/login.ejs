@@ -1,0 +1,38 @@
+<%- include("partials/head", { title: "Sign in", description: "Sign in to DueList to manage your Canvas and Learning Suite assignments in one place." }) %>
+  <div class="auth-wrap auth-login">
+<%- include("partials/auth-hero", { heading: "Canvas and Learning Suite assignments in one list.", blurb: "DueList collects your BYU assignments into a single dashboard, calendar, and reminder system.", sources: true }) %>
+
+    <section class="auth-panel">
+      <div class="auth-card">
+        <h2>Sign in</h2>
+        <p class="sub">Use your username or email.</p>
+
+        <form id="login-form" novalidate>
+          <div class="form-error" id="login-error" role="alert"></div>
+          <div class="field">
+            <label for="user">Username or email</label>
+            <input class="input" id="user" type="text" placeholder="netid or netid@byu.edu" autocomplete="username" autofocus>
+          </div>
+          <div class="field">
+            <div class="between">
+              <label for="pass">Password</label>
+              <a href="/forgot-password" style="font-size:13px">Forgot password?</a>
+            </div>
+            <input class="input" id="pass" type="password" placeholder="Password" autocomplete="current-password">
+          </div>
+          <div class="between" style="margin-bottom:18px">
+            <label for="keep-signed-in" style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--muted)">
+              <input type="checkbox" id="keep-signed-in" checked> Keep me signed in
+            </label>
+          </div>
+          <button class="btn btn-primary btn-block" type="submit" id="login-btn">Sign in</button>
+        </form>
+
+        <div class="divider">or</div>
+        <a class="btn btn-secondary btn-block" href="/create-account">Create account</a>
+
+        <p class="auth-footer">Trouble signing in? <a href="/forgot-password">Reset your password</a></p>
+      </div>
+    </section>
+  </div>
+<%- include("partials/scripts", { scripts: ["api", "login"] }) %>

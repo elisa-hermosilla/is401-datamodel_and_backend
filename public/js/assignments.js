@@ -102,7 +102,7 @@ function main() {
 
     if (!CANVAS.connected) {
       sel.style.display = "none";
-      note.innerHTML = `Canvas isn't connected. <a href="settings.html">Connect it in Settings</a> to pick from your classes, or enter the code and name below.`;
+      note.innerHTML = `Canvas isn't connected. <a href="/settings">Connect it in Settings</a> to pick from your classes, or enter the code and name below.`;
       return;
     }
     sel.style.display = "";

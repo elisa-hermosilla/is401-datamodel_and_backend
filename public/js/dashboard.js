@@ -67,7 +67,7 @@ function main() {
     const next = openItems().sort((a, b) => dueDate(a) - dueDate(b))[0];
     const el = $("next-grid");
     if (!next) {
-      el.innerHTML = `<div class="eyebrow">Your next step</div><h2>${CLASSES.length ? "You're all caught up" : "Start with a class"}</h2><p class="focus-meta">${CLASSES.length ? "No open assignments. New deadlines will appear here." : "Connect your courses or add a class to see your deadlines."}</p><a class="subtle-link" href="assignments.html">${CLASSES.length ? "View classes" : "Add a class"} ↗</a>`;
+      el.innerHTML = `<div class="eyebrow">Your next step</div><h2>${CLASSES.length ? "You're all caught up" : "Start with a class"}</h2><p class="focus-meta">${CLASSES.length ? "No open assignments. New deadlines will appear here." : "Connect your courses or add a class to see your deadlines."}</p><a class="subtle-link" href="/assignments">${CLASSES.length ? "View classes" : "Add a class"} ↗</a>`;
       return;
     }
     const due = dueDate(next);
@@ -242,7 +242,7 @@ function main() {
     const hasFilters = filters.classes.size || filters.types.size || scope !== "all";
     el.innerHTML = list.length
       ? list.map(a => compactAssignmentRow(a, { handle: custom, gutter: true, highlight: searchTokens })).join("")
-      : `<div class="empty queue-empty"><span class="empty-icon" aria-hidden="true">${ICONS.list}</span><strong>${ASSIGNMENTS.length ? "No assignments to show" : "Your assignments will appear here"}</strong><p>${searchTokens.length ? `Nothing matches “${esc(searchEl.value.trim())}”${hasFilters ? " with these filters" : ""}.` : ASSIGNMENTS.length ? "Try another date range or adjust your filters." : "Add a class to start planning your week."}</p>${ASSIGNMENTS.length ? '<button type="button" class="btn btn-secondary btn-sm" id="reset-queue">Reset filters</button>' : '<a class="btn btn-secondary btn-sm" href="assignments.html">Add a class</a>'}</div>`;
+      : `<div class="empty queue-empty"><span class="empty-icon" aria-hidden="true">${ICONS.list}</span><strong>${ASSIGNMENTS.length ? "No assignments to show" : "Your assignments will appear here"}</strong><p>${searchTokens.length ? `Nothing matches “${esc(searchEl.value.trim())}”${hasFilters ? " with these filters" : ""}.` : ASSIGNMENTS.length ? "Try another date range or adjust your filters." : "Add a class to start planning your week."}</p>${ASSIGNMENTS.length ? '<button type="button" class="btn btn-secondary btn-sm" id="reset-queue">Reset filters</button>' : '<a class="btn btn-secondary btn-sm" href="/assignments">Add a class</a>'}</div>`;
     $("filter-count").textContent = `${list.length} assignment${list.length === 1 ? "" : "s"}`;
     $("queue-scope").textContent = scopeName();
     $("all-open").setAttribute("aria-pressed", scope === "all");
@@ -382,7 +382,7 @@ function main() {
   showDone.addEventListener("change", renderList);
   $("all-open").addEventListener("click", resetQueue);
   $("add-assignment").addEventListener("click", () => {
-    if (!CLASSES.length) { location.href = "assignments.html"; return; }
+    if (!CLASSES.length) { location.href = "/assignments"; return; }
     openAssignmentModal({}, renderAll);
   });
   renderAll();

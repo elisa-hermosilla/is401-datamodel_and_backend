@@ -13,9 +13,6 @@ function clearError() {
   errorBox.classList.remove("show");
 }
 
-/* Already signed in? Skip the form. */
-API.me().then(() => { window.location.replace("dashboard.html"); }).catch(() => {});
-
 form.addEventListener("submit", async e => {
   e.preventDefault();
   clearError();
@@ -30,7 +27,7 @@ form.addEventListener("submit", async e => {
   btn.textContent = "Signing in";
   try {
     await API.login(identifier, password);
-    window.location.href = "dashboard.html";
+    window.location.href = "/dashboard";
   } catch (err) {
     showError(err.status === 401 ? "Wrong username or password." : err.message);
     btn.disabled = false;

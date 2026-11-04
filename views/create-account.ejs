@@ -1,27 +1,6 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="description" content="Create a DueList account to organize your Canvas and Learning Suite assignments.">
-  <title>Create account · DueList</title>
-  <link rel="icon" href="favicon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="css/styles.css">
-</head>
-<body>
+<%- include("partials/head", { title: "Create account", description: "Create a DueList account to organize your Canvas and Learning Suite assignments." }) %>
   <div class="auth-wrap">
-    <section class="auth-hero">
-      <div>
-        <div class="brand"><span class="brand-mark">D</span> DueList</div>
-        <h1>Create an account.</h1>
-        <p>After you create an account you can link Canvas and Learning Suite. DueList imports your classes and assignments from both.</p>
-        <div class="hero-sources">
-          <span class="source-pill"><span class="source-dot" style="background:#f87171"></span> Canvas</span>
-          <span class="source-pill"><span class="source-dot" style="background:#60a5fa"></span> Learning Suite</span>
-        </div>
-      </div>
-      <div></div>
-    </section>
+<%- include("partials/auth-hero", { heading: "Create an account.", blurb: "After you create an account you can link Canvas and Learning Suite. DueList imports your classes and assignments from both.", sources: true }) %>
 
     <section class="auth-panel">
       <div class="auth-card">
@@ -60,12 +39,8 @@
           <button class="btn btn-primary btn-block" type="submit" id="create-btn">Create account</button>
         </form>
 
-        <p class="auth-footer">Already have an account? <a href="index.html">Sign in</a></p>
+        <p class="auth-footer">Already have an account? <a href="/login">Sign in</a></p>
       </div>
     </section>
   </div>
-
-  <script src="js/api.js"></script>
-  <script src="js/create-account.js"></script>
-</body>
-</html>
+<%- include("partials/scripts", { scripts: ["api", "create-account"] }) %>

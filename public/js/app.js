@@ -67,12 +67,12 @@ function nextClassColor() {
 }
 
 /* Call this first on every app page. Redirects to the sign-in page when the
-   session is missing, then loads everything and draws the sidebar. */
+   session is missing, then loads everything and wires up the sidebar. */
 async function initApp(activeNav) {
   try {
     USER = await API.me();
   } catch {
-    window.location.replace("index.html");
+    window.location.replace("/login");
     return new Promise(() => {}); // never resolves; the page is navigating away
   }
   const [sources, types, courses, assignments, canvas, sync] = await Promise.all([
@@ -86,7 +86,7 @@ async function initApp(activeNav) {
   ASSIGNMENTS = assignments;
   CANVAS = canvas;
   SYNC = sync;
-  renderSidebar(activeNav);
+  bindSidebar();
   startRelTimeTicker();
 }
 
@@ -394,14 +394,14 @@ function bindChecks(container, onChange, opts = {}) {
     el.addEventListener("click", e => {
       e.stopPropagation();
       if (opts.onFilterClass) opts.onFilterClass(el.dataset.filterClass);
-      else window.location.href = `dashboard.html?class=${encodeURIComponent(el.dataset.filterClass)}`;
+      else window.location.href = `/dashboard?class=${encodeURIComponent(el.dataset.filterClass)}`;
     });
   });
   container.querySelectorAll("[data-filter-type]").forEach(el => {
     el.addEventListener("click", e => {
       e.stopPropagation();
       if (opts.onFilterType) opts.onFilterType(el.dataset.filterType);
-      else window.location.href = `dashboard.html?type=${encodeURIComponent(el.dataset.filterType)}`;
+      else window.location.href = `/dashboard?type=${encodeURIComponent(el.dataset.filterType)}`;
     });
   });
   container.querySelectorAll("[data-open]").forEach(el => {
@@ -719,36 +719,9 @@ function openAssignmentView(id, onChange) {
 }
 
 /* ---------- Sidebar ---------- */
-function userInitials(u) {
-  return ((u.first_name || "")[0] || "") + ((u.last_name || "")[0] || "");
-}
-
-function renderSidebar(active) {
-  const items = [
-    { key: "dashboard",   label: "Dashboard",   href: "dashboard.html",   icon: ICONS.dashboard },
-    { key: "calendar",    label: "Calendar",    href: "calendar.html",    icon: ICONS.calendar },
-    { key: "assignments", label: "Assignments", href: "assignments.html", icon: ICONS.list },
-    { key: "settings",    label: "Settings",    href: "settings.html",    icon: ICONS.settings },
-  ];
-  const el = document.getElementById("sidebar");
-  el.className = "sidebar";
-  el.innerHTML = `
-    <a class="brand" href="dashboard.html" aria-label="DueList dashboard"><span class="brand-mark">D</span><span>DueList</span></a>
-    <nav class="nav">
-      ${items.map(i => `<a href="${i.href}" aria-label="${i.label}" ${i.key === active ? 'aria-current="page"' : ""} class="${i.key === active ? "active" : ""}">${i.icon}<span>${i.label}</span></a>`).join("")}
-    </nav>
-    <div class="sidebar-bottom">
-      <button type="button" class="btn btn-secondary btn-block btn-sm" id="sync-btn" aria-label="Sync assignments">${ICONS.sync} Sync now</button>
-      <div class="sync-note"></div>
-      <div class="user-chip">
-        <div class="avatar">${esc(userInitials(USER))}</div>
-        <div style="flex:1;min-width:0">
-          <div class="name">${esc(USER.first_name)} ${esc(USER.last_name)}</div>
-          <div class="email">${esc(USER.email || USER.username)}</div>
-        </div>
-        <button type="button" class="btn btn-ghost btn-icon" id="logout-btn" title="Sign out">${ICONS.logout}</button>
-      </div>
-    </div>`;
+/* The sidebar markup comes from the server (views/partials/sidebar.ejs);
+   this fills in the sync note and wires up its two buttons. */
+function bindSidebar() {
   renderSyncNote();
 
   /* Sync goes class by class (each linked Canvas class, each Learning Suite
@@ -792,7 +765,7 @@ function renderSidebar(active) {
 
   document.getElementById("logout-btn").addEventListener("click", async () => {
     try { await API.logout(); } catch { /* session is gone either way */ }
-    window.location.href = "index.html";
+    window.location.href = "/login";
   });
 }
 
@@ -802,14 +775,14 @@ function removedNote(n) {
 }
 
 /* The "Canvas & Learning Suite · synced 3 min ago" line under the Sync button.
-   Separate from renderSidebar so it can be redrawn without rebinding buttons. */
+   Separate from bindSidebar so it can be redrawn without rebinding buttons. */
 function renderSyncNote() {
   const el = document.querySelector("#sidebar .sync-note");
   if (!el) return;
   /* Short on purpose so it doesn't wrap: "Synced just now" / "Synced 2 mins ago" */
   el.innerHTML = SYNC.can_sync
     ? `<span class="dot ${SYNC.canvas_status === "error" ? "bad" : ""}"></span> ${SYNC.last_synced_at ? `Synced ${relTimeEl(SYNC.last_synced_at)}` : "Not synced yet"}`
-    : `<span class="dot off"></span> Nothing linked yet · <a href="settings.html">Connect</a>`;
+    : `<span class="dot off"></span> Nothing linked yet · <a href="/settings">Connect</a>`;
 }
 
 /* ---------- Modal / toast ---------- */

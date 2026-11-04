@@ -1,17 +1,6 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="description" content="Manage your DueList account, assignment reminders, notifications, and connected services.">
-  <meta name="robots" content="noindex, nofollow">
-  <title>Settings · DueList</title>
-  <link rel="icon" href="favicon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="css/styles.css">
-</head>
-<body>
+<%- include("partials/head", { title: "Settings", description: "Manage your DueList account, assignment reminders, notifications, and connected services.", noindex: true }) %>
   <div class="app">
-    <aside id="sidebar"></aside>
+<%- include("partials/sidebar", { active: "settings", user }) %>
 
     <main class="main">
       <div class="page-header">
@@ -196,10 +185,4 @@
       </div>
     </main>
   </div>
-
-  <script src="js/api.js"></script>
-  <script src="js/data.js"></script>
-  <script src="js/app.js"></script>
-  <script src="js/settings.js"></script>
-</body>
-</html>
+<%- include("partials/scripts", { scripts: ["api", "data", "app", "settings"] }) %>
