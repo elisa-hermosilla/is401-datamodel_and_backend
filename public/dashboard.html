@@ -12,7 +12,7 @@
 <body>
   <div class="app overview-app">
     <aside id="sidebar"></aside>
-    <main class="main overview-main dashboard-main">
+    <main class="main overview-main dashboard-main is-loading">
       <header class="page-header">
         <div><h1 id="greeting">Dashboard</h1><p class="sub" id="today-line"></p></div>
         <div class="toolbar">
@@ -30,7 +30,7 @@
             <label class="check-label"><input type="checkbox" id="show-done"> Include completed</label>
           </div>
           <div class="queue-controls">
-            <input class="input" id="assignment-search" type="search" aria-label="Search assignments" placeholder="Search assignments…">
+            <input class="input" id="assignment-search" type="search" aria-label="Search assignments" placeholder="Search name, class, submission, or type" title="Press / to search">
             <select class="select" id="f-class" aria-label="Filter by class"></select>
             <select class="select" id="f-type" aria-label="Filter by assignment type"></select>
             <select class="select" id="sort" aria-label="Sort assignments">
@@ -38,7 +38,7 @@
               <option value="type">Type</option><option value="custom">Custom order</option>
             </select>
           </div>
-          <div class="queue-context"><span id="queue-scope">All open assignments</span><div class="active-filters" id="active-filters"></div></div>
+          <div class="queue-context"><span id="queue-scope">All open assignments</span><div class="active-filters" id="active-filters"></div><button type="button" class="btn btn-ghost btn-sm reset-order" id="reset-order" style="display:none" title="Clear your custom order">Reset order</button></div>
           <div class="compact-list" id="assignment-list"></div>
           <div class="list-footer">
             <span id="filter-count" role="status"></span>

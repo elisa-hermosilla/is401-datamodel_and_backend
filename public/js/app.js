@@ -307,16 +307,24 @@ function assignmentRow(a, opts = {}) {
 }
 
 /* A compact, keyboard-accessible row for the dashboard and calendar agenda.
-   Full notes and submission details remain in the assignment dialog. */
-function compactAssignmentRow(a, { handle = false, agenda = false } = {}) {
+   Full notes and submission details remain in the assignment dialog.
+   handle: draggable with a grip. gutter: no grip, but keep the grip's column
+   so rows line up the same in every sort mode. highlight: search tokens to
+   mark in the title. */
+function compactAssignmentRow(a, { handle = false, gutter = false, agenda = false, highlight = [] } = {}) {
   const cls = getClassById(a.course_id);
   const due = dueDate(a);
   const status = dueClass(a);
-  return `<div style="--course-color:${cls.color_hex}" class="compact-assignment ${isDone(a) ? "done" : ""} ${handle ? "sortable" : ""}" data-id="${a.assignment_id}" ${handle ? 'draggable="true"' : ""}>
-    ${handle ? `<span class="drag-handle" aria-hidden="true" title="Drag to reorder">${ICONS.grip}</span>` : ""}
+  const sortable = handle || gutter;
+  const grip = handle
+    ? `<span class="drag-handle" aria-hidden="true" title="Drag to reorder">${ICONS.grip}</span>`
+    : sortable ? `<span class="drag-handle spacer" aria-hidden="true">${ICONS.grip}</span>` : "";
+  const name = highlight && highlight.length ? highlightText(a.title, highlight) : esc(a.title);
+  return `<div style="--course-color:${cls.color_hex}" class="compact-assignment ${isDone(a) ? "done" : ""} ${sortable ? "sortable" : ""}" data-id="${a.assignment_id}" ${handle ? 'draggable="true"' : ""}>
+    ${grip}
     <button type="button" class="assignment-toggle ${isDone(a) ? "on" : ""}" data-check="${a.assignment_id}" aria-label="${isDone(a) ? "Mark incomplete" : "Mark complete"}: ${esc(a.title)}" aria-pressed="${isDone(a)}">${isDone(a) ? ICONS.check : ""}</button>
     <button type="button" class="assignment-open" data-open="${a.assignment_id}" title="${esc(a.title)}">
-      <span class="assignment-name">${esc(a.title)}</span>
+      <span class="assignment-name">${name}</span>
       <span class="assignment-meta"><span class="course-marker" style="--course-color:${cls.color_hex}"></span>${esc(a.course_code)}${typeLabel(a) ? ` · ${esc(typeLabel(a))}` : ""}${a.estimated_minutes ? ` · ${fmtMinutes(a.estimated_minutes)}` : ""}${a.notes?.trim() ? ' · Note' : ""}</span>
     </button>
     <div class="assignment-deadline ${status}"><span>${agenda ? (a.due_time_known === false ? "All day" : fmtTime(due)) : fmtDayLabel(due)}</span><small>${isDone(a) ? "Completed" : status === "overdue" ? "Past due" : agenda ? "" : a.due_time_known === false ? "All day" : fmtTime(due)}</small></div>
