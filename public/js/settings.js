@@ -3,6 +3,13 @@
 initApp("settings").then(main);
 
 function main() {
+  function scrollToConnectedAccountsBottom() {
+    if (window.location.hash !== "#connected-accounts") return;
+    requestAnimationFrame(() => {
+      document.getElementById("connected-accounts")?.scrollIntoView({ behavior: "smooth", block: "end" });
+    });
+  }
+
   /* ---------- Account (real): who you are + change password ---------- */
   document.getElementById("account-sub").textContent = `${USER.first_name} ${USER.last_name} · ${USER.username} · ${USER.email}`;
   const pwForm = document.getElementById("password-form");
@@ -58,13 +65,41 @@ function main() {
             <button class="btn btn-ghost btn-sm" id="canvas-disconnect">Disconnect</button>
           </div>
         </div>
-        <div class="form-error" id="canvas-error" role="alert"></div>`;
+        <div class="form-error" id="canvas-error" role="alert"></div>
+        <form id="canvas-replace-form" class="row" style="margin-top:12px;max-width:560px;align-items:flex-end" novalidate>
+          <div class="field" style="margin:0;flex:1">
+            <label for="canvas-replace-token">Replace Canvas token</label>
+            <input class="input" id="canvas-replace-token" type="password" placeholder="Paste a new access token" autocomplete="off" spellcheck="false">
+          </div>
+          <button class="btn btn-secondary" type="submit" id="canvas-replace" style="flex:none">Replace token</button>
+        </form>`;
+      document.getElementById("canvas-replace-form").addEventListener("submit", async e => {
+        e.preventDefault();
+        const btn = document.getElementById("canvas-replace");
+        const token = document.getElementById("canvas-replace-token").value.trim();
+        if (!token) return showCanvasError("Paste your new Canvas access token.");
+        btn.disabled = true; btn.textContent = "Checking";
+        try {
+          const r = await API.canvas.connect(token);
+          CANVAS = r;
+          toast("Canvas token replaced", "success");
+          renderCanvas();
+          refreshSyncStatus();
+          if (r.sync_error) showCanvasError(`Token replaced, but the first sync failed: ${r.sync_error}`);
+        } catch (err) {
+          showCanvasError(err.message);
+          btn.disabled = false; btn.textContent = "Replace token";
+        }
+      });
       document.getElementById("canvas-sync").addEventListener("click", async e => {
         const b = e.currentTarget; b.disabled = true; b.textContent = "Syncing";
         try {
           const r = await API.canvas.sync();
           toast(`Synced ${r.assignments_synced} assignment${r.assignments_synced === 1 ? "" : "s"} from ${r.courses_synced} class${r.courses_synced === 1 ? "" : "es"}${removedNote(r.assignments_removed)}`, "success");
-        } catch (err) { showCanvasError(err.message); }
+        } catch (err) {
+          if (isCanvasTokenRejected(err)) showCanvasTokenWarning();
+          showCanvasError(err.message);
+        }
         CANVAS = await API.canvas.status();
         renderCanvas();
         refreshSyncStatus();
@@ -123,6 +158,7 @@ function main() {
     e.textContent = msg; e.classList.add("show");
   }
   renderCanvas();
+  scrollToConnectedAccountsBottom();
 
   /* ---------- Learning Suite feeds (real) ---------- */
   let LS = { courses: [], last_synced_at: null };
@@ -160,7 +196,9 @@ function main() {
       refreshSyncStatus();
     });
   }
-  API.learningSuite.status().then(s => { LS = s; renderLearningSuite(); }).catch(() => renderLearningSuite());
+  API.learningSuite.status()
+    .then(s => { LS = s; renderLearningSuite(); scrollToConnectedAccountsBottom(); })
+    .catch(() => { renderLearningSuite(); scrollToConnectedAccountsBottom(); });
 
   /* ---------- State ---------- */
   const state = {
