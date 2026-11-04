@@ -237,7 +237,7 @@ function assignmentRow(a, opts = {}) {
       <div class="body" data-open="${a.assignment_id}" title="Edit assignment">
         <div class="title">${esc(a.title)}</div>
         <div class="meta">
-          <button type="button" class="tag clickable" data-filter-class="${esc(cls.course_code)}" style="background:${cls.color_hex}1a;color:${cls.color_hex}" title="Filter by ${esc(cls.course_code)}">${esc(cls.course_code)}</button>
+          <button type="button" class="tag course clickable" data-filter-class="${esc(cls.course_code)}" style="--course-color:${cls.color_hex}" title="Filter by ${esc(cls.course_code)}">${esc(cls.course_code)}</button>
           ${type ? `<button type="button" class="tag type clickable" data-filter-type="${esc(type)}" title="Filter by ${esc(type)}">${esc(type)}</button>` : ""}
           ${a.estimated_minutes ? `<span class="tag type" title="Estimated effort">${fmtMinutes(a.estimated_minutes)}</span>` : ""}
           <span class="sep">•</span>
@@ -256,6 +256,23 @@ function assignmentRow(a, opts = {}) {
       </div>
       <div class="check ${isDone(a) ? "on" : ""}" title="${isDone(a) ? "Mark incomplete" : "Mark complete"}" data-check="${a.assignment_id}">${isDone(a) ? ICONS.check : ""}</div>
     </div>`;
+}
+
+/* A compact, keyboard-accessible row for the dashboard and calendar agenda.
+   Full notes and submission details remain in the assignment dialog. */
+function compactAssignmentRow(a, { handle = false, agenda = false } = {}) {
+  const cls = getClassById(a.course_id);
+  const due = dueDate(a);
+  const status = dueClass(a);
+  return `<div style="--course-color:${cls.color_hex}" class="compact-assignment ${isDone(a) ? "done" : ""} ${handle ? "sortable" : ""}" data-id="${a.assignment_id}" ${handle ? 'draggable="true"' : ""}>
+    ${handle ? `<span class="drag-handle" aria-hidden="true" title="Drag to reorder">${ICONS.grip}</span>` : ""}
+    <button type="button" class="assignment-toggle ${isDone(a) ? "on" : ""}" data-check="${a.assignment_id}" aria-label="${isDone(a) ? "Mark incomplete" : "Mark complete"}: ${esc(a.title)}" aria-pressed="${isDone(a)}">${isDone(a) ? ICONS.check : ""}</button>
+    <button type="button" class="assignment-open" data-open="${a.assignment_id}" title="${esc(a.title)}">
+      <span class="assignment-name">${esc(a.title)}</span>
+      <span class="assignment-meta"><span class="course-marker" style="--course-color:${cls.color_hex}"></span>${esc(a.course_code)}${typeLabel(a) ? ` · ${esc(typeLabel(a))}` : ""}${a.estimated_minutes ? ` · ${fmtMinutes(a.estimated_minutes)}` : ""}${a.notes?.trim() ? ' · Note' : ""}</span>
+    </button>
+    <div class="assignment-deadline ${status}"><span>${agenda ? (a.due_time_known === false ? "All day" : fmtTime(due)) : fmtDayLabel(due)}</span><small>${isDone(a) ? "Completed" : status === "overdue" ? "Past due" : agenda ? "" : a.due_time_known === false ? "All day" : fmtTime(due)}</small></div>
+  </div>`;
 }
 
 /* Save a partial update for one assignment, swap in the fresh row, re-render. */
@@ -507,7 +524,7 @@ function ensureAssignmentModal() {
   wrap._disarm = disarm;
 }
 
-/* opts.assignment = edit that row; opts.course_id = add, preselecting that class.
+/* opts.assignment = edit that row; opts.course_id / opts.due_date preselect new fields.
    onChange() runs after a successful save or delete. */
 function openAssignmentModal(opts = {}, onChange) {
   ensureAssignmentModal();
@@ -528,7 +545,7 @@ function openAssignmentModal(opts = {}, onChange) {
   if (a && a.submission_type && !subs.includes(a.submission_type)) subs.push(a.submission_type);
   document.getElementById("a-submission").innerHTML = subs.map(s => `<option ${a && a.submission_type === s ? "selected" : ""}>${esc(s)}</option>`).join("");
 
-  const due = a ? dueDate(a) : addDays(today(), 3);
+  const due = a ? dueDate(a) : (opts.due_date || addDays(today(), 3));
   document.getElementById("a-id").value = a ? a.assignment_id : "";
   document.getElementById("a-title").value = a ? a.title : "";
   document.getElementById("a-date").value = toDateInput(due);
@@ -561,12 +578,12 @@ function renderSidebar(active) {
   const el = document.getElementById("sidebar");
   el.className = "sidebar";
   el.innerHTML = `
-    <a class="brand" href="dashboard.html"><span class="brand-mark">D</span><span>DueList</span></a>
+    <a class="brand" href="dashboard.html" aria-label="DueList dashboard"><span class="brand-mark">D</span><span>DueList</span></a>
     <nav class="nav">
-      ${items.map(i => `<a href="${i.href}" class="${i.key === active ? "active" : ""}">${i.icon}<span>${i.label}</span></a>`).join("")}
+      ${items.map(i => `<a href="${i.href}" aria-label="${i.label}" ${i.key === active ? 'aria-current="page"' : ""} class="${i.key === active ? "active" : ""}">${i.icon}<span>${i.label}</span></a>`).join("")}
     </nav>
     <div class="sidebar-bottom">
-      <button type="button" class="btn btn-secondary btn-block btn-sm" id="sync-btn">${ICONS.sync} Sync now</button>
+      <button type="button" class="btn btn-secondary btn-block btn-sm" id="sync-btn" aria-label="Sync assignments">${ICONS.sync} Sync now</button>
       <div class="sync-note"></div>
       <div class="user-chip">
         <div class="avatar">${esc(userInitials(USER))}</div>

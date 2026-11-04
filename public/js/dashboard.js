@@ -1,222 +1,188 @@
-/* Dashboard. Classes and assignments come from the API. */
-
+/* Dashboard: deadlines, a paged assignment queue, and a seven-day workload. */
 initApp("dashboard").then(main);
 
 function main() {
-  /* Greeting */
-  (function () {
-    const h = new Date().getHours();
-    const g = h < 12 ? "Good morning" : h < 17 ? "Good afternoon" : "Good evening";
-    document.getElementById("greeting").textContent = `${g}, ${USER.first_name}`;
-    document.getElementById("today-line").textContent = fmtLongDate(new Date());
-  })();
+  const $ = id => document.getElementById(id);
+  const rowsPerPage = () => window.innerHeight >= 1000 ? 6 : window.innerHeight >= 850 ? 5 : 3;
+  let pageSize = rowsPerPage();
+  let page = 0;
+  let scope = "all";
+  let selectedDate = null;
+  const filters = { classes: new Set(), types: new Set() };
+  const params = new URLSearchParams(location.search);
+  if (params.get("class") && getClass(params.get("class"))) filters.classes.add(params.get("class"));
+  if (params.get("type")) filters.types.add(params.get("type"));
+  const h = new Date().getHours();
+  $("greeting").textContent = `${h < 12 ? "Good morning" : h < 17 ? "Good afternoon" : "Good evening"}, ${USER.first_name}`;
+  $("today-line").textContent = fmtLongDate(new Date());
+  if (ASSIGNMENTS.some(a => a.sort_order != null)) $("sort").value = "custom";
 
-  /* ---------- Buckets ---------- */
-  function openItems() { return ASSIGNMENTS.filter(a => !isDone(a)); }
-  function bucket() {
-    const now = new Date();
-    const list = openItems();
-    return {
-      past:     list.filter(a => dueDate(a) < now),
-      today:    list.filter(a => dayDiff(dueDate(a)) === 0 && dueDate(a) >= now),
-      tomorrow: list.filter(a => dayDiff(dueDate(a)) === 1),
-      week:     list.filter(a => { const d = dayDiff(dueDate(a)); return d >= 0 && d <= 7 && dueDate(a) >= now; }),
-    };
+  const openItems = () => ASSIGNMENTS.filter(a => !isDone(a));
+  // Seven calendar days, including today. Completed items use their due date too.
+  const inWeek = a => dayDiff(dueDate(a)) >= 0 && dayDiff(dueDate(a)) < 7;
+  function inScope(a) {
+    const d = dueDate(a);
+    if (scope === "past") return d < new Date();
+    if (scope === "today") return sameDay(d, today()) && d >= new Date();
+    if (scope === "tomorrow") return dayDiff(d) === 1;
+    if (scope === "week") return inWeek(a) && d >= new Date();
+    if (scope === "date") return sameDay(d, selectedDate);
+    return true;
+  }
+  const scopeName = () => ({ all: $("show-done").checked ? "All assignments" : "All open assignments", past: "Past due", today: "Still due today", tomorrow: "Due tomorrow", week: "Due in the next 7 days", date: selectedDate ? `Due ${fmtDayLabel(selectedDate).toLowerCase()}` : "" })[scope];
+  function setScope(value, date = null) {
+    scope = value; selectedDate = date; page = 0;
+    renderStats(); renderWeek(); renderList();
   }
 
   function renderStats() {
-    const b = bucket();
-    const byDue = l => [...l].sort((x, y) => dueDate(x) - dueDate(y));
-    const weekClasses = [...new Set(b.week.map(a => a.course_id))].length;
+    const open = openItems();
+    const now = new Date();
     const stats = [
-      { cls: "danger", icon: ICONS.alert, label: "Past due",     value: b.past.length,     foot: b.past.length ? `Oldest: ${fmtDayLabel(dueDate(byDue(b.past)[0]))}` : "None past due" },
-      { cls: "warn",   icon: ICONS.clock, label: "Due today",    value: b.today.length,    foot: b.today.length ? `Next: ${fmtTime(dueDate(byDue(b.today)[0]))}` : "Nothing left today" },
-      { cls: "info",   icon: ICONS.sun,   label: "Due tomorrow", value: b.tomorrow.length, foot: b.tomorrow.length ? `${esc(byDue(b.tomorrow)[0].course_code)} first` : "Nothing due tomorrow" },
-      { cls: "ok",     icon: ICONS.week,  label: "Next 7 days",  value: b.week.length,     foot: `${weekClasses} class${weekClasses === 1 ? "" : "es"}` },
+      { key: "past", label: "Past due", cls: "danger", icon: ICONS.alert, items: open.filter(a => dueDate(a) < now), foot: "Needs attention" },
+      { key: "today", label: "Due today", cls: "warn", icon: ICONS.clock, items: open.filter(a => sameDay(dueDate(a), today()) && dueDate(a) >= now), foot: "Before tonight" },
+      { key: "tomorrow", label: "Due tomorrow", cls: "info", icon: ICONS.sun, items: open.filter(a => dayDiff(dueDate(a)) === 1), foot: fmtDate(addDays(today(), 1)) },
+      { key: "week", label: "Next 7 days", cls: "ok", icon: ICONS.week, items: open.filter(a => inWeek(a) && dueDate(a) >= now), foot: "Including today" },
     ];
-    document.getElementById("stat-grid").innerHTML = stats.map(s => `
-      <a class="card stat ${s.cls}" href="calendar.html" title="Open in calendar">
-        <div class="label"><span class="ico">${s.icon}</span>${s.label}</div>
-        <div class="value">${s.value}</div>
-        <div class="foot">${s.foot}</div>
-      </a>`).join("");
+    $("stat-grid").innerHTML = stats.map(s => `<button type="button" class="card stat ${s.cls} ${scope === s.key ? "is-selected" : ""}" data-scope="${s.key}" aria-pressed="${scope === s.key}"><span class="stat-copy"><span class="stat-icon" aria-hidden="true">${s.icon}</span><span class="label">${s.label}</span><span class="foot">${s.items.length ? s.foot : "Nothing due"}</span></span><span class="value">${s.items.length}</span></button>`).join("");
+    $("stat-grid").querySelectorAll("[data-scope]").forEach(btn => btn.addEventListener("click", () => setScope(scope === btn.dataset.scope ? "all" : btn.dataset.scope)));
   }
 
-  /* ---------- Work on this next + progress (structure from Danny's mockup) ---------- */
   function renderNext() {
-    const open = openItems().sort((a, b) => dueDate(a) - dueDate(b));
-    const next = open[0];
-    const done = ASSIGNMENTS.filter(isDone).length;
-    const pct = ASSIGNMENTS.length ? Math.round((done / ASSIGNMENTS.length) * 100) : 0;
-
-    const el = document.getElementById("next-grid");
-    const type = next ? typeLabel(next) : "";
-    el.innerHTML = `
-      <div class="card next-card">
-        <div class="eyebrow">Work on this next</div>
-        ${next ? `
-          <h3>${esc(next.title)}</h3>
-          <div class="meta">
-            <span class="tag">${esc(next.course_code)}</span>
-            ${type ? `<span class="tag">${esc(type)}</span>` : ""}
-            ${next.estimated_minutes ? `<span class="tag">${fmtMinutes(next.estimated_minutes)} estimated</span>` : ""}
-            <span>Due ${fmtDayLabel(dueDate(next))} · ${fmtTime(dueDate(next))}</span>
-          </div>
-          <div class="actions">
-            <button type="button" class="btn btn-light" data-open-next="${next.assignment_id}">View details</button>
-            <button type="button" class="btn btn-outline" data-done-next="${next.assignment_id}">Mark complete</button>
-          </div>` : `
-          <h3>Nothing open</h3>
-          <p class="empty-next">${CLASSES.length ? "No open assignments." : "Add a class on the Assignments page to get started."}</p>`}
-      </div>
-      <div class="card progress-card">
-        <div class="label" style="font-size:13px;font-weight:600;color:var(--muted)">Completed</div>
-        <div class="num">${done}<small>of ${ASSIGNMENTS.length}</small></div>
-        <div class="progress-track"><div style="width:${pct}%"></div></div>
-        <div class="foot">${pct}% of this semester's assignments</div>
-      </div>`;
-
-    const openBtn = el.querySelector("[data-open-next]");
-    if (openBtn) openBtn.addEventListener("click", () => openAssignmentModal({ assignment: getAssignment(Number(openBtn.dataset.openNext)) }, renderAll));
-    const doneBtn = el.querySelector("[data-done-next]");
-    if (doneBtn) doneBtn.addEventListener("click", () => saveAssignment(Number(doneBtn.dataset.doneNext), { completed: true }, renderAll, "Marked complete"));
+    const next = openItems().sort((a, b) => dueDate(a) - dueDate(b))[0];
+    const el = $("next-grid");
+    if (!next) {
+      el.innerHTML = `<div class="eyebrow">Your next step</div><h2>${CLASSES.length ? "You're all caught up" : "Start with a class"}</h2><p class="focus-meta">${CLASSES.length ? "No open assignments. New deadlines will appear here." : "Connect your courses or add a class to see your deadlines."}</p><a class="subtle-link" href="assignments.html">${CLASSES.length ? "View classes" : "Add a class"} ↗</a>`;
+      return;
+    }
+    const due = dueDate(next);
+    const past = due < new Date();
+    el.innerHTML = `<div class="focus-top"><span class="eyebrow">Next deadline</span>${past ? '<span class="status-past">Past due</span>' : ""}</div>
+      <h2><button class="focus-title" type="button" data-open="${next.assignment_id}">${esc(next.title)}</button></h2>
+      <p class="focus-meta">${esc(next.course_code)}${next.estimated_minutes ? ` · ${fmtMinutes(next.estimated_minutes)} estimated` : ""}</p>
+      <p class="focus-due">${fmtDayLabel(due)} · ${next.due_time_known === false ? "All day" : fmtTime(due)}</p>
+      <div class="focus-actions"><button type="button" class="btn btn-primary btn-sm" data-check="${next.assignment_id}">${ICONS.check} Complete</button><button type="button" class="btn btn-secondary btn-sm" data-open="${next.assignment_id}">Details</button></div>`;
+    bindChecks(el, renderAll);
   }
 
-  /* ---------- Streaks ---------- */
-  function renderStreaks() {
-    const b = bucket();
-    const pastDueStreak = b.past.length ? 0 : 12;
-    const dots = n => Array.from({ length: 7 }, (_, i) => `<span class="${i < Math.min(n, 7) ? "on" : ""}"></span>`).join("");
-    document.getElementById("streak-grid").innerHTML = `
-      <div class="card streak">
-        <div class="flame ${pastDueStreak ? "" : "off"}">${ICONS.flame}</div>
-        <div>
-          <div class="num">${pastDueStreak}<small>days</small></div>
-          <div class="title">No past-due assignments</div>
-          <div class="meta">${pastDueStreak ? `Best streak: ${USER.no_past_due_best_streak} days` : `${b.past.length} past due · Best: ${USER.no_past_due_best_streak} days`}</div>
-          <div class="streak-dots">${dots(pastDueStreak)}</div>
-        </div>
-      </div>
-      <div class="card streak blue">
-        <div class="flame">${ICONS.calCheck}</div>
-        <div>
-          <div class="num">${STREAKS.checkInCurrent}<small>days</small></div>
-          <div class="title">Daily check-in streak</div>
-          <div class="meta">Opened every day since ${fmtDate(addDays(today(), -STREAKS.checkInCurrent + 1))} · Best: ${USER.check_in_best_streak}</div>
-          <div class="streak-dots">${dots(7)}</div>
-        </div>
-      </div>`;
+  function renderWeek() {
+    const open = openItems();
+    const days = Array.from({ length: 7 }, (_, i) => {
+      const date = addDays(today(), i);
+      return { date, items: open.filter(a => sameDay(dueDate(a), date)) };
+    });
+    $("week-strip").innerHTML = days.map(({ date, items }, i) => `<button type="button" class="week-day ${i === 0 ? "is-today" : ""}" data-day="${i}" aria-pressed="${scope === "date" && sameDay(date, selectedDate)}" aria-label="${fmtLongDate(date)}: ${items.length} open assignments"><span>${DOW[date.getDay()]}</span><strong>${date.getDate()}</strong><span class="week-count ${items.length ? "has-work" : ""}">${items.length || "–"}</span></button>`).join("");
+    $("week-strip").querySelectorAll("[data-day]").forEach(btn => btn.addEventListener("click", () => setScope("date", addDays(today(), Number(btn.dataset.day)))));
+    const work = open.filter(inWeek);
+    const estimated = work.filter(a => Number(a.estimated_minutes) > 0);
+    const minutes = estimated.reduce((sum, a) => sum + Number(a.estimated_minutes), 0);
+    $("week-summary").textContent = minutes ? `${fmtMinutes(minutes)} estimated · ${estimated.length} of ${work.length} open assignments` : `${work.length} open assignment${work.length === 1 ? "" : "s"} · No time estimates`;
+    const week = ASSIGNMENTS.filter(inWeek);
+    const done = week.filter(isDone).length;
+    const pct = week.length ? Math.round(done / week.length * 100) : 0;
+    $("week-progress").innerHTML = `<div class="between"><span>Completed for these 7 days</span><strong>${done} / ${week.length}</strong></div><div class="progress-track" role="progressbar" aria-label="Assignments completed for the next seven days" aria-valuenow="${pct}" aria-valuemin="0" aria-valuemax="100"><div style="width:${pct}%"></div></div>`;
   }
-
-  /* ---------- Filters ---------- */
-  const filters = { classes: new Set(), types: new Set() };
-  (function readUrlFilters() {
-    const p = new URLSearchParams(location.search);
-    if (p.get("class") && getClass(p.get("class"))) filters.classes.add(p.get("class"));
-    if (p.get("type")) filters.types.add(p.get("type"));
-  })();
-
-  const fClass = document.getElementById("f-class");
-  const fType = document.getElementById("f-type");
-  const typeNames = () => ASSIGNMENT_TYPES.map(t => cap(t.name));
 
   function renderFilterControls() {
-    fClass.innerHTML = `<option value="">+ Class</option>` +
-      CLASSES.filter(c => !filters.classes.has(c.course_code)).map(c => `<option value="${esc(c.course_code)}">${esc(c.course_code)}</option>`).join("");
-    fType.innerHTML = `<option value="">+ Type</option>` +
-      typeNames().filter(t => !filters.types.has(t)).map(t => `<option value="${esc(t)}">${esc(t)}</option>`).join("");
-
-    const chips = [
-      ...[...filters.classes].map(code => `<span class="filter-chip" style="background:${getClass(code).color_hex}">${esc(code)}<button type="button" data-rm-class="${esc(code)}" title="Remove filter">${ICONS.x}</button></span>`),
-      ...[...filters.types].map(t => `<span class="filter-chip type">${esc(t)}<button type="button" data-rm-type="${esc(t)}" title="Remove filter">${ICONS.x}</button></span>`),
-    ];
-    const el = document.getElementById("active-filters");
-    el.innerHTML = chips.length
-      ? chips.join("") + `<button type="button" class="btn btn-ghost btn-sm" id="clear-filters">Clear all</button>`
-      : `<span style="font-size:13px;color:var(--muted)">No filters</span>`;
-
-    el.querySelectorAll("[data-rm-class]").forEach(b => b.addEventListener("click", () => { filters.classes.delete(b.dataset.rmClass); refresh(); }));
-    el.querySelectorAll("[data-rm-type]").forEach(b => b.addEventListener("click", () => { filters.types.delete(b.dataset.rmType); refresh(); }));
-    const clear = document.getElementById("clear-filters");
-    if (clear) clear.addEventListener("click", () => { filters.classes.clear(); filters.types.clear(); refresh(); });
+    $("f-class").innerHTML = '<option value="">Class</option>' + CLASSES.filter(c => !filters.classes.has(c.course_code)).map(c => `<option value="${esc(c.course_code)}">${esc(c.course_code)}</option>`).join("");
+    const types = [...new Set(ASSIGNMENTS.map(typeLabel).filter(Boolean))].sort();
+    $("f-type").innerHTML = '<option value="">Type</option>' + types.filter(t => !filters.types.has(t)).map(t => `<option value="${esc(t)}">${esc(t)}</option>`).join("");
+    $("active-filters").innerHTML = [
+      ...[...filters.classes].map(c => `<button type="button" class="removable-filter" data-rm-class="${esc(c)}" aria-label="Remove ${esc(c)} filter">${esc(c)} ${ICONS.x}</button>`),
+      ...[...filters.types].map(t => `<button type="button" class="removable-filter" data-rm-type="${esc(t)}" aria-label="Remove ${esc(t)} filter">${esc(t)} ${ICONS.x}</button>`),
+    ].join("");
+    $("active-filters").querySelectorAll("[data-rm-class]").forEach(btn => btn.addEventListener("click", () => { filters.classes.delete(btn.dataset.rmClass); refresh(); }));
+    $("active-filters").querySelectorAll("[data-rm-type]").forEach(btn => btn.addEventListener("click", () => { filters.types.delete(btn.dataset.rmType); refresh(); }));
   }
-  fClass.addEventListener("change", () => { if (fClass.value) { filters.classes.add(fClass.value); refresh(); } });
-  fType.addEventListener("change", () => { if (fType.value) { filters.types.add(fType.value); refresh(); } });
-
-  function addClassFilter(code) { filters.classes.add(code); refresh(); toast(`Filtering by ${code}`); }
-  function addTypeFilter(t) { filters.types.add(t); refresh(); toast(`Filtering by ${t}`); }
-
-  function applyFilters(list) {
-    return list.filter(a =>
-      (filters.classes.size === 0 || filters.classes.has(a.course_code)) &&
-      (filters.types.size === 0 || filters.types.has(typeLabel(a))));
-  }
-
-  function refresh() { renderFilterControls(); renderList(); }
-  function renderAll() { renderStats(); renderNext(); renderStreaks(); renderList(); }
-
-  /* ---------- Sortable list ---------- */
-  const sortSel = document.getElementById("sort");
-  const showDone = document.getElementById("show-done");
-  /* Custom order is persisted in assignment.sort_order; offer it if any row has one */
-  if (ASSIGNMENTS.some(a => a.sort_order != null)) sortSel.value = "custom";
 
   function sorted() {
-    let list = applyFilters(showDone.checked ? [...ASSIGNMENTS] : openItems());
-    const mode = sortSel.value;
-    if (mode === "custom") {
-      const big = Number.MAX_SAFE_INTEGER;
-      list.sort((a, b) => ((a.sort_order ?? big) - (b.sort_order ?? big)) || dueDate(a) - dueDate(b));
-    } else if (mode === "class") {
-      list.sort((a, b) => a.course_code.localeCompare(b.course_code) || dueDate(a) - dueDate(b));
-    } else if (mode === "type") {
-      list.sort((a, b) => typeLabel(a).localeCompare(typeLabel(b)) || dueDate(a) - dueDate(b));
-    } else {
-      list.sort((a, b) => dueDate(a) - dueDate(b));
-    }
-    return list;
+    const query = $("assignment-search").value.trim().toLowerCase();
+    const list = ASSIGNMENTS.filter(a => ($("show-done").checked || !isDone(a)) && inScope(a)
+      && (!filters.classes.size || filters.classes.has(a.course_code))
+      && (!filters.types.size || filters.types.has(typeLabel(a)))
+      && (!query || `${a.title} ${a.course_code} ${typeLabel(a)}`.toLowerCase().includes(query)));
+    const mode = $("sort").value;
+    return list.sort((a, b) => {
+      if (mode === "custom") return ((a.sort_order ?? Number.MAX_SAFE_INTEGER) - (b.sort_order ?? Number.MAX_SAFE_INTEGER)) || dueDate(a) - dueDate(b);
+      if (mode === "class") return a.course_code.localeCompare(b.course_code) || dueDate(a) - dueDate(b);
+      if (mode === "type") return typeLabel(a).localeCompare(typeLabel(b)) || dueDate(a) - dueDate(b);
+      return dueDate(a) - dueDate(b);
+    });
   }
 
   function renderList() {
-    const el = document.getElementById("assignment-list");
     const list = sorted();
-    const hasFilters = filters.classes.size || filters.types.size;
-    el.innerHTML = list.length
-      ? list.map(a => assignmentRow(a, { handle: true })).join("")
-      : `<div class="empty">${hasFilters ? "No assignments match these filters." : "Nothing due."}</div>`;
-    document.getElementById("filter-count").textContent = `${list.length} assignment${list.length === 1 ? "" : "s"}`;
-    bindChecks(el, renderAll, { onFilterClass: addClassFilter, onFilterType: addTypeFilter });
+    const pages = Math.max(1, Math.ceil(list.length / pageSize));
+    page = Math.min(page, pages - 1);
+    const start = page * pageSize;
+    const el = $("assignment-list");
+    el.innerHTML = list.length ? list.slice(start, start + pageSize).map(a => compactAssignmentRow(a, { handle: true })).join("") : `<div class="empty queue-empty"><span class="empty-icon" aria-hidden="true">${ICONS.list}</span><strong>${ASSIGNMENTS.length ? "No assignments to show" : "Your assignments will appear here"}</strong><p>${ASSIGNMENTS.length ? "Try another date range or adjust your filters." : 'Add a class to start planning your week.'}</p>${ASSIGNMENTS.length ? '<button type="button" class="btn btn-secondary btn-sm" id="reset-queue">Reset filters</button>' : '<a class="btn btn-secondary btn-sm" href="assignments.html">Add a class</a>'}</div>`;
+    $("filter-count").textContent = list.length ? `${start + 1}–${Math.min(start + pageSize, list.length)} of ${list.length}` : "0 assignments";
+    $("queue-page").textContent = `${page + 1} / ${pages}`;
+    $("queue-prev").disabled = page === 0;
+    $("queue-next").disabled = page >= pages - 1;
+    $("queue-scope").textContent = scopeName();
+    $("all-open").setAttribute("aria-pressed", scope === "all");
+    $("sort").title = $("sort").value === "custom" ? "Drag rows to reorder this page. Order is saved automatically." : "Sort assignments or drag rows to set a custom order.";
+    bindChecks(el, renderAll);
     bindDrag(el);
+    $("reset-queue")?.addEventListener("click", resetQueue);
   }
 
+  function resetQueue() {
+    filters.classes.clear(); filters.types.clear(); scope = "all"; selectedDate = null;
+    $("assignment-search").value = ""; $("show-done").checked = false;
+    page = 0; renderAll();
+  }
   function bindDrag(el) {
     let dragId = null;
-    el.querySelectorAll(".a-row").forEach(row => {
-      row.addEventListener("dragstart", () => { dragId = Number(row.dataset.id); row.classList.add("dragging"); });
-      row.addEventListener("dragend", () => { row.classList.remove("dragging"); el.querySelectorAll(".drag-over").forEach(r => r.classList.remove("drag-over")); });
+    el.querySelectorAll(".compact-assignment").forEach(row => {
+      row.addEventListener("dragstart", e => {
+        dragId = Number(row.dataset.id); row.classList.add("dragging");
+        e.dataTransfer.setData("text/plain", String(dragId)); e.dataTransfer.effectAllowed = "move";
+      });
+      row.addEventListener("dragend", () => { dragId = null; el.querySelectorAll(".dragging, .drag-over").forEach(r => r.classList.remove("dragging", "drag-over")); });
       row.addEventListener("dragover", e => { e.preventDefault(); row.classList.add("drag-over"); });
       row.addEventListener("dragleave", () => row.classList.remove("drag-over"));
       row.addEventListener("drop", async e => {
         e.preventDefault();
         const targetId = Number(row.dataset.id);
         if (dragId === null || dragId === targetId) return;
-        const order = sorted().map(a => a.assignment_id);
-        order.splice(order.indexOf(dragId), 1);
-        order.splice(order.indexOf(targetId), 0, dragId);
-        order.forEach((id, i) => { getAssignment(id).sort_order = i; });
-        sortSel.value = "custom";
-        renderList();
+        // Preserve the order of assignments outside the filtered or paged view.
+        const visibleOrder = sorted().map(a => a.assignment_id);
+        visibleOrder.splice(visibleOrder.indexOf(dragId), 1);
+        visibleOrder.splice(visibleOrder.indexOf(targetId), 0, dragId);
+        const visibleIds = new Set(visibleOrder);
+        const base = [...ASSIGNMENTS].sort((a, b) => ((a.sort_order ?? Number.MAX_SAFE_INTEGER) - (b.sort_order ?? Number.MAX_SAFE_INTEGER)) || dueDate(a) - dueDate(b));
+        let i = 0;
+        const order = base.map(a => visibleIds.has(a.assignment_id) ? visibleOrder[i++] : a.assignment_id);
+        const previous = ASSIGNMENTS.map(a => [a.assignment_id, a.sort_order]);
+        const previousSort = $("sort").value;
+        order.forEach((id, index) => { getAssignment(id).sort_order = index; });
+        $("sort").value = "custom"; renderList();
         try { await API.assignments.reorder(order); toast("Order saved"); }
-        catch (err) { toast(err.message); }
+        catch (err) { previous.forEach(([id, sort]) => { getAssignment(id).sort_order = sort; }); $("sort").value = previousSort; renderList(); toast(err.message); }
       });
     });
   }
 
-  sortSel.addEventListener("change", renderList);
-  showDone.addEventListener("change", renderList);
-
-  renderStats();
-  renderNext();
-  renderStreaks();
-  refresh();
+  function refresh() { page = 0; renderFilterControls(); renderList(); }
+  function renderAll() { renderStats(); renderNext(); renderWeek(); renderFilterControls(); renderList(); }
+  $("f-class").addEventListener("change", () => { if ($("f-class").value) { filters.classes.add($("f-class").value); refresh(); } });
+  $("f-type").addEventListener("change", () => { if ($("f-type").value) { filters.types.add($("f-type").value); refresh(); } });
+  $("assignment-search").addEventListener("input", () => { page = 0; renderList(); });
+  $("sort").addEventListener("change", () => { page = 0; renderList(); });
+  $("show-done").addEventListener("change", () => { page = 0; renderList(); });
+  $("all-open").addEventListener("click", resetQueue);
+  $("queue-prev").addEventListener("click", () => { page--; renderList(); });
+  $("queue-next").addEventListener("click", () => { page++; renderList(); });
+  $("add-assignment").addEventListener("click", () => {
+    if (!CLASSES.length) { location.href = "assignments.html"; return; }
+    openAssignmentModal({}, renderAll);
+  });
+  window.addEventListener("resize", () => {
+    const size = rowsPerPage();
+    if (size !== pageSize) { pageSize = size; page = 0; renderList(); }
+  });
+  renderAll();
 }
