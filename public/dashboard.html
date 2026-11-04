@@ -17,7 +17,7 @@
   <div class="app dashboard-app">
     <aside id="sidebar"></aside>
 
-    <main class="main">
+    <main class="main is-loading">
       <div class="page-header">
         <div>
           <h1 id="greeting">Dashboard</h1>
@@ -40,9 +40,10 @@
         <div class="card-header">
           <div>
             <h2>Up next</h2>
-            <p class="sub">Drag rows to set your own order, pick a sort, or click a class or type tag to filter.</p>
+            <p class="sub">Pick a sort, choose Custom to drag rows into your own order, or click a class or type tag to filter.</p>
           </div>
           <div class="toolbar">
+            <button type="button" class="btn btn-ghost btn-sm" id="reset-order" hidden title="Clear your custom order">Reset order</button>
             <label for="sort" style="font-size:13px;color:var(--muted)">Sort by</label>
             <select class="select" id="sort" style="width:auto">
               <option value="due">Due date</option>
@@ -63,6 +64,12 @@
           <select class="select" id="f-type"></select>
           <div class="active-filters" id="active-filters"></div>
           <span class="filter-count" id="filter-count"></span>
+        </div>
+        <div class="search-bar">
+          <span class="search-icon" id="search-icon" aria-hidden="true"></span>
+          <input class="input" type="search" id="search" placeholder="Search by name, class, submission, or type" autocomplete="off" spellcheck="false" aria-label="Search assignments">
+          <button type="button" class="btn btn-ghost btn-icon" id="search-clear" title="Clear search (Esc)" aria-label="Clear search" style="display:none"></button>
+          <span class="search-hint">Press / to search</span>
         </div>
         <div class="a-list" id="assignment-list"></div>
       </div>

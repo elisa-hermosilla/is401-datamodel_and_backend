@@ -144,11 +144,16 @@ export async function discoverCategories(course, typeIds) {
   return out;
 }
 
-/* Import one linked course's feed. Returns the number of items stored. */
+/* Import one linked course's feed. Returns { stored, removed }: removed counts
+   feed rows (ics:<uid>) that are no longer in the feed, i.e. items the
+   professor took off the schedule. */
 export async function syncCourse(course, typeIds) {
   const { rows: [log] } = await query("insert into sync_log (course_id) values ($1) returning sync_log_id", [course.course_id]);
   try {
     const events = await fetchFeed(course.ics_feed_url);
+    /* Every UID in the feed, before the window/bucket filters below: an item
+       we choose not to store still exists and must not be pruned. */
+    const liveUids = events.map(e => `ics:${e.uid}`);
     const from = Date.now() - PAST_DAYS * 86400000;
     const to = Date.now() + FUTURE_DAYS * 86400000;
 
@@ -184,11 +189,24 @@ export async function syncCourse(course, typeIds) {
       stored++;
     }
 
+    /* Feed rows that are gone from the feed were removed from the schedule.
+       An empty feed is treated as a bad fetch rather than "everything was
+       deleted". Manual rows (null external id) never match. */
+    let removed = 0;
+    if (events.length > 0) {
+      const { rowCount } = await query(
+        `delete from assignment
+          where course_id = $1 and external_assignment_id like 'ics:%'
+            and not (external_assignment_id = any($2::text[]))`,
+        [course.course_id, liveUids]);
+      removed = rowCount;
+    }
+
     await query("update course set last_synced_at = now() where course_id = $1", [course.course_id]);
     await query(
       "update sync_log set finished_at = now(), status = 'success', courses_synced = 1, assignments_synced = $2 where sync_log_id = $1",
       [log.sync_log_id, stored]);
-    return stored;
+    return { stored, removed };
   } catch (err) {
     await query("update sync_log set finished_at = now(), status = 'failed', error_message = $2 where sync_log_id = $1",
       [log.sync_log_id, String(err.message).slice(0, 2000)]);
@@ -218,17 +236,19 @@ export async function syncUser(userId, courseId = null) {
   const courses = await linkedCourses(userId, courseId);
   const typeIds = await assignmentTypeIds();
 
-  let coursesSynced = 0, assignmentsSynced = 0;
+  let coursesSynced = 0, assignmentsSynced = 0, removed = 0;
   const errors = [];
   for (const course of courses) {
     try {
-      assignmentsSynced += await syncCourse(course, typeIds);
+      const r = await syncCourse(course, typeIds);
+      assignmentsSynced += r.stored;
+      removed += r.removed;
       coursesSynced++;
     } catch (err) {
       errors.push({ course_id: course.course_id, course_code: course.course_code, error: err.message });
     }
   }
-  return { courses_linked: courses.length, courses_synced: coursesSynced, assignments_synced: assignmentsSynced, errors, finished_at: new Date().toISOString() };
+  return { courses_linked: courses.length, courses_synced: coursesSynced, assignments_synced: assignmentsSynced, assignments_removed: removed, errors, finished_at: new Date().toISOString() };
 }
 
 /* Per-course status for the Settings card. */
