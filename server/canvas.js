@@ -41,7 +41,7 @@ function nextLink(header) {
 }
 
 /* GET one Canvas API path. Array responses are paginated and concatenated. */
-export async function canvasGet(baseUrl, token, path, params = {}) {
+export async function canvasGet(baseUrl, token, path, params = {}, timeoutMs = TIMEOUT_MS) {
   const url = new URL(`${baseUrl}/api/v1${path}`);
   for (const [k, v] of Object.entries(params)) {
     if (Array.isArray(v)) v.forEach(x => url.searchParams.append(k, x));
@@ -59,7 +59,7 @@ export async function canvasGet(baseUrl, token, path, params = {}) {
     try {
       res = await fetch(next, {
         headers: { Authorization: `Bearer ${token}`, Accept: "application/json" },
-        signal: AbortSignal.timeout(TIMEOUT_MS),
+        signal: AbortSignal.timeout(timeoutMs),
       });
     } catch (err) {
       throw new CanvasError(`Could not reach Canvas at ${baseUrl} (${err.name === "TimeoutError" ? "timed out" : err.message})`, 502);
@@ -87,9 +87,9 @@ export async function getConnection(userId) {
 }
 
 /* Verify a token by asking Canvas who it belongs to. */
-export async function verifyToken(token) {
+export async function verifyToken(token, { timeoutMs = TIMEOUT_MS } = {}) {
   const baseUrl = await canvasBaseUrl();
-  const me = await canvasGet(baseUrl, token, "/users/self");
+  const me = await canvasGet(baseUrl, token, "/users/self", {}, timeoutMs);
   if (!me || !me.id) throw new CanvasError("Canvas did not return a user for that token", 502);
   return { baseUrl, id: String(me.id), name: me.name || me.short_name || "" };
 }

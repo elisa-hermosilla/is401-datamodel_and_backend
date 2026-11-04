@@ -29,6 +29,39 @@ async function status(userId) {
   };
 }
 
+/* Check Canvas once after each login. A 401 means the saved token is no longer
+   accepted; temporary Canvas/network failures should not label it expired. */
+async function statusForSession(req) {
+  const userId = req.session.userId;
+  let conn = await getConnection(userId);
+  if (!conn) {
+    req.session.canvasTokenStatusChecked = true;
+    return status(userId);
+  }
+
+  let tokenRejected = conn.status === "error";
+  if (!req.session.canvasTokenStatusChecked && !tokenRejected) {
+    req.session.canvasTokenStatusChecked = true;
+    try {
+      await verifyToken(conn.access_token, { timeoutMs: 5000 });
+    } catch (err) {
+      if (err instanceof CanvasError && err.status === 401) {
+        tokenRejected = true;
+        await query("update connected_account set status = 'error' where connected_account_id = $1", [conn.connected_account_id]);
+      } else if (!(err instanceof CanvasError)) {
+        throw err;
+      }
+    }
+  }
+
+  const result = await status(userId);
+  if (tokenRejected && !req.session.canvasTokenWarningShown) {
+    req.session.canvasTokenWarningShown = true;
+    return { ...result, token_expired_warning: true };
+  }
+  return result;
+}
+
 /* Canvas errors carry a message meant for the user; keep their status code. */
 function pass(err, res, next) {
   if (err instanceof CanvasError) return res.status(err.status === 401 ? 400 : err.status).json({ error: err.message });
@@ -37,7 +70,7 @@ function pass(err, res, next) {
 
 /* GET /api/canvas/status */
 router.get("/canvas/status", requireLogin, async (req, res, next) => {
-  try { res.json(await status(req.session.userId)); } catch (err) { pass(err, res, next); }
+  try { res.json(await statusForSession(req)); } catch (err) { pass(err, res, next); }
 });
 
 /* POST /api/canvas/connect { access_token } — verify with Canvas, store, run a first sync */

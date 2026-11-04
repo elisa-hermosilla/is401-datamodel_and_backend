@@ -88,6 +88,14 @@ async function initApp(activeNav) {
   SYNC = sync;
   bindSidebar();
   startRelTimeTicker();
+  if (canvas.token_expired_warning) {
+    toast("Your Canvas token has expired or is no longer valid. Replace it to restore syncing.", {
+      type: "error",
+      sticky: true,
+      link: { href: "/settings#connected-accounts", label: "Renew in Settings" },
+      dismissible: true,
+    });
+  }
 }
 
 /* Re-fetch the sidebar sync summary and redraw just the "synced N min ago"
@@ -757,7 +765,8 @@ function bindSidebar() {
     /* Ask the server for the real timestamp instead of assuming "just now";
        if every class failed, last_synced_at didn't move. */
     await refreshSyncStatus();
-    if (problems.length) toast(problems[0], "error");
+    if (problems.some(isCanvasTokenRejected)) showCanvasTokenWarning();
+    else if (problems.length) toast(problems[0], "error");
     else toast(`Synced ${assignments} assignment${assignments === 1 ? "" : "s"} from ${synced} class${synced === 1 ? "" : "es"}${removedNote(removed)}`, "success");
     if (synced) setTimeout(() => window.location.reload(), problems.length ? 2200 : 900);
     else reset();
@@ -801,11 +810,12 @@ let toastTimer;
    the next toast() call replaces it; otherwise it hides itself after ~2s. */
 function toast(msg, opts = "info") {
   if (!msg) return; // never show an empty box
-  const { type = "info", sticky = false } = typeof opts === "string" ? { type: opts } : (opts || {});
+  const { type = "info", sticky = false, link = null, dismissible = false } = typeof opts === "string" ? { type: opts } : (opts || {});
   const kind = type === "error" || type === "success" ? type : "info";
   let t = document.querySelector(".toast");
   if (!t) { t = document.createElement("div"); t.className = "toast"; document.body.appendChild(t); }
   t.className = `toast toast-${kind}`;
+  t.classList.toggle("toast-interactive", Boolean(link || dismissible));
   t.setAttribute("role", kind === "error" ? "alert" : "status");
   t.setAttribute("aria-atomic", "true");
   t.replaceChildren();
@@ -820,7 +830,36 @@ function toast(msg, opts = "info") {
   message.className = "toast-message";
   message.textContent = String(msg ?? "");
   t.appendChild(message);
+  if (link?.href && link?.label) {
+    const a = document.createElement("a");
+    a.className = "toast-link";
+    a.href = link.href;
+    a.textContent = link.label;
+    t.appendChild(a);
+  }
+  if (dismissible) {
+    const close = document.createElement("button");
+    close.className = "toast-dismiss";
+    close.type = "button";
+    close.setAttribute("aria-label", "Dismiss notification");
+    close.textContent = "×";
+    close.addEventListener("click", () => t.classList.remove("show"));
+    t.appendChild(close);
+  }
   t.classList.add("show");
   clearTimeout(toastTimer);
   if (!sticky) toastTimer = setTimeout(() => t.classList.remove("show"), 2200);
+}
+
+function isCanvasTokenRejected(error) {
+  return /Canvas rejected the access token/i.test(String(error?.message ?? error ?? ""));
+}
+
+function showCanvasTokenWarning() {
+  toast("Canvas rejected the saved token. Replace it to restore syncing.", {
+    type: "error",
+    sticky: true,
+    link: { href: "/settings#connected-accounts", label: "Renew in Settings" },
+    dismissible: true,
+  });
 }
