@@ -19,6 +19,8 @@ const { default: assignmentRoutes } = await import("./routes/assignments.js");
 const { default: canvasRoutes } = await import("./routes/canvas.js");
 const { default: syncRoutes } = await import("./routes/sync.js");
 const { default: categoryRoutes } = await import("./routes/categories.js");
+const { default: streakRoutes } = await import("./routes/streaks.js");
+const { checkInOnActivity } = await import("./middleware/checkin.js");
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PORT = Number(process.env.PORT) || 3000;
@@ -46,12 +48,16 @@ app.use(session({
 
 app.use(express.static(path.join(__dirname, "..", "public")));
 
+/* First API request of the day from a signed-in user records a check-in */
+app.use("/api", checkInOnActivity);
+
 app.use("/api", authRoutes);
 app.use("/api", courseRoutes);
 app.use("/api", assignmentRoutes);
 app.use("/api", canvasRoutes);
 app.use("/api", syncRoutes);
 app.use("/api", categoryRoutes);
+app.use("/api", streakRoutes);
 
 /* JSON 404 for anything under /api that didn't match */
 app.use("/api", (req, res) => {

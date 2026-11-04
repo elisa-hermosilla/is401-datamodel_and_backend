@@ -216,6 +216,9 @@ async function syncPlannerItems(baseUrl, token, course, typeIds, seen) {
     }
     if (!categoryCache[kind.category].is_included) continue;
 
+    /* Planner items carry no completion time, so the first sync that sees one
+       done stamps "now" and later syncs keep that stamp (the streak math reads
+       completed_at as the turn-in time). */
     const done = !!(item.planner_override && item.planner_override.marked_complete) || !!(item.submissions && item.submissions.submitted);
     const url = item.html_url ? (item.html_url.startsWith("/") ? baseUrl + item.html_url : item.html_url) : null;
     await query(
@@ -229,7 +232,9 @@ async function syncPlannerItems(baseUrl, token, course, typeIds, seen) {
          due_time_known = excluded.due_time_known,
          submission_type = excluded.submission_type,
          external_url = excluded.external_url,
-         completed_at = case when assignment.manually_completed then assignment.completed_at else excluded.completed_at end,
+         completed_at = case when assignment.manually_completed then assignment.completed_at
+                             when excluded.completed_at is null then null
+                             else coalesce(assignment.completed_at, excluded.completed_at) end,
          updated_at = now()`,
       [course.course_id, categoryCache[kind.category].assignment_category_id, `${kind.prefix}:${p.id ?? item.plannable_id}`, title, dueAt,
        true, kind.submission, url ? String(url).slice(0, 500) : null,
@@ -329,7 +334,12 @@ export async function syncUser(userId, courseId = null) {
         const cat = catByGroup[String(a.assignment_group_id)];
         if (cat && !cat.is_included) continue; // the student excluded this category
         const submitted = isSubmitted(a.submission);
-        const completedAt = submitted ? (a.submission.submitted_at || new Date().toISOString()) : null;
+        /* submitted_at is the real turn-in time. A pass/fail "complete" with no
+           time gets stamped "now" by the first sync that sees it, and later syncs
+           keep that stamp instead of moving it (the streak math reads
+           completed_at as the turn-in time). */
+        const submittedAt = submitted && a.submission.submitted_at ? a.submission.submitted_at : null;
+        const completedAt = submitted ? (submittedAt || new Date().toISOString()) : null;
         await query(
           `insert into assignment (course_id, assignment_category_id, external_assignment_id, title, due_at, due_time_known,
                                    submission_type, external_url, completed_at, manually_completed)
@@ -340,11 +350,14 @@ export async function syncUser(userId, courseId = null) {
              due_at = excluded.due_at,
              submission_type = excluded.submission_type,
              external_url = excluded.external_url,
-             completed_at = case when assignment.manually_completed then assignment.completed_at else excluded.completed_at end,
+             completed_at = case when assignment.manually_completed then assignment.completed_at
+                                 when excluded.completed_at is null then null
+                                 when $9::timestamptz is not null then $9::timestamptz
+                                 else coalesce(assignment.completed_at, excluded.completed_at) end,
              updated_at = now()`,
           [course.course_id, categoryByGroup[String(a.assignment_group_id)] ?? null, String(a.id),
            String(a.name || "Untitled").slice(0, 200), a.due_at, submissionLabel(a.submission_types),
-           a.html_url ? String(a.html_url).slice(0, 500) : null, completedAt]);
+           a.html_url ? String(a.html_url).slice(0, 500) : null, completedAt, submittedAt]);
         seen.add(`${String(a.name || "Untitled").slice(0, 200)}|${new Date(a.due_at).toISOString()}`);
         assignmentsSynced++;
       }

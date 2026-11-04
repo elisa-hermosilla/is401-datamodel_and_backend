@@ -214,21 +214,6 @@ input, select, textarea { font-family: inherit; font-size: 14px; }
 .stat.ok .ico { background: var(--ok-bg); color: var(--ok); }
 .stat.danger .value { color: var(--danger); }
 
-.streak-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px; }
-.streak { display: flex; align-items: center; gap: 18px; }
-.streak .flame {
-  width: 64px; height: 64px; border-radius: 18px; display: grid; place-items: center; flex: none;
-  font-size: 30px; background: #f7f2e9;
-}
-.streak.blue .flame { background: var(--navy-100); }
-.streak .num { font-size: 30px; font-weight: 700; line-height: 1; }
-.streak .num small { font-size: 14px; font-weight: 600; color: var(--muted); margin-left: 6px; }
-.streak .title { font-weight: 600; margin-top: 4px; }
-.streak .meta { font-size: 12px; color: var(--muted); margin-top: 2px; }
-.streak-dots { display: flex; gap: 5px; margin-top: 8px; }
-.streak-dots span { width: 10px; height: 10px; border-radius: 50%; background: var(--border); }
-.streak-dots span.on { background: var(--ok); }
-.streak.blue .streak-dots span.on { background: var(--accent); }
 
 /* Assignment list rows */
 .a-list { display: flex; flex-direction: column; gap: 8px; }
@@ -447,9 +432,6 @@ textarea.input { resize: vertical; line-height: 1.5; }
 .progress-track { height: 8px; background: var(--navy-100); border-radius: 999px; margin-top: 14px; overflow: hidden; }
 .progress-track div { height: 100%; background: var(--ok); border-radius: 999px; transition: width .3s; }
 .progress-card .foot { font-size: 13px; font-weight: 500; color: #334155; margin-top: 8px; }
-.streak .flame svg { width: 30px; height: 30px; color: var(--ok); }
-.streak.blue .flame svg { color: var(--accent); }
-.streak .flame.off svg { color: var(--muted); }
 
 /* ---------- Class modal: source chips + color swatches ---------- */
 .source-chips .chip { display: inline-flex; align-items: center; gap: 6px; }
@@ -510,7 +492,6 @@ textarea.input { resize: vertical; line-height: 1.5; }
   .a-row:not(.compact) .due { grid-column: 4 / -1; grid-row: 3; }
   .a-row.compact .due { grid-column: 4 / -1; grid-row: 1; }
   .main { padding: 20px 16px; }
-  .streak-grid { grid-template-columns: 1fr; }
 }
 
 /* Interaction and readable course colors */
@@ -533,7 +514,7 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--navy); }
 }
 .filter-chip.course { background: var(--navy); }
 .card-header, .toolbar, .class-actions { flex-wrap: wrap; }
-.stat .value, .progress-card .num, .streak .num { font-variant-numeric: tabular-nums; letter-spacing: -.04em; }
+.stat .value, .progress-card .num, .streak-mini .num { font-variant-numeric: tabular-nums; letter-spacing: -.04em; }
 .a-row .bar { width: 3px; border-radius: 2px; }
 .class-card > .card-header { padding-bottom: 16px; border-bottom: 1px solid var(--border); }
 .class-card .swatch { width: 4px; border-radius: 2px; }
@@ -667,9 +648,9 @@ mark.hl { background: #fef08a; color: inherit; border-radius: 3px; padding: 0 1p
 .queue-empty { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; border: 1px dashed #789abd; border-radius: 10px; background: #edf4ff; padding: 40px 20px; margin-bottom: 16px; min-height: 240px; }
 .queue-empty strong, .agenda-empty strong { display: block; color: var(--text); font-weight: 600; font-size: 18px; }
 .queue-empty p, .agenda-empty p { font-size: 14px; margin: 6px 0 14px; }
-.dashboard-rail { display: grid; grid-template-rows: 1fr auto; gap: 18px; min-width: 0; }
+.dashboard-rail { display: grid; grid-template-rows: auto auto auto; align-content: start; gap: 14px; min-width: 0; }
 .overview-main .focus-card { background: linear-gradient(130deg, #173b60, #245b91); color: #fff; border: 1px solid #173b60; display: flex; flex-direction: column; justify-content: center; position: relative; overflow: hidden; min-height: 220px; padding: 20px; }
-.focus-card::after { content: ""; position: absolute; width: 190px; height: 190px; border: 32px solid rgba(255,255,255,.055); border-radius: 50%; right: -70px; top: -65px; pointer-events: none; }
+.focus-card::after { content: ""; position: absolute; width: 140px; height: 140px; border: 24px solid rgba(255,255,255,.055); border-radius: 50%; right: -55px; top: -50px; pointer-events: none; }
 .focus-card > * { position: relative; z-index: 1; }
 .overview-main .focus-card .eyebrow, .focus-card .focus-meta { color: #e0edfc; }
 .focus-card .subtle-link { color: #fff; text-decoration: underline; margin-top: 16px; }
@@ -679,13 +660,23 @@ mark.hl { background: #fef08a; color: inherit; border-radius: 3px; padding: 0 1p
 .focus-card .btn-secondary:hover { background: #173b60; }
 .focus-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 6px; }
 .status-past { color: var(--danger); background: var(--danger-bg); border-radius: 3px; padding: 2px 6px; font-size: 10px; font-weight: 600; }
-.focus-card h2 { font-size: 25px; line-height: 1.25; margin-top: 4px; }
+.focus-card h2 { font-size: 20px; line-height: 1.25; margin-top: 2px; }
 .focus-title { color: inherit; font-size: inherit; font-weight: inherit; line-height: inherit; text-align: left; border: 0; background: transparent; padding: 0; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere; }
 .focus-title:hover { color: #fff; text-decoration: underline; }
-.focus-meta { font-size: 15px; color: var(--muted); margin-top: 7px; }
-.focus-due { font-size: 15px; font-weight: 600; margin-top: 5px; }
-.focus-actions { display: flex; gap: 8px; margin-top: 12px; }
+.focus-meta { font-size: 14px; color: var(--muted); margin-top: 4px; }
+.focus-due { font-size: 14px; font-weight: 600; margin-top: 3px; }
+.focus-actions { display: flex; gap: 8px; margin-top: 10px; }
 .overview-main .week-card { padding: 20px; }
+/* Streaks: two small cards side by side under the week card */
+.streak-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.overview-main .streak-mini { display: flex; align-items: center; gap: 10px; padding: 12px 14px; min-width: 0; }
+.streak-mini .streak-icon { width: 34px; height: 34px; border-radius: 9px; display: grid; place-items: center; flex: none; background: #e9f6ee; color: var(--ok); }
+.streak-mini .streak-icon svg { width: 18px; height: 18px; }
+.streak-mini.off .streak-icon { background: var(--navy-100); color: var(--muted); }
+.streak-mini .num { font-size: 22px; font-weight: 700; line-height: 1; }
+.streak-mini .num small { font-size: 11px; font-weight: 600; color: var(--muted); margin-left: 4px; }
+.streak-mini .label { font-size: 12px; font-weight: 600; margin-top: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.streak-mini .best { font-size: 11px; color: var(--muted); margin-top: 1px; }
 .week-card .card-header { margin-bottom: 10px; }
 .week-strip { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 3px; }
 .week-day { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 8px 1px; border: 1px solid transparent; border-radius: 4px; font-size: 12px; color: var(--muted); background: #eef4fc; }
@@ -809,6 +800,7 @@ mark.hl { background: #fef08a; color: inherit; border-radius: 3px; padding: 0 1p
   /* One column: let the page scroll instead of a box inside it */
   .queue-panel { max-height: none; }
   .queue-panel > .compact-list { overflow: visible; }
+  .streak-row { grid-column: 1 / -1; }
   .overview-main .card { padding: 18px; }
   .overview-main .cal-layout { grid-template-columns: minmax(0, 1fr); gap: 14px; }
   .month-panel { height: 590px; }

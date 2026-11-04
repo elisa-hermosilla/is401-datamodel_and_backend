@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { query } from "../db.js";
+import { recordCheckIn } from "../middleware/checkin.js";
 
 const router = Router();
 
@@ -47,9 +48,10 @@ router.post("/register", async (req, res, next) => {
       throw err;
     }
 
-    req.session.regenerate(err => {
+    req.session.regenerate(async err => {
       if (err) return next(err);
       req.session.userId = user.user_id;
+      await recordCheckIn(user.user_id, req.session).catch(e => console.error("check-in failed:", e.message));
       res.status(201).json(user);
     });
   } catch (err) {
@@ -107,9 +109,10 @@ router.post("/login", async (req, res, next) => {
     const user = rows[0];
     await query("update app_user set last_login_at = now() where user_id = $1", [user.user_id]);
 
-    req.session.regenerate(err => {
+    req.session.regenerate(async err => {
       if (err) return next(err);
       req.session.userId = user.user_id;
+      await recordCheckIn(user.user_id, req.session).catch(e => console.error("check-in failed:", e.message));
       res.json(user);
     });
   } catch (err) {

@@ -1,4 +1,5 @@
-/* Dashboard: deadlines, a scrolling assignment queue, and a seven-day workload. */
+/* Dashboard: deadlines, a scrolling assignment queue, a seven-day workload,
+   and the two streaks. */
 initApp("dashboard").then(main);
 
 function main() {
@@ -95,6 +96,25 @@ function main() {
     const done = week.filter(isDone).length;
     const pct = week.length ? Math.round(done / week.length * 100) : 0;
     $("week-progress").innerHTML = `<div class="between"><span>Completed for these 7 days</span><strong>${done} / ${week.length}</strong></div><div class="progress-track" role="progressbar" aria-label="Assignments completed for the next seven days" aria-valuenow="${pct}" aria-valuemin="0" aria-valuemax="100"><div style="width:${pct}%"></div></div>`;
+  }
+
+  /* Two small cards under the week card. Streaks come from the server (which
+     also records today's check-in before answering), so they load after the
+     rest and show dashes until then or if the request fails. */
+  function renderStreaks(s) {
+    const card = (icon, value, label, best, off) => `
+      <div class="card streak-mini ${off ? "off" : ""}">
+        <span class="streak-icon" aria-hidden="true">${icon}</span>
+        <div>
+          <div class="num">${value == null ? "–" : value}<small>${value === 1 ? "day" : "days"}</small></div>
+          <div class="label">${label}</div>
+          <div class="best">${best == null ? "" : `Best: ${best}`}</div>
+        </div>
+      </div>`;
+    const ci = s && s.check_in, nl = s && s.no_past_due;
+    $("streak-row").innerHTML =
+      card(ICONS.flame, ci ? ci.current : null, "Check-in streak", ci ? ci.best : null, !ci || !ci.current) +
+      card(ICONS.calCheck, nl ? nl.current : null, "No late turn-ins", nl ? nl.best : null, !nl || !nl.current);
   }
 
   function renderFilterControls() {
@@ -366,6 +386,8 @@ function main() {
     openAssignmentModal({}, renderAll);
   });
   renderAll();
+  renderStreaks(null);
+  API.streaks().then(renderStreaks).catch(() => renderStreaks(null));
 
   /* Everything is rendered: show the page, sections fading in top to bottom */
   const mainEl = document.querySelector("main.main");
