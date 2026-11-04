@@ -389,6 +389,17 @@ function main() {
   renderStreaks(null);
   API.streaks().then(renderStreaks).catch(() => renderStreaks(null));
 
+  /* The queue card takes the rail's height so the two columns end on the same
+     line, whatever the rail's cards contain; the list scrolls inside. On
+     one-column layouts the card keeps its natural height. */
+  const rail = document.querySelector(".dashboard-rail");
+  const queue = document.querySelector(".queue-panel");
+  const twoColumns = window.matchMedia("(min-width: 761px)");
+  const fitQueue = () => { queue.style.height = twoColumns.matches ? `${rail.offsetHeight}px` : ""; };
+  new ResizeObserver(fitQueue).observe(rail);
+  twoColumns.addEventListener("change", fitQueue);
+  fitQueue();
+
   /* Everything is rendered: show the page, sections fading in top to bottom */
   const mainEl = document.querySelector("main.main");
   mainEl.classList.remove("is-loading");
