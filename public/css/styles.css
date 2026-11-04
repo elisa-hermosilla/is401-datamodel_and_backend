@@ -652,11 +652,7 @@ mark.hl { background: #fef08a; color: inherit; border-radius: 3px; padding: 0 1p
 /* The rail is stretched to the room left under the stat cards (dashboard.js
    sets its min-height); its three cards share any extra height. */
 .dashboard-rail { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
-/* Each card's share of the extra height: the week card gets half, the other two a quarter each */
-.dashboard-rail > * { min-height: 0; }
-.dashboard-rail > .focus-card { flex: 1 1 auto; }
-.dashboard-rail > .week-card { flex: 2 1 auto; }
-.dashboard-rail > .streak-row { flex: 1 1 auto; }
+.dashboard-rail > * { flex: 1 1 auto; min-height: 0; }
 .overview-main .focus-card { background: linear-gradient(130deg, #173b60, #245b91); color: #fff; border: 1px solid #173b60; display: flex; flex-direction: column; justify-content: center; position: relative; overflow: hidden; padding: 16px 18px; }
 .focus-card::after { content: ""; position: absolute; width: 140px; height: 140px; border: 24px solid rgba(255,255,255,.055); border-radius: 50%; right: -55px; top: -50px; pointer-events: none; }
 .focus-card > * { position: relative; z-index: 1; }
