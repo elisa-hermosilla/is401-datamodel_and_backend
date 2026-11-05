@@ -415,4 +415,5 @@ function main() {
   const mainEl = document.querySelector("main.main");
   mainEl.classList.remove("is-loading");
   mainEl.classList.add("reveal");
+  if (typeof startOnboarding === "function") startOnboarding();
 }

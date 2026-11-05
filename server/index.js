@@ -20,6 +20,7 @@ const { default: canvasRoutes } = await import("./routes/canvas.js");
 const { default: syncRoutes } = await import("./routes/sync.js");
 const { default: categoryRoutes } = await import("./routes/categories.js");
 const { default: streakRoutes } = await import("./routes/streaks.js");
+const { default: onboardingRoutes } = await import("./routes/onboarding.js");
 const { default: pageRoutes } = await import("./routes/pages.js");
 const { checkInOnActivity } = await import("./middleware/checkin.js");
 
@@ -63,6 +64,7 @@ app.use("/api", canvasRoutes);
 app.use("/api", syncRoutes);
 app.use("/api", categoryRoutes);
 app.use("/api", streakRoutes);
+app.use("/api", onboardingRoutes);
 
 /* JSON 404 for anything under /api that didn't match; a page for everything else */
 app.use("/api", (req, res) => {

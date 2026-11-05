@@ -47,4 +47,13 @@
       </div>
     </main>
   </div>
-<%- include("partials/scripts", { scripts: ["api", "data", "app", "dashboard"] }) %>
+  <div class="modal-backdrop" id="onboarding-modal" aria-hidden="true">
+    <section class="modal onboarding-modal" role="dialog" aria-modal="true" aria-labelledby="onboarding-title">
+      <div id="onboarding-content"></div>
+      <div class="onboarding-footer">
+        <button type="button" class="btn btn-ghost btn-sm" id="onboarding-skip">Skip tutorial</button>
+        <div class="onboarding-actions" id="onboarding-actions"></div>
+      </div>
+    </section>
+  </div>
+<%- include("partials/scripts", { scripts: ["api", "data", "app", "dashboard", "onboarding"] }) %>

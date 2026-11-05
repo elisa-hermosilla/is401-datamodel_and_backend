@@ -31,6 +31,10 @@ const API = {
   login: (identifier, password) => apiFetch("/api/login", { method: "POST", body: { identifier, password } }),
   logout: () => apiFetch("/api/logout", { method: "POST" }),
   me: () => apiFetch("/api/me"),
+  onboarding: {
+    status: () => apiFetch("/api/onboarding/status"),
+    complete: () => apiFetch("/api/onboarding/complete", { method: "POST", body: {} }),
+  },
   streaks: () => apiFetch("/api/streaks"),
   register: fields => apiFetch("/api/register", { method: "POST", body: fields }),
   changePassword: (current_password, new_password) =>

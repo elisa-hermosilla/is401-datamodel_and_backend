@@ -389,6 +389,39 @@ textarea.input { resize: vertical; line-height: 1.5; }
 .modal { width: 100%; max-width: 460px; max-height: calc(100dvh - 40px); overflow-y: auto; background: var(--surface); border-radius: 16px; padding: 24px; box-shadow: 0 20px 60px rgba(0,0,0,.25); }
 .modal h3 { font-size: 18px; margin-bottom: 18px; }
 .modal-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 8px; }
+.onboarding-modal { max-width: 560px; }
+.onboarding-kicker { color: var(--navy); font-size: 12px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; margin: 0 0 8px; }
+.onboarding-modal h3 { margin-bottom: 12px; }
+.onboarding-body { color: var(--muted); line-height: 1.55; }
+.onboarding-body p { margin: 0 0 12px; }
+.onboarding-body strong { color: var(--text); }
+.onboarding-footer { display:flex; align-items:center; justify-content:space-between; gap:12px; border-top:1px solid var(--border); margin-top:18px; padding-top:14px; }
+.onboarding-actions { display:flex; justify-content:flex-end; gap:8px; flex-wrap:wrap; }
+.onboarding-form { display:grid; gap:9px; margin-top:14px; }
+.onboarding-form label { color:var(--text); font-size:13px; font-weight:600; }
+.onboarding-form .form-error { margin:0; }
+.onboarding-account-box { border:1px solid var(--border); border-radius:10px; padding:12px 14px; margin:0 0 14px; color:var(--text); }
+.onboarding-account-box > strong { display:block; margin-bottom:2px; }
+.onboarding-account-box > p { color:var(--muted); font-size:13px; margin:0 0 10px; }
+.onboarding-account-box > div { display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-top:8px; }
+.onboarding-account-box > div p { color:var(--muted); width:100%; margin:0; font-size:13px; }
+.onboarding-spotlight, .overview-app .nav a.onboarding-spotlight { position:relative; z-index:51; outline:3px solid #fbbf24 !important; outline-offset:3px; border-radius:8px; background:var(--surface) !important; color:var(--navy) !important; box-shadow:0 2px 14px rgba(15,23,42,.22) !important; }
+.onboarding-spotlight svg { color:var(--navy) !important; }
+/* Keep the sidebar above the scrim, then tint its contents independently. The
+   current tab is raised above this tint so only that tab stays bright. */
+.onboarding-tour-active #sidebar { z-index:51; }
+.onboarding-tour-active #sidebar::after { content:""; position:absolute; inset:0; z-index:1; background:rgba(15,23,42,.42); pointer-events:none; }
+.onboarding-tour-active #sidebar .nav a.onboarding-spotlight { z-index:2; }
+#onboarding-modal.tour-mode { align-items:stretch; justify-content:flex-start; }
+#onboarding-modal .tour-callout { position:fixed; left:260px; top:var(--tour-top, 120px); width:min(420px, calc(100vw - 280px)); max-width:none; margin:0; overflow:visible; }
+#onboarding-modal .tour-callout::before { content:""; position:absolute; left:-10px; top:var(--tour-arrow-y, 50%); width:18px; height:18px; background:var(--surface); border-left:1px solid var(--border); border-bottom:1px solid var(--border); transform:translateY(-50%) rotate(45deg); }
+.onboarding-modal .color-swatches { margin:0 0 4px; }
+@media (max-width:520px) { .onboarding-footer { align-items:flex-start; flex-direction:column-reverse; } .onboarding-actions { width:100%; } .onboarding-actions .btn { flex:1; } }
+@media (max-width:760px) {
+  .overview-app .nav a.onboarding-spotlight span { display:inline !important; }
+  #onboarding-modal .tour-callout { left:16px; top:var(--tour-top, 120px); width:calc(100vw - 32px); }
+  #onboarding-modal .tour-callout::before { left:32px; top:-8px; transform:rotate(135deg); }
+}
 /* View-only assignment modal */
 .view-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 14px; }
 .view-head h3 { margin-bottom: 0; line-height: 1.3; }
