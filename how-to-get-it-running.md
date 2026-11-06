@@ -1,6 +1,6 @@
 # How to get it running
 
-The database is hosted on Supabase, so nothing runs "live" on a server. Each person runs the app on their own computer, and every copy talks to the same shared database. A class you add on your laptop shows up on everyone else's.
+The app runs locally for development and is deployed to AWS Elastic Beanstalk for public access. Both connect to the shared Supabase database, so a class you add on your laptop shows up for everyone.
 
 ## One-time setup
 
@@ -17,7 +17,7 @@ The database is hosted on Supabase, so nothing runs "live" on a server. Each per
    npm install
    ```
 
-4. **Create your `.env` file.** Copy `.env.example` to `.env` in the project root, then fill in the two values:
+4. **Create your `.env` file.** Copy `.env.example` to `.env` in the project root, then fill in the required values:
 
    | Variable | What to put |
    |---|---|
@@ -27,6 +27,12 @@ The database is hosted on Supabase, so nothing runs "live" on a server. Each per
    Leave `PORT=3000` as is.
 
    `.env` is git-ignored. Never commit it, and never paste the connection string into the repo, an issue, or a group chat screenshot.
+
+5. **Apply the push-reminder database migration.** Open the Supabase SQL editor for the shared project, paste and run `database/migrations/20261106_push_reminders.sql` once. This creates saved reminder settings, browser subscriptions, and the durable reminder queue. Do this before deploying the push-reminder code.
+
+6. **Configure Web Push keys.** Generate a VAPID key pair with `npx web-push generate-vapid-keys`. Put the public and private keys in your local `.env` as `VAPID_PUBLIC_KEY` and `VAPID_PRIVATE_KEY`. Set `VAPID_SUBJECT` to a real `mailto:` contact. In Elastic Beanstalk, set the same three environment properties and `NODE_ENV=production`; keep the private key secret. The reminder scheduler runs in the Node app and uses a Postgres advisory lock so only one Elastic Beanstalk instance sends a given reminder.
+
+   **iPhone/iPad:** Web Push is available when the user adds DueList to their Home Screen and opens it as a web app. The app manifest is served from `public/site.webmanifest`.
 
 ## Every time you want to run it
 
@@ -75,4 +81,4 @@ These go through the backend to the database: **login / logout**, **create accou
 
 **Learning Suite sync** has no API, so it reads each class's iCalendar feed. In Learning Suite open the course, go to Schedule, and copy the iCal link. On the Assignments page add a class with Source = Learning Suite and paste the link; "Check link" confirms it works and shows what's on it. "Sync now" pulls every dated item on the schedule except the "Topic: ..." lecture rows. Items come in as all-day (due 11:59 PM) unless the schedule has a time, and there's no submission status, so checking them off is up to you. Anything the professor wrote beyond the title becomes the item's starting note.
 
-Still mock: notification settings (the form works but nothing is saved), the streak numbers, and forgot-password.
+Assignment reminder preferences are saved in Postgres. Actual push delivery requires the push migration, VAPID environment values, and an HTTPS site. Summary notifications, email/text delivery, the streak numbers, and forgot-password are still mock.

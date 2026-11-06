@@ -40,6 +40,14 @@ const API = {
   changePassword: (current_password, new_password) =>
     apiFetch("/api/change-password", { method: "POST", body: { current_password, new_password } }),
 
+  notifications: {
+    pushConfig: () => apiFetch("/api/notifications/push-config"),
+    preferences: () => apiFetch("/api/notifications/preferences"),
+    savePreferences: fields => apiFetch("/api/notifications/preferences", { method: "PUT", body: fields }),
+    subscribe: subscription => apiFetch("/api/notifications/subscription", { method: "POST", body: subscription }),
+    removeSubscriptions: () => apiFetch("/api/notifications/subscriptions", { method: "DELETE", body: {} }),
+  },
+
   lmsSources: () => apiFetch("/api/lms-sources"),
 
   courses: {

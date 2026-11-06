@@ -21,16 +21,18 @@ const { default: syncRoutes } = await import("./routes/sync.js");
 const { default: categoryRoutes } = await import("./routes/categories.js");
 const { default: streakRoutes } = await import("./routes/streaks.js");
 const { default: onboardingRoutes } = await import("./routes/onboarding.js");
+const { default: notificationRoutes } = await import("./routes/notifications.js");
 const { default: pageRoutes } = await import("./routes/pages.js");
 const { checkInOnActivity } = await import("./middleware/checkin.js");
+const { startReminderScheduler } = await import("./reminders.js");
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PORT = Number(process.env.PORT) || 3000;
 
 const app = express();
 
-/* Behind a hosting proxy (Render, Railway, ...) set NODE_ENV=production so the
-   session cookie is marked Secure and Express trusts the proxy's HTTPS headers. */
+/* Behind the Elastic Beanstalk HTTPS load balancer, NODE_ENV=production marks
+   the session cookie Secure and tells Express to trust the proxy's HTTPS headers. */
 const isProd = process.env.NODE_ENV === "production";
 if (isProd) app.set("trust proxy", 1);
 
@@ -65,6 +67,7 @@ app.use("/api", syncRoutes);
 app.use("/api", categoryRoutes);
 app.use("/api", streakRoutes);
 app.use("/api", onboardingRoutes);
+app.use("/api", notificationRoutes);
 
 /* JSON 404 for anything under /api that didn't match; a page for everything else */
 app.use("/api", (req, res) => {
@@ -91,4 +94,5 @@ app.use((err, req, res, next) => {
 
 app.listen(PORT, () => {
   console.log(`DueList running at http://localhost:${PORT}`);
+  startReminderScheduler();
 });

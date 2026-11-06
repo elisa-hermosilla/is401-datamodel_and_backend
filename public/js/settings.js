@@ -1,4 +1,4 @@
-/* Settings. Still a mockup for this milestone: nothing here is saved to the API. */
+/* Settings UI; assignment reminder preferences and push subscriptions are persisted through the API. */
 
 initApp("settings").then(main);
 
@@ -205,6 +205,75 @@ function main() {
     days: new Set(["Mon", "Tue", "Wed", "Thu", "Fri"]),
     minutes: new Set([180, 1440]),   // reminder points, stored in minutes before due
   };
+  const saveButton = document.getElementById("save");
+  const pushToggle = document.getElementById("push-on");
+  const pushStatus = document.getElementById("push-status");
+  let pushConfig = null;
+  saveButton.disabled = true;
+
+  function setPushStatus(message) { pushStatus.textContent = message; }
+  function base64UrlToBytes(value) {
+    const normalized = value.replace(/-/g, "+").replace(/_/g, "/");
+    const raw = atob(normalized.padEnd(Math.ceil(normalized.length / 4) * 4, "="));
+    return Uint8Array.from(raw, c => c.charCodeAt(0));
+  }
+
+  async function connectThisBrowserToPush() {
+    if (!window.isSecureContext) throw new Error("Push notifications need the secure HTTPS address. You can save reminder preferences now and enable push after HTTPS is ready.");
+    if (!pushConfig?.enabled || !pushConfig.public_key) throw new Error("Push delivery is not configured on the server yet.");
+    if (!("Notification" in window) || !("serviceWorker" in navigator) || !("PushManager" in window)) {
+      throw new Error("This browser does not support web push notifications.");
+    }
+    let permission = Notification.permission;
+    if (permission === "default") permission = await Notification.requestPermission();
+    if (permission !== "granted") throw new Error("Allow notifications in your browser to enable push reminders.");
+
+    const registration = await navigator.serviceWorker.register("/service-worker.js", { scope: "/" });
+    let subscription = await registration.pushManager.getSubscription();
+    if (!subscription) {
+      subscription = await registration.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: base64UrlToBytes(pushConfig.public_key),
+      });
+    }
+    await API.notifications.subscribe(subscription.toJSON());
+    setPushStatus("This browser is connected. Save changes to turn on push delivery.");
+  }
+
+  async function loadNotificationPreferences() {
+    try {
+      const [prefs, config] = await Promise.all([
+        API.notifications.preferences(),
+        API.notifications.pushConfig(),
+      ]);
+      pushConfig = config;
+      state.minutes = new Set((prefs.reminder_minutes || []).map(Number));
+      document.getElementById("reminders-on").checked = prefs.assignment_reminders_enabled;
+      document.getElementById("dnd-on").checked = prefs.quiet_hours_enabled;
+      document.getElementById("dnd-start").value = prefs.quiet_hours_start;
+      document.getElementById("dnd-end").value = prefs.quiet_hours_end;
+      pushToggle.checked = prefs.push_enabled;
+      toggleSection("reminders-on", "reminders-body");
+      toggleSection("dnd-on", "dnd-times");
+      renderHours();
+      renderDndExample();
+
+      if (!window.isSecureContext) {
+        setPushStatus("Open this page over HTTPS to connect browser push. Reminder preferences can still be saved.");
+      } else if (!config.enabled) {
+        setPushStatus("Push delivery is not configured on the server yet. Reminder preferences can still be saved.");
+      } else if (!("Notification" in window) || !("serviceWorker" in navigator) || !("PushManager" in window)) {
+        setPushStatus("This browser does not support web push notifications.");
+      } else {
+        setPushStatus(prefs.push_subscription_count ? "Browser subscription saved." : "Turn this on to connect this browser to push.");
+      }
+      pushToggle.disabled = false;
+      saveButton.disabled = false;
+    } catch (err) {
+      setPushStatus(`Could not load saved reminder settings: ${err.message}`);
+      toast("Could not load saved reminder settings", "error");
+    }
+  }
 
   /* Format a duration in minutes. adj=true gives the hyphenated adjective form ("3-hour"). */
   function fmtDur(min, adj = false) {
@@ -351,11 +420,57 @@ function main() {
   }
   document.getElementById("summary-on").addEventListener("change", () => toggleSection("summary-on", "summary-body"));
   document.getElementById("reminders-on").addEventListener("change", () => toggleSection("reminders-on", "reminders-body"));
+  pushToggle.addEventListener("change", async () => {
+    if (!pushToggle.checked) {
+      setPushStatus("Push delivery will turn off when you save changes.");
+      return;
+    }
+    pushToggle.disabled = true;
+    try {
+      await connectThisBrowserToPush();
+    } catch (err) {
+      pushToggle.checked = false;
+      setPushStatus(err.message);
+      toast(err.message, "error");
+    } finally {
+      pushToggle.disabled = false;
+    }
+  });
 
-  document.getElementById("save").addEventListener("click", () => toast("Settings saved (not persisted yet)", "success"));
+  saveButton.textContent = "Save reminder settings";
+  saveButton.addEventListener("click", async () => {
+    saveButton.disabled = true;
+    saveButton.textContent = "Saving…";
+    try {
+      await API.notifications.savePreferences({
+        assignment_reminders_enabled: document.getElementById("reminders-on").checked,
+        reminder_minutes: [...state.minutes].sort((a, b) => a - b),
+        quiet_hours_enabled: document.getElementById("dnd-on").checked,
+        quiet_hours_start: document.getElementById("dnd-start").value,
+        quiet_hours_end: document.getElementById("dnd-end").value,
+        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || "America/Denver",
+        push_enabled: pushToggle.checked,
+      });
+      if (!pushToggle.checked) {
+        const registration = await navigator.serviceWorker?.getRegistration("/");
+        const subscription = await registration?.pushManager?.getSubscription();
+        if (subscription) await subscription.unsubscribe();
+        await API.notifications.removeSubscriptions();
+      }
+      setPushStatus(pushToggle.checked ? "Push reminders are enabled for this account." : "Push reminders are turned off.");
+      toast("Reminder settings saved", "success");
+    } catch (err) {
+      toast(err.message, "error");
+      setPushStatus(err.message);
+    } finally {
+      saveButton.disabled = false;
+      saveButton.textContent = "Save reminder settings";
+    }
+  });
 
   renderDow();
   renderHours();
   renderSummaryPreview();
   renderDndExample();
+  loadNotificationPreferences();
 }
