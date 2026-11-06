@@ -33,11 +33,11 @@ jobs:
         run: |
           aws elasticbeanstalk create-application-version \
             --application-name DueList \
-            --version-label "gh-${GITHUB_SHA}" \
+            --version-label "gh-${GITHUB_SHA}-${GITHUB_RUN_ATTEMPT}" \
             --source-bundle S3Bucket=elasticbeanstalk-us-east-2-672469410753,S3Key=duelist-github-actions/${GITHUB_SHA}.zip
 
       - name: Deploy version
         run: |
           aws elasticbeanstalk update-environment \
             --environment-name duelist-env \
-            --version-label "gh-${GITHUB_SHA}"
+            --version-label "gh-${GITHUB_SHA}-${GITHUB_RUN_ATTEMPT}"
