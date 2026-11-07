@@ -76,7 +76,7 @@ const API = {
 
   canvas: {
     status: () => apiFetch("/api/canvas/status"),
-    connect: access_token => apiFetch("/api/canvas/connect", { method: "POST", body: { access_token } }),
+    connect: (access_token, defer_first_sync = false) => apiFetch("/api/canvas/connect", { method: "POST", body: { access_token, defer_first_sync } }),
     disconnect: () => apiFetch("/api/canvas/connect", { method: "DELETE" }),
     courses: () => apiFetch("/api/canvas/courses"),
     sync: () => apiFetch("/api/canvas/sync", { method: "POST" }),

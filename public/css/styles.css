@@ -390,6 +390,9 @@ textarea.input { resize: vertical; line-height: 1.5; }
 .modal h3 { font-size: 18px; margin-bottom: 18px; }
 .modal-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 8px; }
 .onboarding-modal { max-width: 560px; }
+.onboarding-modal.onboarding-wide { max-width: 940px; }
+.onboarding-modal.onboarding-class-editor { max-width: 460px; }
+.onboarding-modal.onboarding-wide.onboarding-class-editor { max-width: 940px; }
 .onboarding-kicker { color: var(--navy); font-size: 12px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; margin: 0 0 8px; }
 .onboarding-modal h3 { margin-bottom: 12px; }
 .onboarding-body { color: var(--muted); line-height: 1.55; }
@@ -405,6 +408,30 @@ textarea.input { resize: vertical; line-height: 1.5; }
 .onboarding-account-box > p { color:var(--muted); font-size:13px; margin:0 0 10px; }
 .onboarding-account-box > div { display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-top:8px; }
 .onboarding-account-box > div p { color:var(--muted); width:100%; margin:0; font-size:13px; }
+.onboarding-class-list { display:grid; gap:8px; max-height:min(48vh, 480px); overflow:auto; margin:14px 0; }
+.onboarding-class-row { display:flex; align-items:center; gap:12px; min-width:0; padding:10px 12px; border:1px solid var(--border); border-radius:9px; background:var(--surface); color:var(--text); }
+.onboarding-class-pick { display:flex; align-items:center; gap:10px; min-width:0; flex:1; color:var(--text); font-weight:600; cursor:pointer; }
+.onboarding-class-pick span { overflow-wrap:anywhere; }
+.onboarding-class-pick input, .onboarding-canvas-row input { width:17px; height:17px; flex:none; accent-color:var(--accent); }
+.onboarding-class-row small { color:var(--muted); font-weight:400; }
+.onboarding-canvas-row { justify-content:space-between; }
+.onboarding-config-intro { margin-bottom:14px !important; }
+.onboarding-class-edit { display:grid; grid-template-columns:1fr 1.5fr 100px; gap:10px; margin:0 0 16px; color:var(--text); }
+.onboarding-class-edit label { display:grid; gap:5px; font-size:12px; font-weight:600; }
+.onboarding-class-edit input[type="color"] { width:100%; height:38px; padding:3px; border:1px solid var(--border); border-radius:7px; background:var(--surface); }
+.class-edit-form { gap:10px; margin-top:4px; }
+.onboarding-source-chips { margin:0 0 4px; }
+.onboarding-source-fields { display:grid; gap:8px; margin:0 0 4px; }
+.onboarding-ics-row { display:flex; align-items:center; gap:8px; }
+.onboarding-ics-row .input { min-width:0; flex:1; }
+.onboarding-edit-swatches { margin:0 0 4px; }
+.onboarding-modal .cat-table { min-width:650px; }
+.onboarding-modal .onboarding-category-hint { display:block; margin-top:8px; }
+.onboarding-sync-state { text-align:center; padding:24px 12px 18px; color:var(--text); }
+.onboarding-sync-icon { display:inline-grid; place-items:center; width:66px; height:66px; border:3px solid var(--border); border-top-color:var(--accent); border-radius:50%; color:var(--accent); font-size:38px; line-height:1; animation:spin 1s linear infinite; }
+.onboarding-sync-state p { margin:14px 0 4px; font-weight:700; }
+.onboarding-sync-progress { color:var(--muted); font-size:13px; }
+.onboarding-error:not(.show) { display:none; }
 .onboarding-spotlight, .overview-app .nav a.onboarding-spotlight { position:relative; z-index:51; outline:3px solid #fbbf24 !important; outline-offset:3px; border-radius:8px; background:var(--surface) !important; color:var(--navy) !important; box-shadow:0 2px 14px rgba(15,23,42,.22) !important; }
 .onboarding-spotlight svg { color:var(--navy) !important; }
 /* Keep the sidebar above the scrim, then tint its contents independently. The
@@ -417,6 +444,7 @@ textarea.input { resize: vertical; line-height: 1.5; }
 #onboarding-modal .tour-callout::before { content:""; position:absolute; left:-10px; top:var(--tour-arrow-y, 50%); width:18px; height:18px; background:var(--surface); border-left:1px solid var(--border); border-bottom:1px solid var(--border); transform:translateY(-50%) rotate(45deg); }
 .onboarding-modal .color-swatches { margin:0 0 4px; }
 @media (max-width:520px) { .onboarding-footer { align-items:flex-start; flex-direction:column-reverse; } .onboarding-actions { width:100%; } .onboarding-actions .btn { flex:1; } }
+@media (max-width:640px) { .onboarding-class-row { flex-wrap:wrap; } .onboarding-class-pick { flex-basis:calc(100% - 20px); } .onboarding-class-row > .tag { margin-left:27px; } .onboarding-class-row > button { margin-left:auto; } .onboarding-class-edit { grid-template-columns:1fr 1fr; } .onboarding-class-edit label:nth-child(2) { grid-column:1 / -1; } }
 @media (max-width:760px) {
   .overview-app .nav a.onboarding-spotlight span { display:inline !important; }
   #onboarding-modal .tour-callout { left:16px; top:var(--tour-top, 120px); width:calc(100vw - 32px); }

@@ -73,7 +73,9 @@ router.get("/canvas/status", requireLogin, async (req, res, next) => {
   try { res.json(await statusForSession(req)); } catch (err) { pass(err, res, next); }
 });
 
-/* POST /api/canvas/connect { access_token } — verify with Canvas, store, run a first sync */
+/* POST /api/canvas/connect { access_token, defer_first_sync? }. The tutorial
+   defers the first sync until the student has picked and configured classes;
+   Settings keeps the existing immediate sync behavior. */
 router.post("/canvas/connect", requireLogin, async (req, res, next) => {
   try {
     const token = String(req.body?.access_token ?? "").trim();
@@ -97,8 +99,10 @@ router.post("/canvas/connect", requireLogin, async (req, res, next) => {
       [conn.connected_account_id, req.session.userId, src.lms_source_id]);
 
     let sync = null, sync_error = null;
-    try { sync = await syncUser(req.session.userId); }
-    catch (err) { sync_error = err.message; }
+    if (req.body?.defer_first_sync !== true) {
+      try { sync = await syncUser(req.session.userId); }
+      catch (err) { sync_error = err.message; }
+    }
 
     res.json({ ...(await status(req.session.userId)), canvas_name: me.name, sync, sync_error });
   } catch (err) { pass(err, res, next); }
