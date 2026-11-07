@@ -310,7 +310,7 @@ function assignmentRow(a, opts = {}) {
           <button type="button" class="tag course clickable" data-filter-class="${esc(cls.course_code)}" style="--course-color:${cls.color_hex}" title="Filter by ${esc(cls.course_code)}">${esc(cls.course_code)}</button>
           ${type ? `<button type="button" class="tag type clickable" data-filter-type="${esc(type)}" title="Filter by ${esc(type)}">${esc(type)}</button>` : ""}
           ${a.estimated_minutes ? `<span class="tag type" title="Estimated effort">${fmtMinutes(a.estimated_minutes)}</span>` : ""}
-          <span class="submission tag type">${esc(a.submission_type && a.submission_type.toLowerCase() === "no submission" ? "No Submission" : a.submission_type || "No Submission")}</span>
+          ${a.submission_type ? `<span class="submission tag type">${esc(a.submission_type)}</span>` : ""}
           ${sourceTag(cls, null, a.external_url, "gradebook")}
         </div>
       </div>
@@ -345,7 +345,7 @@ function compactAssignmentRow(a, { handle = false, gutter = false, agenda = fals
   const url = assignmentUrl(a, cls);
   const actions = `<span class="row-actions">
       ${url ? `<a class="row-action" href="${esc(url)}" target="_blank" rel="noopener" data-tip="Open this assignment on ${esc(cls.source)}" aria-label="Open this assignment on ${esc(cls.source)}">${ICONS.link}</a>` : ""}
-      <button type="button" class="row-action" data-edit="${a.assignment_id}" data-tip="Edit this assignment" aria-label="Edit this assignment">${ICONS.pencil}</button>
+      <button type="button" class="row-action" data-edit-assignment="${a.assignment_id}" data-tip="Edit this assignment" aria-label="Edit this assignment">${ICONS.pencil}</button>
     </span>`;
   return `<div style="--course-color:${cls.color_hex}" class="compact-assignment ${isDone(a) ? "done" : ""} ${sortable ? "sortable" : ""}" data-id="${a.assignment_id}" ${handle ? 'draggable="true"' : ""}>
     ${grip}
@@ -419,8 +419,8 @@ function bindChecks(container, onChange, opts = {}) {
   container.querySelectorAll("[data-view]").forEach(el => {
     el.addEventListener("click", () => openAssignmentView(Number(el.dataset.view), onChange));
   });
-  container.querySelectorAll("[data-edit]").forEach(el => {
-    el.addEventListener("click", e => { e.stopPropagation(); openAssignmentModal({ assignment: getAssignment(Number(el.dataset.edit)) }, onChange); });
+  container.querySelectorAll("[data-edit-assignment]").forEach(el => {
+    el.addEventListener("click", e => { e.stopPropagation(); openAssignmentModal({ assignment: getAssignment(Number(el.dataset.editAssignment)) }, onChange); });
   });
   container.querySelectorAll("a.row-action[target=_blank]").forEach(el => {
     el.addEventListener("click", e => e.stopPropagation());
@@ -643,7 +643,8 @@ function openAssignmentModal(opts = {}, onChange) {
     ASSIGNMENT_TYPES.map(t => `<option value="${t.assignment_type_id}" ${a && a.assignment_type_id === t.assignment_type_id ? "selected" : ""}>${esc(cap(t.name))}</option>`).join("");
   const subs = [...SUBMISSION_TYPES];
   if (a && a.submission_type && !subs.includes(a.submission_type)) subs.push(a.submission_type);
-  document.getElementById("a-submission").innerHTML = subs.map(s => `<option ${a && a.submission_type === s ? "selected" : ""}>${esc(s)}</option>`).join("");
+  document.getElementById("a-submission").innerHTML = `<option value="">Not specified</option>` +
+    subs.map(s => `<option ${a && a.submission_type === s ? "selected" : ""}>${esc(s)}</option>`).join("");
 
   const due = a ? dueDate(a) : (opts.due_date || addDays(today(), 3));
   document.getElementById("a-id").value = a ? a.assignment_id : "";
@@ -714,7 +715,7 @@ function openAssignmentView(id, onChange) {
     row("Class", `<span class="course-marker" style="--course-color:${cls.color_hex}"></span>${esc(cls.course_code)}${cls.course_name ? ` <span class="view-sub">${esc(cls.course_name)}</span>` : ""}`) +
     row("Due", `${fmtDayLabel(d)} · ${a.due_time_known === false ? "Time Unknown" : fmtTime(d)}`) +
     row("Type", typeLabel(a) ? esc(typeLabel(a)) : "—") +
-    row("Submission", esc(a.submission_type || "No submission")) +
+    (a.submission_type ? row("Submission", esc(a.submission_type)) : "") +
     row("Estimated time", a.estimated_minutes ? fmtMinutes(a.estimated_minutes) : "—") +
     row("Source", esc(cls.source));
   const notes = a.notes && a.notes.trim();

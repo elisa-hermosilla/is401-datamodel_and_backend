@@ -7,7 +7,8 @@
    Limits worth knowing: items usually arrive as all-day events, so the due
    time is unknown (we store 11:59 PM campus time and flag due_time_known =
    false); only what the professor put on the Schedule comes through; there is
-   no submission status, so completion is entirely the student's checkbox. */
+   no submission status, so completion is entirely the student's checkbox,
+   and no submission type (stored as null: the pages show no tag). */
 
 import { query } from "./db.js";
 import { decodeFeed, parseIcs, sameDayAt } from "./ics.js";
@@ -304,7 +305,7 @@ export async function syncCourse(course, typeIds) {
            external_url = coalesce(excluded.external_url, assignment.external_url),
            updated_at = now()`,
         [course.course_id, cat.assignment_category_id, `ics:${e.uid}`, title, dueAt.toISOString(), timeKnown,
-         "No submission", e.url]);
+         null, e.url]);
       stored++;
     }
 
