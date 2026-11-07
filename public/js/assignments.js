@@ -281,6 +281,7 @@ function main() {
         if (card) card.scrollIntoView({ behavior: "smooth", block: "center" });
       } else {
         wizard.course = CLASSES.find(c => c.course_id === saved.course_id);
+        wizard.isNew = !id;
         await openMappingStep();
       }
     } catch (err) {
@@ -295,60 +296,117 @@ function main() {
   const catError = document.getElementById("cat-error");
   const catFinish = document.getElementById("cat-finish");
 
+  /* Learning Suite classes choose how the schedule is grouped: Claude
+     proposes course-specific groups with keywords, or the standard keyword
+     buckets. A new class picks first; an existing one sees its current
+     mapping and can "Change Categories". Canvas classes go straight to the
+     table of their assignment groups. */
   async function openMappingStep() {
     const course = wizard.course;
-    const isLS = course.source === "Learning Suite";
     showStep(2);
     clearFormError(catError);
-    document.getElementById("cat-intro").textContent = isLS
-      ? `Items on the ${course.course_code} schedule are grouped by keyword. Pick the type each group should show as, a due time for its all-day items, and whether to include it.`
-      : `${course.course_code}'s Canvas assignment groups. Pick the type each one should show as and whether to include it.`;
-    catBody.innerHTML = `<div class="empty">Loading categories from ${isLS ? "the schedule" : "Canvas"}</div>`;
+    if (course.source === "Learning Suite" && wizard.isNew) { renderChoicePanel(false); return; }
+    await loadMapping(null);
+  }
+
+  function setCatIntro(cats) {
+    const course = wizard.course;
+    const ai = cats && cats.some(c => String(c.external_category_id || "").startsWith("ai:"));
+    document.getElementById("cat-intro").textContent = course.source !== "Learning Suite"
+      ? `${course.course_code}'s Canvas assignment groups. Pick the type each one should show as and whether to include it.`
+      : !cats ? `How should items on the ${course.course_code} schedule be grouped?`
+      : ai ? `Groups Claude suggested for ${course.course_code}. Items are routed by the keywords, so edit them to change what lands where; then pick a type and due time for each group.`
+      : `Items on the ${course.course_code} schedule are grouped by keyword. Pick the type each group should show as, a due time for its all-day items, and whether to include it.`;
+  }
+
+  /* Fetch the categories (re-organizing first when a mode is given) and draw the table */
+  async function loadMapping(mode) {
+    const course = wizard.course;
+    const isLS = course.source === "Learning Suite";
+    setCatIntro(null);
+    catBody.innerHTML = `<div class="empty">${mode === "ai" ? "Asking Claude to organize the schedule…" : `Loading categories from ${isLS ? "the schedule" : "Canvas"}`}</div>`;
     catFinish.disabled = true;
     try {
-      const cats = await API.courses.discoverCategories(course.course_id);
+      const cats = await API.courses.discoverCategories(course.course_id, mode);
       renderCategoryTable(cats, isLS);
-    } catch (err) {
-      catBody.innerHTML = `<div class="empty">No categories to map yet.</div>`;
-      showFormError(catError, err.message);
-    } finally {
+      setCatIntro(cats);
       catFinish.disabled = false;
+    } catch (err) {
+      if (isLS) renderChoicePanel(!wizard.isNew);   // back to the choices, so "Key Words" is one click away
+      else { catBody.innerHTML = `<div class="empty">No categories to map yet.</div>`; catFinish.disabled = false; }
+      showFormError(catError, err.message);
     }
   }
 
-  function renderCategoryTable(cats, isLS) {
-    if (!cats.length) { catBody.innerHTML = `<div class="empty">Nothing found to map. Sync later and edit the class to map new categories.</div>`; return; }
-    const typeOptions = sel => `<option value="">None</option>` +
-      ASSIGNMENT_TYPES.map(t => `<option value="${t.assignment_type_id}" ${sel === t.assignment_type_id ? "selected" : ""}>${esc(cap(t.name))}</option>`).join("");
+  function renderChoicePanel(canKeep) {
+    setCatIntro(null);
+    catFinish.disabled = true;
     catBody.innerHTML = `
-      <table class="cat-table">
-        <thead><tr>
-          <th>Category</th><th>Show as</th>${isLS ? "<th>Due time</th>" : ""}<th style="text-align:center">Include</th>
-        </tr></thead>
-        <tbody>
-          ${cats.map(c => {
-            const n = c.item_count != null ? c.item_count : c.assignment_count;
-            return `
-            <tr data-cat="${c.assignment_category_id}" class="${c.is_included ? "" : "excluded"}">
-              <td class="name">${esc(c.name)}<span class="n">${n} item${n === 1 ? "" : "s"}</span></td>
-              <td class="type"><select class="select" data-field="type">${typeOptions(c.assignment_type_id)}</select></td>
-              ${isLS ? `<td class="time"><input class="input" type="time" data-field="time" value="${esc(c.default_due_time || "")}" title="Due time for all-day items (blank = 11:59 PM)"></td>` : ""}
-              <td class="inc"><input type="checkbox" data-field="include" ${c.is_included ? "checked" : ""} title="Include this category"></td>
-            </tr>`; }).join("")}
-        </tbody>
-      </table>
-      ${isLS ? `<span class="hint" style="display:block;margin-top:8px">Blank due time keeps the schedule's 11:59 PM.</span>` : ""}`;
-    catBody.querySelectorAll('[data-field="include"]').forEach(cb =>
-      cb.addEventListener("change", () => cb.closest("tr").classList.toggle("excluded", !cb.checked)));
+      <div class="cat-choice">
+        <button type="button" class="cat-option" data-mode="ai">
+          <span class="t">Categorize using AI</span>
+          <span class="d">Claude reads the schedule once and proposes groups that fit this course's naming, with keywords you can edit.</span>
+        </button>
+        <button type="button" class="cat-option" data-mode="keywords">
+          <span class="t">Categorize using Key Words</span>
+          <span class="d">Sort items into the standard groups (Readings, Quizzes, Exams, …) by words in their titles. No AI involved.</span>
+        </button>
+        ${canKeep ? `<button type="button" class="btn btn-ghost btn-sm" id="cat-keep" style="justify-self:start">Keep current categories</button>` : ""}
+      </div>`;
+    catBody.querySelectorAll(".cat-option").forEach(b => b.addEventListener("click", () => {
+      catBody.querySelectorAll(".cat-option").forEach(x => { x.disabled = true; });
+      clearFormError(catError);
+      loadMapping(b.dataset.mode);
+    }));
+    const keep = document.getElementById("cat-keep");
+    if (keep) keep.addEventListener("click", () => { clearFormError(catError); loadMapping(null); });
+  }
+
+  function renderCategoryTable(cats, isLS) {
+    const tools = isLS ? `<div class="cat-tools"><button type="button" class="btn btn-secondary btn-sm" id="cat-change">Change Categories</button></div>` : "";
+    if (!cats.length) {
+      catBody.innerHTML = `${tools}<div class="empty">Nothing found to map. Sync later and edit the class to map new categories.</div>`;
+    } else {
+      const typeOptions = sel => `<option value="">None</option>` +
+        ASSIGNMENT_TYPES.map(t => `<option value="${t.assignment_type_id}" ${sel === t.assignment_type_id ? "selected" : ""}>${esc(cap(t.name))}</option>`).join("");
+      catBody.innerHTML = `
+        ${tools}
+        <table class="cat-table">
+          <thead><tr>
+            <th>Category</th><th>Show as</th>${isLS ? "<th>Keywords</th><th>Due time</th>" : ""}<th style="text-align:center">Include</th>
+          </tr></thead>
+          <tbody>
+            ${cats.map(c => {
+              const n = c.item_count != null ? c.item_count : c.assignment_count;
+              return `
+              <tr data-cat="${c.assignment_category_id}" class="${c.is_included ? "" : "excluded"}">
+                <td class="name">${esc(c.name)}<span class="n">${n} item${n === 1 ? "" : "s"}</span></td>
+                <td class="type"><select class="select" data-field="type">${typeOptions(c.assignment_type_id)}</select></td>
+                ${isLS ? `<td class="kw"><input class="input" data-field="keywords" value="${esc((c.match_keywords || []).join(", "))}" placeholder="e.g. reading, chapter" title="Comma-separated words. A schedule item containing one of them lands here."></td>
+                <td class="time"><input class="input" type="time" data-field="time" value="${esc(c.default_due_time || "")}" title="Due time for all-day items (blank = 11:59 PM)"></td>` : ""}
+                <td class="inc"><input type="checkbox" data-field="include" ${c.is_included ? "checked" : ""} title="Include this category"></td>
+              </tr>`; }).join("")}
+          </tbody>
+        </table>
+        ${isLS ? `<span class="hint" style="display:block;margin-top:8px">Items with no matching keyword fall into the standard groups. Blank due time keeps the schedule's 11:59 PM.</span>` : ""}`;
+      catBody.querySelectorAll('[data-field="include"]').forEach(cb =>
+        cb.addEventListener("change", () => cb.closest("tr").classList.toggle("excluded", !cb.checked)));
+    }
+    const change = document.getElementById("cat-change");
+    if (change) change.addEventListener("click", () => renderChoicePanel(true));
   }
 
   function readCategoryTable() {
-    return [...catBody.querySelectorAll("tr[data-cat]")].map(tr => ({
-      assignment_category_id: Number(tr.dataset.cat),
-      assignment_type_id: tr.querySelector('[data-field="type"]').value ? Number(tr.querySelector('[data-field="type"]').value) : null,
-      default_due_time: tr.querySelector('[data-field="time"]')?.value || null,
-      is_included: tr.querySelector('[data-field="include"]').checked,
-    }));
+    return [...catBody.querySelectorAll("tr[data-cat]")].map(tr => {
+      const kw = tr.querySelector('[data-field="keywords"]');
+      return {
+        assignment_category_id: Number(tr.dataset.cat),
+        assignment_type_id: tr.querySelector('[data-field="type"]').value ? Number(tr.querySelector('[data-field="type"]').value) : null,
+        default_due_time: tr.querySelector('[data-field="time"]')?.value || null,
+        is_included: tr.querySelector('[data-field="include"]').checked,
+        ...(kw ? { match_keywords: kw.value } : {}),
+      };
+    });
   }
 
   document.getElementById("cat-back").addEventListener("click", () => { showStep(1); refreshSubmitLabel(); });

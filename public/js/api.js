@@ -56,7 +56,7 @@ const API = {
     update: (id, fields) => apiFetch(`/api/courses/${id}`, { method: "PUT", body: fields }),
     remove: id => apiFetch(`/api/courses/${id}`, { method: "DELETE" }),
     categories: id => apiFetch(`/api/courses/${id}/categories`),
-    discoverCategories: id => apiFetch(`/api/courses/${id}/categories/discover`, { method: "POST" }),
+    discoverCategories: (id, mode) => apiFetch(`/api/courses/${id}/categories/discover`, { method: "POST", body: mode ? { mode } : {} }),
     saveCategories: (id, categories) => apiFetch(`/api/courses/${id}/categories`, { method: "PUT", body: { categories } }),
     sync: id => apiFetch(`/api/courses/${id}/sync`, { method: "POST" }),
   },

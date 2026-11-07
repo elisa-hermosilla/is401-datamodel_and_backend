@@ -1,9 +1,10 @@
 /* Per-class assignment categories and how the student maps them.
 
-   A category is a Canvas assignment group, a Canvas planner bucket, or a
-   Learning Suite keyword bucket. The student maps each one to a global
-   assignment_type, can give it a default due time (used for all-day feed
-   items), and can exclude it so its items never show. Sync creates
+   A category is a Canvas assignment group, a Canvas planner bucket, a
+   Learning Suite keyword bucket, or a Learning Suite group proposed by
+   Claude. The student maps each one to a global assignment_type, can give it
+   a default due time (used for all-day feed items), keywords that route feed
+   items to it, and can exclude it so its items never show. Sync creates
    categories but never overwrites a mapping. */
 
 import { Router } from "express";
@@ -11,9 +12,28 @@ import { query } from "../db.js";
 import { requireLogin } from "../middleware/auth.js";
 import * as canvas from "../canvas.js";
 import * as ls from "../learningsuite.js";
+import { AiUnavailable } from "../categorize.js";
 
 const router = Router();
 const TIME_RE = /^([01]\d|2[0-3]):[0-5]\d$/;
+const MAX_KEYWORDS = 20;
+const MAX_KEYWORD_LEN = 40;
+
+/* Keywords arrive as a list or a comma-separated string; stored lowercase,
+   trimmed, de-duplicated. Null means "not sent, keep what's there". */
+function parseKeywords(raw) {
+  if (raw === undefined || raw === null) return null;
+  const list = Array.isArray(raw) ? raw : typeof raw === "string" ? raw.split(",") : null;
+  if (!list) return false;
+  const out = [];
+  for (const k of list) {
+    const n = String(k).toLowerCase().replace(/\s+/g, " ").trim();
+    if (!n) continue;
+    if (n.length > MAX_KEYWORD_LEN) return false;
+    if (!out.includes(n)) out.push(n);
+  }
+  return out.length > MAX_KEYWORDS ? false : out;
+}
 
 function parseId(raw) {
   const id = Number(raw);
@@ -31,7 +51,7 @@ async function ownedCourse(courseId, userId) {
 async function listCategories(courseId) {
   const { rows } = await query(
     `select cat.assignment_category_id, cat.name, cat.external_category_id, cat.assignment_type_id,
-            to_char(cat.default_due_time, 'HH24:MI') as default_due_time, cat.is_included,
+            to_char(cat.default_due_time, 'HH24:MI') as default_due_time, cat.is_included, cat.match_keywords,
             (select count(*)::int from assignment a where a.assignment_category_id = cat.assignment_category_id) as assignment_count
        from assignment_category cat
       where cat.course_id = $1
@@ -41,7 +61,7 @@ async function listCategories(courseId) {
 }
 
 function userError(err, res, next) {
-  if (err instanceof canvas.CanvasError || err instanceof ls.FeedError) return res.status(err.status === 401 ? 400 : err.status).json({ error: err.message });
+  if (err instanceof canvas.CanvasError || err instanceof ls.FeedError || err instanceof AiUnavailable) return res.status(err.status === 401 ? 400 : err.status).json({ error: err.message });
   next(err);
 }
 
@@ -55,9 +75,12 @@ router.get("/courses/:id/categories", requireLogin, async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
-/* POST /api/courses/:id/categories/discover — find the class's categories at
-   the source (Canvas assignment groups, or feed keyword buckets), create any
-   that are missing, and return them with item counts. */
+/* POST /api/courses/:id/categories/discover  { mode? }
+   Find the class's categories at the source (Canvas assignment groups, or
+   the feed routed through keywords and buckets), create any that are
+   missing, and return them with item counts. Learning Suite classes take a
+   mode: "ai" asks Claude for groups first, "keywords" drops the AI groups
+   and keeps the buckets; no mode just reports the current rules. */
 router.post("/courses/:id/categories/discover", requireLogin, async (req, res, next) => {
   try {
     const id = parseId(req.params.id);
@@ -73,7 +96,8 @@ router.post("/courses/:id/categories/discover", requireLogin, async (req, res, n
       found = await canvas.discoverCategories(course, conn, typeIds);
     } else if (course.source === "Learning Suite") {
       if (!course.ics_feed_url) return res.status(400).json({ error: "Add the iCalendar link first" });
-      found = await ls.discoverCategories(course, typeIds);
+      const mode = req.body?.mode === "ai" || req.body?.mode === "keywords" ? req.body.mode : null;
+      found = await ls.discoverCategories(course, typeIds, mode, req.session.userId);
     } else {
       return res.status(400).json({ error: "Manual classes do not have categories to map" });
     }
@@ -85,7 +109,7 @@ router.post("/courses/:id/categories/discover", requireLogin, async (req, res, n
   } catch (err) { userError(err, res, next); }
 });
 
-/* PUT /api/courses/:id/categories  { categories: [{assignment_category_id, assignment_type_id, default_due_time, is_included}] } */
+/* PUT /api/courses/:id/categories  { categories: [{assignment_category_id, assignment_type_id, default_due_time, is_included, match_keywords?}] } */
 router.put("/courses/:id/categories", requireLogin, async (req, res, next) => {
   try {
     const id = parseId(req.params.id);
@@ -108,9 +132,13 @@ router.put("/courses/:id/categories", requireLogin, async (req, res, next) => {
       if (time !== null && !TIME_RE.test(time)) return res.status(400).json({ error: "Default due time must be HH:MM" });
       const included = c.is_included === undefined ? true : c.is_included;
       if (typeof included !== "boolean") return res.status(400).json({ error: "is_included must be true or false" });
+      const keywords = parseKeywords(c.match_keywords);
+      if (keywords === false) return res.status(400).json({ error: `Keywords: up to ${MAX_KEYWORDS}, each ${MAX_KEYWORD_LEN} characters or fewer` });
       await query(
-        `update assignment_category set assignment_type_id = $2, default_due_time = $3, is_included = $4 where assignment_category_id = $1`,
-        [catId, typeId, time, included]);
+        `update assignment_category
+            set assignment_type_id = $2, default_due_time = $3, is_included = $4, match_keywords = coalesce($5::text[], match_keywords)
+          where assignment_category_id = $1`,
+        [catId, typeId, time, included, keywords]);
     }
     res.json(await listCategories(id));
   } catch (err) { next(err); }
