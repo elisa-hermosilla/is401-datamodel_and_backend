@@ -86,6 +86,37 @@ export function decodeFeed(bytes) {
   return text.replace(/ /g, " ").replace(/�/g, " ");
 }
 
+/* Learning Suite's exporter writes "?" for characters it can't encode (a
+   non-breaking space, for one) when it builds SUMMARY, while DESCRIPTION
+   keeps the clean text. A "?" is dropped when the description contains the
+   text around it without the "?"; a real question mark ("Why? Because")
+   isn't in the description that way and stays. Exported for tests. */
+export function dropExportQuestionMarks(summary, collapsed) {
+  if (!summary || !summary.includes("?") || !collapsed) return summary;
+  let out = "";
+  for (let i = 0; i < summary.length; i++) {
+    if (summary[i] === "?") {
+      /* Neighbouring artifacts ("and? Watch? Video") are stripped from the context too */
+      const ctx = collapseWs((summary.slice(Math.max(0, i - 12), i) + summary.slice(i + 1, i + 13)).replace(/\?/g, ""));
+      if (ctx.length >= 6 && collapsed.includes(ctx)) continue;
+    }
+    out += summary[i];
+  }
+  return collapseWs(out);
+}
+
+/* Is this SUMMARY just the start of the description? Learning Suite builds
+   the SUMMARY from the description and its exporter turns characters it
+   can't handle (non-breaking spaces, for one) into "?", while the
+   DESCRIPTION keeps the clean text. So compare with each "?" in the summary
+   standing for any one character or none; a real question mark still
+   matches itself. Exported for tests. */
+export function summaryFromDescription(summary, collapsed) {
+  if (!summary) return true;
+  const pattern = summary.split("?").map(p => p.replace(/[.*+^${}()|[\]\\]/g, "\\$&")).join(".?");
+  return new RegExp("^" + pattern).test(collapsed);
+}
+
 /* Parse a whole feed. Returns events in feed order; items without a usable
    date or title are dropped. */
 export function parseIcs(text) {
@@ -113,15 +144,15 @@ export function parseIcs(text) {
     const P = it.props;
     const description = unescapeText(P.DESCRIPTION?.value) || null;
     const first = collapseWs(description ? description.split("\n").map(s => s.trim()).find(Boolean) : "");
-    const summary = collapseWs(unescapeText(P.SUMMARY?.value));
+    const collapsed = collapseWs(description ? description.replace(/\n/g, "") : "");
+    const summary = dropExportQuestionMarks(collapseWs(unescapeText(P.SUMMARY?.value)), collapsed);
     /* Learning Suite schedule rows (topics, readings) have no name of their own:
        their SUMMARY is the description with line breaks removed, cut at ~100
        chars. Real assignments (exams, reports) have a proper SUMMARY and the
        instructions in DESCRIPTION. Tell them apart per item: an auto-generated
        SUMMARY is a prefix of the collapsed description, and then the
        description's first line is the better title. */
-    const collapsed = collapseWs(description ? description.replace(/\n/g, "") : "");
-    const autoSummary = !summary || summary === first || (collapsed !== "" && collapsed.startsWith(summary));
+    const autoSummary = !summary || summary === first || (collapsed !== "" && summaryFromDescription(summary, collapsed));
     const title = autoSummary && first ? first : summary;
     if (!title) continue;
     /* A to-do's DUE wins; otherwise the start stamp. */

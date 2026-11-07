@@ -82,7 +82,7 @@ function main(onboardingStatus) {
     el.innerHTML = `<div class="focus-top"><span class="eyebrow">Next deadline</span>${past ? '<span class="status-past">Past due</span>' : ""}</div>
       <h2><button class="focus-title" type="button" data-view="${next.assignment_id}">${esc(next.title)}</button></h2>
       <p class="focus-meta">${esc(next.course_code)}${next.estimated_minutes ? ` · ${fmtMinutes(next.estimated_minutes)} estimated` : ""}</p>
-      <p class="focus-due">${fmtDayLabel(due)} · ${next.due_time_known === false ? "All day" : fmtTime(due)}</p>
+      <p class="focus-due">${fmtDayLabel(due)} · ${next.due_time_known === false ? "Time Unknown" : fmtTime(due)}</p>
       <div class="focus-actions"><button type="button" class="btn btn-primary btn-sm" data-check="${next.assignment_id}">${ICONS.check} Complete</button><button type="button" class="btn btn-secondary btn-sm" data-view="${next.assignment_id}">Details</button></div>`;
     bindChecks(el, renderAll);
   }
