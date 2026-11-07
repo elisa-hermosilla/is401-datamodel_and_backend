@@ -319,7 +319,7 @@ function assignmentRow(a, opts = {}) {
       </div>
       <div class="due ${dueClass(a)}">
         <div class="d">${fmtDayLabel(d)}</div>
-        <div class="t">${a.due_time_known === false ? "All day" : fmtTime(d)}</div>
+        <div class="t">${a.due_time_known === false ? "Time Unknown" : fmtTime(d)}</div>
       </div>
     </div>`;
 }
@@ -356,7 +356,7 @@ function compactAssignmentRow(a, { handle = false, gutter = false, agenda = fals
       ${notes ? `<span class="assignment-notes" title="${esc(notes)}">${esc(notes)}</span>` : ""}
     </button>
     ${actions}
-    <div class="assignment-deadline ${status}"><span>${agenda ? (a.due_time_known === false ? "All day" : fmtTime(due)) : fmtDayLabel(due)}</span><small>${isDone(a) ? "Completed" : status === "overdue" ? "Past due" : agenda ? "" : a.due_time_known === false ? "All day" : fmtTime(due)}</small></div>
+    <div class="assignment-deadline ${status}"><span>${agenda ? (a.due_time_known === false ? "Time Unknown" : fmtTime(due)) : fmtDayLabel(due)}</span><small>${isDone(a) ? "Completed" : status === "overdue" ? "Past due" : agenda ? "" : a.due_time_known === false ? "Time Unknown" : fmtTime(due)}</small></div>
   </div>`;
 }
 
@@ -550,7 +550,9 @@ function ensureAssignmentModal() {
     const id = document.getElementById("a-id").value;
     const title = document.getElementById("a-title").value.trim();
     const date = document.getElementById("a-date").value;
-    const time = document.getElementById("a-time").value || "23:59";
+    /* A blank time means "unknown": the row keeps 11:59 PM for sorting but is shown as Time Unknown */
+    const timeInput = document.getElementById("a-time").value;
+    const time = timeInput || "23:59";
     const minutesRaw = document.getElementById("a-minutes").value;
     const minutes = minutesRaw === "" ? null : Number(minutesRaw);
 
@@ -566,7 +568,7 @@ function ensureAssignmentModal() {
       course_id: Number(document.getElementById("a-class").value),
       title,
       due_at: new Date(y, m - 1, d, hh, mm).toISOString(),
-      due_time_known: true,
+      due_time_known: !!timeInput,
       assignment_type_id: document.getElementById("a-type").value ? Number(document.getElementById("a-type").value) : null,
       submission_type: document.getElementById("a-submission").value || null,
       estimated_minutes: minutes,
@@ -647,7 +649,7 @@ function openAssignmentModal(opts = {}, onChange) {
   document.getElementById("a-id").value = a ? a.assignment_id : "";
   document.getElementById("a-title").value = a ? a.title : "";
   document.getElementById("a-date").value = toDateInput(due);
-  document.getElementById("a-time").value = a ? toTimeInput(due) : "23:59";
+  document.getElementById("a-time").value = a ? (a.due_time_known === false ? "" : toTimeInput(due)) : "23:59";
   document.getElementById("a-minutes").value = a && a.estimated_minutes ? a.estimated_minutes : "";
   document.getElementById("a-notes").value = a ? (a.notes || "") : "";
 
@@ -710,7 +712,7 @@ function openAssignmentView(id, onChange) {
   document.getElementById("v-status").innerHTML = `<span class="view-pill ${status.cls}">${status.text}</span>`;
   document.getElementById("v-grid").innerHTML =
     row("Class", `<span class="course-marker" style="--course-color:${cls.color_hex}"></span>${esc(cls.course_code)}${cls.course_name ? ` <span class="view-sub">${esc(cls.course_name)}</span>` : ""}`) +
-    row("Due", `${fmtDayLabel(d)} · ${a.due_time_known === false ? "All day" : fmtTime(d)}`) +
+    row("Due", `${fmtDayLabel(d)} · ${a.due_time_known === false ? "Time Unknown" : fmtTime(d)}`) +
     row("Type", typeLabel(a) ? esc(typeLabel(a)) : "—") +
     row("Submission", esc(a.submission_type || "No submission")) +
     row("Estimated time", a.estimated_minutes ? fmtMinutes(a.estimated_minutes) : "—") +

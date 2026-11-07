@@ -17,13 +17,14 @@ import { organizeWithClaude, haystack } from "./categorize.js";
 /* A feed has no category data. Items are routed in two steps: first by the
    keywords stored on the course's categories (filled in by "Categorize using
    AI", or typed by the student), then, for anything no keyword catches, into
-   fixed buckets by a regex on the category or title. Each bucket is an
+   fixed buckets by a regex on the category or title, or "Unknown" when the
+   regex has no guess either. Each bucket is an
    assignment_category row (external_category_id "ics:<bucket>"); AI groups are
    rows named "ai:<slug>". The student maps every row to a type, a default due
    time, and included/excluded. */
 export const BUCKETS = {
   reading: "Readings", homework: "Homework", quiz: "Quizzes", exam: "Exams",
-  paper: "Papers", project: "Projects", discussion: "Discussions", other: "Other",
+  paper: "Papers", project: "Projects", discussion: "Discussions", other: "Unknown",
 };
 /* The title usually says what kind of item it is; when it doesn't ("Class 14
    Preparation Report"), the first line of the instructions often does

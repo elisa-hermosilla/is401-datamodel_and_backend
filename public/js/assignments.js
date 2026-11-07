@@ -362,8 +362,11 @@ function main() {
     if (keep) keep.addEventListener("click", () => { clearFormError(catError); loadMapping(null); });
   }
 
-  function renderCategoryTable(cats, isLS) {
+  /* Only categories that have (or are about to get) assignments are listed;
+     a bucket with nothing in it comes back on its own when an item needs it. */
+  function renderCategoryTable(allCats, isLS) {
     const tools = isLS ? `<div class="cat-tools"><button type="button" class="btn btn-secondary btn-sm" id="cat-change">Change Categories</button></div>` : "";
+    const cats = allCats.filter(c => (c.item_count != null ? c.item_count : c.assignment_count) > 0);
     if (!cats.length) {
       catBody.innerHTML = `${tools}<div class="empty">Nothing found to map. Sync later and edit the class to map new categories.</div>`;
     } else {
@@ -388,7 +391,7 @@ function main() {
               </tr>`; }).join("")}
           </tbody>
         </table>
-        ${isLS ? `<span class="hint" style="display:block;margin-top:8px">Items with no matching keyword fall into the standard groups. Blank due time keeps the schedule's 11:59 PM.</span>` : ""}`;
+        ${isLS ? `<span class="hint" style="display:block;margin-top:8px">Items with no matching keyword fall into the standard groups, or Unknown. Blank due time keeps the item's time unknown.</span>` : ""}`;
       catBody.querySelectorAll('[data-field="include"]').forEach(cb =>
         cb.addEventListener("change", () => cb.closest("tr").classList.toggle("excluded", !cb.checked)));
     }
