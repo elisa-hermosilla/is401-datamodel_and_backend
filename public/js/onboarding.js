@@ -1,9 +1,11 @@
 /* First-login setup walkthrough. It stays on the dashboard and uses the same
    connection and course APIs as Settings and Assignments. */
-async function startOnboarding() {
-  let onboardingStatus;
-  try { onboardingStatus = await API.onboarding.status(); }
-  catch { return; }
+async function startOnboarding(onboardingStatus) {
+  if (onboardingStatus === undefined) {
+    try { onboardingStatus = await API.onboarding.status(); }
+    catch { return; }
+  }
+  if (!onboardingStatus) return;
   if (onboardingStatus.completed_at) return;
 
   const modal = document.getElementById("onboarding-modal");
@@ -32,11 +34,22 @@ async function startOnboarding() {
   };
   const finish = async () => {
     try { await API.onboarding.complete(); }
-    catch (err) { toast(`Couldn't save tutorial completion: ${err.message}`, "error"); return; }
+    catch (err) {
+      let message = content.querySelector(".onboarding-save-error");
+      if (!message) {
+        message = document.createElement("p");
+        message.className = "form-error show onboarding-save-error";
+        message.setAttribute("role", "alert");
+        content.appendChild(message);
+      }
+      message.textContent = `Couldn't save tutorial completion: ${err.message}`;
+      return;
+    }
     modal.classList.remove("open"); modal.setAttribute("aria-hidden", "true");
     modal.classList.remove("tour-mode"); modalBox.classList.remove("tour-callout");
     document.body.classList.remove("onboarding-tour-active");
     document.querySelectorAll(".onboarding-spotlight").forEach(el => el.classList.remove("onboarding-spotlight"));
+    releaseDeferredToasts();
   };
   const button = (label, action, cls = "btn-primary") => `<button type="button" class="btn ${cls}" data-onboarding="${action}">${label}</button>`;
   const accounts = () => `<div class="onboarding-account-box"><strong>Connected accounts</strong><p>Sources DueList imports from.</p><div><b>Canvas</b> <span class="tag ${CANVAS.connected ? "canvas" : "type"}">${CANVAS.connected ? "Connected" : "Not connected"}</span></div><div><b>Learning Suite</b> <span class="tag ${learningSuiteStatus.courses?.length ? "ls" : "type"}">${learningSuiteStatus.courses?.length ? "Linked" : "Not linked"}</span>${learningSuiteStatus.courses?.length ? `<p>${learningSuiteStatus.courses.length} class${learningSuiteStatus.courses.length === 1 ? "" : "es"} with an iCal link</p>` : ""}</div></div>`;
