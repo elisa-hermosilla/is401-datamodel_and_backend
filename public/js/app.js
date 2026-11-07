@@ -804,12 +804,40 @@ document.addEventListener("click", e => {
 });
 
 let toastTimer;
+let tutorialToastDeferral = false;
+let deferredToasts = [];
+let deferredToastTimer;
+
+function deferToastsUntilTutorialCompletes() {
+  tutorialToastDeferral = true;
+}
+
+function releaseDeferredToasts() {
+  tutorialToastDeferral = false;
+  clearTimeout(deferredToastTimer);
+  const showNext = () => {
+    const next = deferredToasts.shift();
+    if (!next) return;
+    showToast(next.msg, next.opts);
+    if (deferredToasts.length) deferredToastTimer = setTimeout(showNext, 2400);
+  };
+  showNext();
+}
+
 /* Bottom-centre message. The second argument is either a kind ("info",
    "success", "error": picks the colour and icon) or an options object
    { type, sticky }. Sticky keeps the toast up (for live sync progress) until
    the next toast() call replaces it; otherwise it hides itself after ~2s. */
 function toast(msg, opts = "info") {
   if (!msg) return; // never show an empty box
+  if (tutorialToastDeferral) {
+    deferredToasts.push({ msg, opts });
+    return;
+  }
+  showToast(msg, opts);
+}
+
+function showToast(msg, opts = "info") {
   const { type = "info", sticky = false, link = null, dismissible = false } = typeof opts === "string" ? { type: opts } : (opts || {});
   const kind = type === "error" || type === "success" ? type : "info";
   let t = document.querySelector(".toast");

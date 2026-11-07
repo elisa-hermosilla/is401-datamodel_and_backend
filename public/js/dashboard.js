@@ -1,8 +1,15 @@
 /* Dashboard: deadlines, a scrolling assignment queue, a seven-day workload,
    and the two streaks. */
-initApp("dashboard").then(main);
+(async () => {
+  // Check tutorial status before app initialization can emit startup alerts.
+  // Only users who have not completed the first-login tutorial defer toasts.
+  const onboardingStatus = await API.onboarding.status().catch(() => null);
+  if (onboardingStatus && !onboardingStatus.completed_at) deferToastsUntilTutorialCompletes();
+  await initApp("dashboard");
+  main(onboardingStatus);
+})();
 
-function main() {
+function main(onboardingStatus) {
   const $ = id => document.getElementById(id);
   let scope = "all";
   let selectedDate = null;
@@ -415,5 +422,5 @@ function main() {
   const mainEl = document.querySelector("main.main");
   mainEl.classList.remove("is-loading");
   mainEl.classList.add("reveal");
-  if (typeof startOnboarding === "function") startOnboarding();
+  if (typeof startOnboarding === "function") startOnboarding(onboardingStatus);
 }
