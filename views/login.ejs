@@ -1,27 +1,41 @@
 <%- include("partials/head", { title: "Sign in", description: "Sign in to DueList to manage your Canvas and Learning Suite assignments in one place." }) %>
-  <div class="auth-wrap auth-login">
-<%- include("partials/auth-hero", { heading: "Canvas and Learning Suite assignments in one list.", blurb: "DueList collects your BYU assignments into a single dashboard, calendar, and reminder system.", sources: true }) %>
+  <main class="auth-login">
+    <div class="login-shell">
+      <section class="login-intro" aria-labelledby="login-heading">
+        <div class="brand"><span class="brand-mark" aria-hidden="true">D</span> DueList</div>
+        <div class="login-intro-copy">
+          <p class="login-eyebrow">LESS JUGGLING. MORE DOING.</p>
+          <h1 id="login-heading">All your assignments.<br>One clear view.</h1>
+          <p class="login-description login-description-full">Bring your BYU Canvas and Learning Suite assignments together in one dashboard, with a calendar and reminders to keep you on track.</p>
+          <p class="login-description login-description-compact">Your BYU assignments, calendar, and reminders. Together in one place.</p>
+          <div class="hero-sources" aria-label="Assignment sources">
+            <span class="source-pill"><span class="source-dot canvas-dot" aria-hidden="true"></span>Canvas</span>
+            <span class="source-pill"><span class="source-dot ls-dot" aria-hidden="true"></span>Learning Suite</span>
+          </div>
+        </div>
+        <p class="login-intro-footer">A little more organized. A lot more on top of it.</p>
+      </section>
 
     <section class="auth-panel">
       <div class="auth-card">
-        <h2>Sign in</h2>
-        <p class="sub">Use your username or email.</p>
+        <h2>Welcome back</h2>
+        <p class="sub">Sign in to your DueList account.</p>
 
         <form id="login-form" novalidate>
           <div class="form-error" id="login-error" role="alert"></div>
           <div class="field">
             <label for="user">Username or email</label>
-            <input class="input" id="user" type="text" placeholder="netid or netid@byu.edu" autocomplete="username" autofocus>
+            <input class="input" id="user" type="text" placeholder="Username or email address" autocomplete="username" autocapitalize="none" spellcheck="false">
           </div>
           <div class="field">
             <div class="between">
               <label for="pass">Password</label>
-              <a href="/forgot-password" style="font-size:13px">Forgot password?</a>
+              <a href="/forgot-password" class="login-forgot">Forgot password?</a>
             </div>
             <input class="input" id="pass" type="password" placeholder="Password" autocomplete="current-password">
           </div>
-          <div class="between" style="margin-bottom:18px">
-            <label for="keep-signed-in" style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--muted)">
+          <div class="login-remember">
+            <label for="keep-signed-in">
               <input type="checkbox" id="keep-signed-in" checked> Keep me signed in
             </label>
           </div>
@@ -31,8 +45,9 @@
         <div class="divider">or</div>
         <a class="btn btn-secondary btn-block" href="/create-account">Create account</a>
 
-        <p class="auth-footer">Trouble signing in? <a href="/forgot-password">Reset your password</a></p>
+        <p class="auth-footer">Your next deadline, all in one place.</p>
       </div>
     </section>
-  </div>
+    </div>
+  </main>
 <%- include("partials/scripts", { scripts: ["api", "login"] }) %>
