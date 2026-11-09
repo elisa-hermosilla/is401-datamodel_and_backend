@@ -46,6 +46,7 @@ const API = {
     savePreferences: fields => apiFetch("/api/notifications/preferences", { method: "PUT", body: fields }),
     subscribe: subscription => apiFetch("/api/notifications/subscription", { method: "POST", body: subscription }),
     removeSubscriptions: () => apiFetch("/api/notifications/subscriptions", { method: "DELETE", body: {} }),
+    sendTest: () => apiFetch("/api/notifications/test", { method: "POST", body: {} }),
   },
 
   lmsSources: () => apiFetch("/api/lms-sources"),

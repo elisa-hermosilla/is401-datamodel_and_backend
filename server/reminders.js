@@ -1,5 +1,6 @@
 import { sendNotification, setVapidDetails } from "web-push";
 import pool, { query } from "./db.js";
+import { decodePushDeviceToken } from "./push-device-token.js";
 
 const MINUTE_MS = 60_000;
 const SCHEDULER_LOCK = 824901337;
@@ -25,8 +26,8 @@ function firstQuietMinute(cursor, prefs) {
     minuteOfDayAt(value, prefs.timezone), prefs.quiet_hours_start, prefs.quiet_hours_end
   );
   let outside = cursor;
-  while (isQuiet(outside)) outside -= 60 * MINUTE_MS;
-  let inside = outside + 60 * MINUTE_MS;
+  while (isQuiet(outside)) outside -= MINUTE_MS;
+  let inside = outside + MINUTE_MS;
   while (inside - outside > MINUTE_MS) {
     const steps = Math.floor((inside - outside) / (2 * MINUTE_MS));
     const middle = outside + Math.max(1, steps) * MINUTE_MS;
@@ -36,9 +37,8 @@ function firstQuietMinute(cursor, prefs) {
   return inside;
 }
 
-/* Mirrors the Settings preview: quiet-hour minutes are skipped while counting
-   backwards from the assignment's due time. The loop only runs when a plan is
-   recalculated after an assignment or preference changes. */
+// Preserve the selected lead time by skipping quiet-hour minutes while
+// counting back from the due time. This matches the settings preview.
 function scheduledTime(dueAt, minutesBefore, prefs) {
   let cursor = new Date(dueAt).getTime();
   let remaining = minutesBefore;
@@ -46,116 +46,147 @@ function scheduledTime(dueAt, minutesBefore, prefs) {
     cursor -= MINUTE_MS;
     if (prefs.quiet_hours_enabled && inQuietHours(
       minuteOfDayAt(cursor, prefs.timezone), prefs.quiet_hours_start, prefs.quiet_hours_end
-    )) {
-      cursor = firstQuietMinute(cursor, prefs);
-    } else remaining -= 1;
+    )) cursor = firstQuietMinute(cursor, prefs);
+    else remaining -= 1;
   }
   return new Date(cursor);
 }
 
-async function rebuildDirtySchedules() {
-  const { rows: dirty } = await query(
-    `select assignment_id, requested_at from reminder_schedule_dirty
-      order by requested_at limit 300`);
-
-  for (const item of dirty) {
-    const { rows } = await query(
-      `select a.assignment_id, a.title, a.due_at, a.completed_at, c.user_id,
-              p.assignment_reminders_enabled, p.reminder_minutes,
-              p.quiet_hours_enabled, to_char(p.quiet_hours_start, 'HH24:MI') as quiet_hours_start,
-              to_char(p.quiet_hours_end, 'HH24:MI') as quiet_hours_end,
-              p.timezone, p.push_enabled
-         from assignment a
-         join course c on c.course_id = a.course_id
-         left join assignment_category cat on cat.assignment_category_id = a.assignment_category_id
-         left join notification_preferences p on p.user_id = c.user_id
-        where a.assignment_id = $1 and coalesce(cat.is_included, true)`,
-      [item.assignment_id]);
-
-    const assignment = rows[0];
-    await query("delete from push_reminder_job where assignment_id = $1 and status = 'pending'", [item.assignment_id]);
-    if (assignment && !assignment.completed_at && assignment.push_enabled && assignment.assignment_reminders_enabled) {
-      for (const minutes of assignment.reminder_minutes || []) {
-        const fireAt = scheduledTime(assignment.due_at, minutes, assignment);
-        // Do not surprise users with a delayed reminder when a new assignment
-        // or preference is saved after that reminder point has already passed.
-        if (fireAt.getTime() <= Date.now()) continue;
-        await query(
-          `insert into push_reminder_job
-             (assignment_id, user_id, reminder_minutes, due_at, scheduled_at, next_attempt_at)
-           values ($1, $2, $3, $4, $5, $5)
-           on conflict (assignment_id, due_at, reminder_minutes) do nothing`,
-          [assignment.assignment_id, assignment.user_id, minutes, assignment.due_at, fireAt]);
-      }
-    }
-    await query(
-      `delete from reminder_schedule_dirty where assignment_id = $1 and requested_at = $2`,
-      [item.assignment_id, item.requested_at]);
-  }
+function durationText(minutes) {
+  if (minutes % 1440 === 0) return `${minutes / 1440} day${minutes === 1440 ? "" : "s"}`;
+  if (minutes % 60 === 0) return `${minutes / 60} hour${minutes === 60 ? "" : "s"}`;
+  return `${minutes} minute${minutes === 1 ? "" : "s"}`;
 }
 
-function pushPayload(job) {
-  const minutes = Number(job.reminder_minutes);
-  let when;
-  if (minutes % 1440 === 0) when = `${minutes / 1440} day${minutes === 1440 ? "" : "s"}`;
-  else if (minutes % 60 === 0) when = `${minutes / 60} hour${minutes === 60 ? "" : "s"}`;
-  else when = `${minutes} minute${minutes === 1 ? "" : "s"}`;
+function pushPayload(notification) {
   return JSON.stringify({
     title: "Assignment reminder",
-    body: `${job.title} is due in ${when}${job.course_code ? ` for ${job.course_code}` : ""}.`,
-    url: "/assignments",
+    body: `${notification.title} is due in ${durationText(Number(notification.minutes_before))}${notification.course_code ? ` for ${notification.course_code}` : ""}.`,
+    url: `/assignments?assignment_id=${notification.assignment_id}`,
   });
 }
 
-async function deliverDueJobs() {
-  const { rows: jobs } = await query(
-    `select j.job_id, j.assignment_id, j.user_id, j.reminder_minutes,
-            a.title, c.course_code
-       from push_reminder_job j
-       join assignment a on a.assignment_id = j.assignment_id
-       join course c on c.course_id = a.course_id
-      join notification_preferences p on p.user_id = j.user_id
-        and p.push_enabled and p.assignment_reminders_enabled
-      where j.status = 'pending' and j.scheduled_at <= now()
-        and j.next_attempt_at <= now() and j.due_at > now() and a.completed_at is null
-      order by j.scheduled_at limit 100`);
+async function rebuildNotifications() {
+  const [{ rows: candidates }, { rows: currentRows }] = await Promise.all([
+    query(
+      `select a.assignment_id, a.title, a.due_at, c.user_id, c.course_code,
+              ro.reminder_offset_id, ro.minutes_before,
+              to_char(q.start_time, 'HH24:MI') as quiet_hours_start,
+              to_char(q.end_time, 'HH24:MI') as quiet_hours_end,
+              (q.user_id is not null) as quiet_hours_enabled
+         from assignment a
+         join course c on c.course_id = a.course_id
+         join reminder_offset ro on ro.user_id = c.user_id
+         left join assignment_category cat on cat.assignment_category_id = a.assignment_category_id
+         left join quiet_hours q on q.user_id = c.user_id
+        where a.completed_at is null and a.due_at > now()
+          and coalesce(cat.is_included, true)
+          and exists (select 1 from push_device d where d.user_id = c.user_id)`),
+    query("select notification_id, user_id, assignment_id, reminder_offset_id, scheduled_at, sent_at, status from notification"),
+  ]);
 
-  for (const job of jobs) {
-    const { rows: subscriptions } = await query(
-      "select subscription_id, endpoint, p256dh, auth from web_push_subscription where user_id = $1",
-      [job.user_id]);
-    if (!subscriptions.length) {
-      await query("update push_reminder_job set next_attempt_at = now() + interval '10 minutes' where job_id = $1", [job.job_id]);
+  const byAssignmentOffset = new Map();
+  for (const row of currentRows) {
+    const key = `${row.assignment_id}:${row.reminder_offset_id}`;
+    const list = byAssignmentOffset.get(key) || [];
+    list.push(row);
+    byAssignmentOffset.set(key, list);
+  }
+  const wanted = new Set();
+  const now = Date.now();
+  for (const item of candidates) {
+    const key = `${item.assignment_id}:${item.reminder_offset_id}`;
+    const planned = scheduledTime(item.due_at, Number(item.minutes_before), {
+      quiet_hours_enabled: item.quiet_hours_enabled,
+      quiet_hours_start: item.quiet_hours_start || "00:00",
+      quiet_hours_end: item.quiet_hours_end || "00:00",
+      timezone: "America/Denver",
+    });
+    const existing = byAssignmentOffset.get(key) || [];
+    const current = existing.sort((a, b) => b.notification_id - a.notification_id)[0];
+    if (planned.getTime() <= now) {
+      if (current?.status === "pending" && new Date(current.scheduled_at).getTime() === planned.getTime()) wanted.add(key);
       continue;
     }
 
-    let sent = 0;
-    const errors = [];
-    for (const sub of subscriptions) {
-      try {
-        await sendNotification(
-          { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } },
-          pushPayload(job),
-          { TTL: 3600 }
-        );
-        sent += 1;
-      } catch (err) {
-        if (err.statusCode === 404 || err.statusCode === 410) {
-          await query("delete from web_push_subscription where subscription_id = $1", [sub.subscription_id]);
-        } else {
-          errors.push(String(err.message || "Push delivery failed").slice(0, 300));
-        }
+    wanted.add(key);
+    if (!current) {
+      await query(
+        `insert into notification (user_id, assignment_id, reminder_offset_id, scheduled_at, status)
+         values ($1, $2, $3, $4, 'pending')`,
+        [item.user_id, item.assignment_id, item.reminder_offset_id, planned]);
+    } else if (new Date(current.scheduled_at).getTime() !== planned.getTime()) {
+      await query(
+        `update notification set user_id = $1, scheduled_at = $2,
+                sent_at = null, status = 'pending'
+          where notification_id = $3`,
+        [item.user_id, planned, current.notification_id]);
+    } else if (current.status === "cancelled") {
+      await query("update notification set status = 'pending', sent_at = null where notification_id = $1",
+        [current.notification_id]);
+    }
+
+    for (const duplicate of existing.slice(1)) {
+      if (duplicate.status === "pending") {
+        await query("update notification set status = 'cancelled' where notification_id = $1", [duplicate.notification_id]);
       }
     }
-    if (sent) {
+  }
+
+  for (const row of currentRows) {
+    const key = `${row.assignment_id}:${row.reminder_offset_id}`;
+    if (row.status === "pending" && !wanted.has(key)) {
+      await query("update notification set status = 'cancelled' where notification_id = $1", [row.notification_id]);
+    }
+  }
+}
+
+async function deliverDueNotifications() {
+  const { rows: due } = await query(
+    `select n.notification_id, n.user_id, n.assignment_id, n.reminder_offset_id,
+            ro.minutes_before, a.title, c.course_code
+       from notification n
+       join assignment a on a.assignment_id = n.assignment_id
+       join course c on c.course_id = a.course_id
+       join reminder_offset ro on ro.reminder_offset_id = n.reminder_offset_id
+       left join assignment_category cat on cat.assignment_category_id = a.assignment_category_id
+      where n.status = 'pending' and n.scheduled_at <= now()
+        and a.due_at > now() and a.completed_at is null and coalesce(cat.is_included, true)
+      order by n.scheduled_at limit 100`);
+
+  for (const notification of due) {
+    const { rows: devices } = await query(
+      "select push_device_id, device_token from push_device where user_id = $1",
+      [notification.user_id]);
+    let delivered = 0;
+    const errors = [];
+    for (const device of devices) {
+      try {
+        await sendNotification(decodePushDeviceToken(device.device_token), pushPayload(notification), { TTL: 3600 });
+        delivered += 1;
+      } catch (err) {
+        if (err.statusCode === 404 || err.statusCode === 410) {
+          await query("delete from push_device where push_device_id = $1", [device.push_device_id]);
+        } else errors.push(String(err.message || "Push delivery failed").slice(0, 300));
+      }
+    }
+
+    if (delivered) {
       await query(
-        "update push_reminder_job set status = 'sent', sent_at = now(), attempts = attempts + 1, last_error = null where job_id = $1 and status = 'pending'",
-        [job.job_id]);
+        `update notification set status = 'sent', sent_at = now()
+          where notification_id = $1 and status = 'pending'`,
+        [notification.notification_id]);
     } else if (errors.length) {
       await query(
-        "update push_reminder_job set attempts = attempts + 1, next_attempt_at = now() + interval '1 minute', last_error = $2 where job_id = $1 and status = 'pending'",
-        [job.job_id, errors.join("; ").slice(0, 1000)]);
-      console.error(`Push reminder ${job.job_id} failed:`, errors[0]);
+        `update notification set status = 'failed'
+          where notification_id = $1 and status = 'pending'`,
+        [notification.notification_id]);
+      console.error(`Push notification ${notification.notification_id} failed:`, errors[0]);
+    } else {
+      await query(
+        `update notification set status = 'failed'
+          where notification_id = $1 and status = 'pending'`,
+        [notification.notification_id]);
     }
   }
 }
@@ -170,10 +201,9 @@ export async function runReminderCycle() {
     const { rows } = await client.query("select pg_try_advisory_lock($1) as locked", [SCHEDULER_LOCK]);
     if (!rows[0].locked) return;
     try {
-      await rebuildDirtySchedules();
-      await deliverDueJobs();
-      await query("delete from push_reminder_job where status = 'sent' and sent_at < now() - interval '90 days'");
-      await query("delete from push_reminder_job where status = 'pending' and due_at <= now()");
+      await rebuildNotifications();
+      await deliverDueNotifications();
+      await query("delete from notification where status in ('sent', 'failed', 'cancelled') and coalesce(sent_at, scheduled_at) < now() - interval '90 days'");
     } finally {
       await client.query("select pg_advisory_unlock($1)", [SCHEDULER_LOCK]);
     }

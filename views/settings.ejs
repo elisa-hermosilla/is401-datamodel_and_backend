@@ -120,7 +120,7 @@
             <div class="setting-row" style="margin-top:8px">
               <div class="info">
                 <div class="t">Quiet hours</div>
-                <div class="d">Pause notifications during these hours. Time inside quiet hours is skipped when counting down to a reminder, so the reminder arrives before quiet hours start.</div>
+                <div class="d">Pause notifications during these Mountain Time hours. Time inside quiet hours is skipped when counting down to a reminder, so the reminder arrives before quiet hours start.</div>
               </div>
               <div class="control">
                 <label class="switch"><input type="checkbox" id="dnd-on" aria-label="Enable quiet hours" checked><span class="slider"></span></label>
@@ -153,7 +153,10 @@
           </div>
           <div class="setting-row">
             <div class="info"><div class="t">Push notifications</div><div class="d">Assignment reminders on this account's subscribed browsers.</div><div class="d" id="push-status" aria-live="polite">Checking push support…</div></div>
-            <div class="control"><label class="switch"><input type="checkbox" id="push-on" aria-label="Enable push notifications"><span class="slider"></span></label></div>
+            <div class="control">
+              <label class="switch"><input type="checkbox" id="push-on" aria-label="Enable push notifications"><span class="slider"></span></label>
+              <button class="btn btn-secondary btn-sm" id="push-test" type="button" disabled>Send test</button>
+            </div>
           </div>
           <div class="setting-row">
             <div class="info"><div class="t">Email</div><div class="d" id="delivery-email"></div></div>

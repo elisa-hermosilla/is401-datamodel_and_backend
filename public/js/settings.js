@@ -207,6 +207,7 @@ function main() {
   };
   const saveButton = document.getElementById("save");
   const pushToggle = document.getElementById("push-on");
+  const pushTestButton = document.getElementById("push-test");
   const pushStatus = document.getElementById("push-status");
   let pushConfig = null;
   saveButton.disabled = true;
@@ -264,9 +265,14 @@ function main() {
         setPushStatus("Push delivery is not configured on the server yet. Reminder preferences can still be saved.");
       } else if (!("Notification" in window) || !("serviceWorker" in navigator) || !("PushManager" in window)) {
         setPushStatus("This browser does not support web push notifications.");
+      } else if (Notification.permission === "denied") {
+        setPushStatus("Notifications are blocked by this browser. Allow them in browser settings to receive push.");
       } else {
         setPushStatus(prefs.push_subscription_count ? "Browser subscription saved." : "Turn this on to connect this browser to push.");
       }
+      pushTestButton.disabled = !prefs.push_subscription_count || !config.enabled || !window.isSecureContext ||
+        !("Notification" in window) || Notification.permission !== "granted" ||
+        !("serviceWorker" in navigator) || !("PushManager" in window);
       pushToggle.disabled = false;
       saveButton.disabled = false;
     } catch (err) {
@@ -419,7 +425,14 @@ function main() {
     el.style.pointerEvents = on ? "auto" : "none";
   }
   document.getElementById("summary-on").addEventListener("change", () => toggleSection("summary-on", "summary-body"));
-  document.getElementById("reminders-on").addEventListener("change", () => toggleSection("reminders-on", "reminders-body"));
+  document.getElementById("reminders-on").addEventListener("change", () => {
+    if (document.getElementById("reminders-on").checked && !state.minutes.size) {
+      state.minutes.add(15);
+      renderHours();
+    }
+    toggleSection("reminders-on", "reminders-body");
+    renderDndExample();
+  });
   pushToggle.addEventListener("change", async () => {
     if (!pushToggle.checked) {
       setPushStatus("Push delivery will turn off when you save changes.");
@@ -428,6 +441,7 @@ function main() {
     pushToggle.disabled = true;
     try {
       await connectThisBrowserToPush();
+      pushTestButton.disabled = false;
     } catch (err) {
       pushToggle.checked = false;
       setPushStatus(err.message);
@@ -437,14 +451,27 @@ function main() {
     }
   });
 
+  pushTestButton.addEventListener("click", async () => {
+    pushTestButton.disabled = true;
+    try {
+      await API.notifications.sendTest();
+      setPushStatus("Test push sent. Check this device's notification center.");
+      toast("Test push sent", "success");
+    } catch (err) {
+      setPushStatus(err.message);
+      toast(err.message, "error");
+    } finally {
+      pushTestButton.disabled = !pushToggle.checked;
+    }
+  });
+
   saveButton.textContent = "Save reminder settings";
   saveButton.addEventListener("click", async () => {
     saveButton.disabled = true;
     saveButton.textContent = "Saving…";
     try {
       await API.notifications.savePreferences({
-        assignment_reminders_enabled: document.getElementById("reminders-on").checked,
-        reminder_minutes: [...state.minutes].sort((a, b) => a - b),
+        reminder_minutes: document.getElementById("reminders-on").checked ? [...state.minutes].sort((a, b) => a - b) : [],
         quiet_hours_enabled: document.getElementById("dnd-on").checked,
         quiet_hours_start: document.getElementById("dnd-start").value,
         quiet_hours_end: document.getElementById("dnd-end").value,
@@ -456,6 +483,7 @@ function main() {
         const subscription = await registration?.pushManager?.getSubscription();
         if (subscription) await subscription.unsubscribe();
         await API.notifications.removeSubscriptions();
+        pushTestButton.disabled = true;
       }
       setPushStatus(pushToggle.checked ? "Push reminders are enabled for this account." : "Push reminders are turned off.");
       toast("Reminder settings saved", "success");
