@@ -486,4 +486,8 @@ function main() {
   });
 
   render();
+  const reminderAssignmentId = Number(new URLSearchParams(window.location.search).get("assignment_id"));
+  if (reminderAssignmentId && getAssignment(reminderAssignmentId)) {
+    openAssignmentView(reminderAssignmentId);
+  }
 }
