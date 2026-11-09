@@ -48,7 +48,7 @@
           <div class="card-header">
             <div>
               <h3>Summary notifications</h3>
-              <p class="sub">A digest of what's due, sent on the days and time you choose.</p>
+              <p class="sub">A browser push digest of what's due, sent on the days and Mountain Time you choose.</p>
             </div>
             <label class="switch"><input type="checkbox" id="summary-on" aria-label="Enable summary notifications" checked><span class="slider"></span></label>
           </div>
@@ -63,7 +63,7 @@
             <div class="setting-row">
               <div class="info">
                 <div class="t">Time of day</div>
-                <div class="d">When the summary arrives on those days.</div>
+                <div class="d">When the summary arrives on those days (Mountain Time).</div>
               </div>
               <div class="control">
                 <label class="visually-hidden" for="summary-time">Summary notification time</label>
@@ -78,9 +78,9 @@
               <div class="control">
                 <label class="visually-hidden" for="summary-range">Assignments to include in summary</label>
                 <select class="select" id="summary-range">
-                  <option>Due today</option>
-                  <option selected>Due today &amp; tomorrow</option>
-                  <option>Due in the next 7 days</option>
+                  <option value="today">Due today</option>
+                  <option value="today_tomorrow" selected>Due today &amp; tomorrow</option>
+                  <option value="next_7_days">Due in the next 7 days</option>
                 </select>
               </div>
             </div>

@@ -1,12 +1,13 @@
 import { Router } from "express";
 import { sendNotification } from "web-push";
-import { query } from "../db.js";
+import pool, { query } from "../db.js";
 import { requireLogin } from "../middleware/auth.js";
 import { decodePushDeviceToken, encodePushDeviceToken } from "../push-device-token.js";
 
 const router = Router();
 const MAX_REMINDER_MINUTES = 999 * 24 * 60;
 const TIME_RE = /^(?:[01]\d|2[0-3]):[0-5]\d$/;
+const SUMMARY_RANGES = new Set(["today", "today_tomorrow", "next_7_days"]);
 
 class ValidationError extends Error {
   constructor(message) { super(message); this.status = 400; }
@@ -29,6 +30,36 @@ function parseSettings(body) {
   catch { throw new ValidationError("Choose a valid time zone"); }
   if (typeof body.push_enabled !== "boolean") throw new ValidationError("Choose whether push notifications are enabled");
   return { ...body, reminder_minutes: minutes, timezone };
+}
+
+function parseSummarySettings(body) {
+  if (typeof body?.enabled !== "boolean") throw new ValidationError("Choose whether summary notifications are enabled");
+  if (typeof body?.send_time !== "string" || !TIME_RE.test(body.send_time)) {
+    throw new ValidationError("Choose a valid summary time");
+  }
+  if (!SUMMARY_RANGES.has(body.summary_range)) throw new ValidationError("Choose a valid summary range");
+  if (!Array.isArray(body.days) || body.days.length > 7) throw new ValidationError("Choose summary days");
+  const days = [...new Set(body.days.map(Number))].sort((a, b) => a - b);
+  if (days.some(day => !Number.isInteger(day) || day < 0 || day > 6)) {
+    throw new ValidationError("Summary days must be between Sunday (0) and Saturday (6)");
+  }
+  if (body.enabled && days.length === 0) throw new ValidationError("Select at least one day for the summary");
+  return { ...body, days };
+}
+
+async function summarySettingsFor(userId) {
+  const [{ rows: settings }, { rows: days }] = await Promise.all([
+    query(`select to_char(send_time, 'HH24:MI') as send_time, summary_range
+             from summary_setting where user_id = $1`, [userId]),
+    query("select day_of_week from summary_day where user_id = $1 order by day_of_week", [userId]),
+  ]);
+  const setting = settings[0];
+  return {
+    enabled: Boolean(setting),
+    days: setting ? days.map(row => Number(row.day_of_week)) : [1, 2, 3, 4, 5],
+    send_time: setting?.send_time || "07:30",
+    summary_range: setting?.summary_range || "today_tomorrow",
+  };
 }
 
 function parseSubscription(body) {
@@ -88,6 +119,47 @@ router.get("/notifications/push-config", requireLogin, (req, res) => {
 router.get("/notifications/preferences", requireLogin, async (req, res, next) => {
   try { res.json(await responseFor(req.session.userId)); }
   catch (err) { next(err); }
+});
+
+router.get("/notifications/summary", requireLogin, async (req, res, next) => {
+  try { res.json(await summarySettingsFor(req.session.userId)); }
+  catch (err) { next(err); }
+});
+
+router.put("/notifications/summary", requireLogin, async (req, res, next) => {
+  let client;
+  try {
+    const f = parseSummarySettings(req.body || {});
+    client = await pool.connect();
+    await client.query("begin");
+    if (f.enabled) {
+      await client.query(
+        `insert into summary_setting (user_id, send_time, summary_range)
+         values ($1, $2::time, $3)
+         on conflict (user_id) do update set send_time = excluded.send_time,
+           summary_range = excluded.summary_range`,
+        [req.session.userId, f.send_time, f.summary_range]);
+      await client.query("delete from summary_day where user_id = $1", [req.session.userId]);
+      await client.query(
+        `insert into summary_day (user_id, day_of_week)
+         select $1, selected.day_of_week from unnest($2::smallint[]) as selected(day_of_week)`,
+        [req.session.userId, f.days]);
+    } else {
+      await client.query("delete from summary_setting where user_id = $1", [req.session.userId]);
+      await client.query(
+        `update notification set status = 'cancelled'
+          where user_id = $1 and assignment_id is null and reminder_offset_id is null
+            and status = 'pending'`,
+        [req.session.userId]);
+    }
+    await client.query("commit");
+    res.json(await summarySettingsFor(req.session.userId));
+  } catch (err) {
+    if (client) await client.query("rollback").catch(() => {});
+    next(err);
+  } finally {
+    client?.release();
+  }
 });
 
 router.put("/notifications/preferences", requireLogin, async (req, res, next) => {

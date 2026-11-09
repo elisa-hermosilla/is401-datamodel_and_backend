@@ -243,20 +243,28 @@ function main() {
 
   async function loadNotificationPreferences() {
     try {
-      const [prefs, config] = await Promise.all([
+      const [prefs, config, summary] = await Promise.all([
         API.notifications.preferences(),
         API.notifications.pushConfig(),
+        API.notifications.summarySettings(),
       ]);
       pushConfig = config;
       state.minutes = new Set((prefs.reminder_minutes || []).map(Number));
+      state.days = new Set((summary.days || []).map(day => DOW[Number(day)]).filter(Boolean));
+      document.getElementById("summary-on").checked = summary.enabled;
+      document.getElementById("summary-time").value = summary.send_time;
+      document.getElementById("summary-range").value = summary.summary_range;
       document.getElementById("reminders-on").checked = prefs.assignment_reminders_enabled;
       document.getElementById("dnd-on").checked = prefs.quiet_hours_enabled;
       document.getElementById("dnd-start").value = prefs.quiet_hours_start;
       document.getElementById("dnd-end").value = prefs.quiet_hours_end;
       pushToggle.checked = prefs.push_enabled;
+      toggleSection("summary-on", "summary-body");
       toggleSection("reminders-on", "reminders-body");
       toggleSection("dnd-on", "dnd-times");
       renderHours();
+      renderDow();
+      renderSummaryPreview();
       renderDndExample();
 
       if (!window.isSecureContext) {
@@ -335,9 +343,16 @@ function main() {
     const time = fmtTime(new Date(2000, 0, 1, h, m));
     const days = DOW.filter(d => state.days.has(d));
     let dayText = days.length === 7 ? "every day" : days.length === 0 ? "on no days (select at least one)" : days.length === 5 && !state.days.has("Sat") && !state.days.has("Sun") ? "on weekdays" : `on ${days.join(", ")}`;
-    el.innerHTML = `${ICONS.info}<div><strong>Preview:</strong> "You have 3 assignments due today and 2 tomorrow." arrives at <strong>${time}</strong> ${dayText}.</div>`;
+    const examples = {
+      today: "You have 3 assignments due today.",
+      today_tomorrow: "You have 3 assignments due today and 2 tomorrow.",
+      next_7_days: "You have 5 assignments due in the next 7 days.",
+    };
+    const example = examples[document.getElementById("summary-range").value] || examples.today_tomorrow;
+    el.innerHTML = `${ICONS.info}<div><strong>Preview:</strong> "${example}" arrives at <strong>${time}</strong> ${dayText} (Mountain Time).</div>`;
   }
   document.getElementById("summary-time").addEventListener("input", renderSummaryPreview);
+  document.getElementById("summary-range").addEventListener("change", renderSummaryPreview);
 
   /* ---------- Quiet-hours example ----------
      Walk backwards from the due time one minute at a time.
@@ -424,7 +439,10 @@ function main() {
     el.style.opacity = on ? 1 : .45;
     el.style.pointerEvents = on ? "auto" : "none";
   }
-  document.getElementById("summary-on").addEventListener("change", () => toggleSection("summary-on", "summary-body"));
+  document.getElementById("summary-on").addEventListener("change", () => {
+    toggleSection("summary-on", "summary-body");
+    renderSummaryPreview();
+  });
   document.getElementById("reminders-on").addEventListener("change", () => {
     if (document.getElementById("reminders-on").checked && !state.minutes.size) {
       state.minutes.add(15);
@@ -465,11 +483,17 @@ function main() {
     }
   });
 
-  saveButton.textContent = "Save reminder settings";
+  saveButton.textContent = "Save notification settings";
   saveButton.addEventListener("click", async () => {
     saveButton.disabled = true;
     saveButton.textContent = "Saving…";
     try {
+      await API.notifications.saveSummarySettings({
+        enabled: document.getElementById("summary-on").checked,
+        days: DOW.map((day, index) => state.days.has(day) ? index : null).filter(day => day !== null),
+        send_time: document.getElementById("summary-time").value,
+        summary_range: document.getElementById("summary-range").value,
+      });
       await API.notifications.savePreferences({
         reminder_minutes: document.getElementById("reminders-on").checked ? [...state.minutes].sort((a, b) => a - b) : [],
         quiet_hours_enabled: document.getElementById("dnd-on").checked,
@@ -485,14 +509,14 @@ function main() {
         await API.notifications.removeSubscriptions();
         pushTestButton.disabled = true;
       }
-      setPushStatus(pushToggle.checked ? "Push reminders are enabled for this account." : "Push reminders are turned off.");
-      toast("Reminder settings saved", "success");
+      setPushStatus(pushToggle.checked ? "Browser push delivery is enabled for this account." : "Browser push delivery is turned off.");
+      toast("Notification settings saved", "success");
     } catch (err) {
       toast(err.message, "error");
       setPushStatus(err.message);
     } finally {
       saveButton.disabled = false;
-      saveButton.textContent = "Save reminder settings";
+      saveButton.textContent = "Save notification settings";
     }
   });
 
