@@ -1,15 +1,55 @@
 /* Classes page. Classes and their assignments are real (GET/POST/PUT/DELETE
    /api/courses and /api/assignments). */
 
-initApp("assignments").then(main);
+initApp("assignments").then(main).catch(() => {
+  document.getElementById("class-grid").setAttribute("aria-busy", "false");
+  document.getElementById("class-grid").innerHTML = '<div class="empty" role="alert">Unable to load assignments. <button class="btn btn-secondary" onclick="window.location.reload()">Try again</button></div>';
+});
 
 function main() {
   document.getElementById("add-class-btn").innerHTML = `${ICONS.plus} Add Class`;
   const showDone = document.getElementById("show-done");
 
+  const toggleAll = document.getElementById("toggle-all-classes");
+  const storageKey = `duelist:collapsed-classes:${USER.user_id}`;
+  const collapsed = new Set();
+  try {
+    const saved = JSON.parse(localStorage.getItem(storageKey));
+    if (Array.isArray(saved)) saved.filter(Number.isInteger).forEach(id => collapsed.add(id));
+  } catch { /* Class controls still work when browser storage is unavailable. */ }
+
+  function saveExpandedState() {
+    try { localStorage.setItem(storageKey, JSON.stringify([...collapsed])); } catch { /* Storage may be disabled. */ }
+  }
+  function updateToggleAll() {
+    toggleAll.disabled = CLASSES.length === 0;
+    toggleAll.textContent = CLASSES.some(c => collapsed.has(c.course_id)) ? "Expand All" : "Collapse All";
+  }
+  function setClassCollapsed(button, closed) {
+    const id = Number(button.dataset.toggle);
+    if (closed) collapsed.add(id); else collapsed.delete(id);
+    button.setAttribute("aria-expanded", String(!closed));
+    button.closest(".class-card").classList.toggle("is-collapsed", closed);
+    document.getElementById(button.getAttribute("aria-controls")).inert = closed;
+  }
+  toggleAll.addEventListener("click", () => {
+    const closed = !CLASSES.some(c => collapsed.has(c.course_id));
+    document.querySelectorAll("#class-grid [data-toggle]").forEach(button => setClassCollapsed(button, closed));
+    saveExpandedState();
+    updateToggleAll();
+  });
+  window.refreshAssignmentsPage = async () => {
+    const [assignments, courses] = await Promise.all([API.assignments.list(), API.courses.list()]);
+    ASSIGNMENTS = assignments;
+    setClasses(courses);
+    render();
+  };
+
   /* ---------- Render class cards ---------- */
   function render() {
     const grid = document.getElementById("class-grid");
+    grid.setAttribute("aria-busy", "false");
+    updateToggleAll();
     if (CLASSES.length === 0) {
       grid.innerHTML = `<div class="empty">No classes yet. Add a class to get started.</div>`;
       return;
@@ -21,27 +61,33 @@ function main() {
         .sort((a, b) => dueDate(a) - dueDate(b));
       const openCount = all.filter(a => !isDone(a)).length;
       return `
-        <div class="card class-card" id="class-${c.course_id}">
-          <div class="between">
-            <div class="class-title">
-              <div class="swatch" style="background:${c.color_hex}"></div>
-              <div>
-                <div class="code"><span style="color:${esc(c.color_hex)}">Class: ${esc(c.course_code)}</span> ${c.course_name ? `<span style="font-weight:500;color:var(--muted);font-size:14px">· ${esc(c.course_name)}</span>` : ""}</div>
-                <div class="cname">${sourceTag(c)} &nbsp;${openCount} open assignment${openCount === 1 ? "" : "s"}${c.is_archived ? " &nbsp;<span class=\"tag type\">Archived</span>" : ""}</div>
-              </div>
-            </div>
+        <div class="card class-card ${collapsed.has(c.course_id) ? "is-collapsed" : ""}" id="class-${c.course_id}">
+          <div class="between class-heading">
+            <button type="button" class="class-title class-toggle" data-toggle="${c.course_id}" aria-expanded="${!collapsed.has(c.course_id)}" aria-controls="class-body-${c.course_id}">
+              <svg class="class-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+              <span class="swatch" style="background:${c.color_hex}"></span>
+              <span>
+                <span class="code"><span style="color:${esc(c.color_hex)}">Class: ${esc(c.course_code)}</span> ${c.course_name ? `<span style="font-weight:500;color:var(--muted);font-size:14px">· ${esc(c.course_name)}</span>` : ""}</span>
+                <span class="cname"><strong class="class-remaining">${openCount} remaining</strong> of ${all.length}${c.is_archived ? " &nbsp;<span class=\"tag type\">Archived</span>" : ""}</span>
+              </span>
+            </button>
             <div class="class-actions">
               <button class="btn btn-secondary btn-sm add-assignment-btn" data-add="${c.course_id}">${ICONS.plus} Add Assignment</button>
               <button class="btn btn-ghost btn-sm" data-edit="${c.course_id}" title="Edit class">${ICONS.pencil} Edit</button>
               <button class="btn btn-ghost btn-sm" data-delete="${c.course_id}" title="Delete class" style="color:var(--danger)">${ICONS.trash} Delete</button>
             </div>
           </div>
-          <div class="class-body a-list">
-            ${items.length ? items.map(a => assignmentRow(a)).join("") : `<div class="empty">${all.length ? "No open assignments." : "No assignments yet."}</div>`}
-          </div>
+          <div class="class-collapse" id="class-body-${c.course_id}" ${collapsed.has(c.course_id) ? "inert" : ""}><div class="class-collapse-inner"><div class="class-body a-list">
+            ${items.length ? items.map(a => assignmentRow(a, { details: true })).join("") : `<div class="empty">${all.length ? "No open assignments." : "No assignments yet."}</div>`}
+          </div></div></div>
         </div>`;
     }).join("");
 
+    grid.querySelectorAll("[data-toggle]").forEach(button => button.addEventListener("click", () => {
+      setClassCollapsed(button, !collapsed.has(Number(button.dataset.toggle)));
+      saveExpandedState();
+      updateToggleAll();
+    }));
     bindChecks(grid, render);
     grid.querySelectorAll("[data-add]").forEach(b => b.addEventListener("click", () => openAssignmentModal({ course_id: Number(b.dataset.add) }, render)));
     grid.querySelectorAll("[data-edit]").forEach(b => b.addEventListener("click", () => openClassModal(Number(b.dataset.edit))));
@@ -486,8 +532,12 @@ function main() {
   });
 
   render();
+  const classParams = new URLSearchParams(window.location.search);
+  if (classParams.get("add_class") === "1") openClassModal();
+  const editClassId = Number(classParams.get("edit_class"));
+  if (CLASSES.some(c => c.course_id === editClassId)) openClassModal(editClassId);
   const reminderAssignmentId = Number(new URLSearchParams(window.location.search).get("assignment_id"));
   if (reminderAssignmentId && getAssignment(reminderAssignmentId)) {
-    openAssignmentView(reminderAssignmentId);
+    openAssignmentView(reminderAssignmentId, render);
   }
 }

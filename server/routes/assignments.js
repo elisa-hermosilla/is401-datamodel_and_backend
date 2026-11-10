@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { query } from "../db.js";
 import { requireLogin } from "../middleware/auth.js";
+import { canvasBaseUrl, canvasGet, getConnection } from "../canvas.js";
 
 const router = Router();
 
@@ -128,6 +129,22 @@ router.get("/assignments", requireLogin, async (req, res, next) => {
         order by a.due_at asc, a.assignment_id asc`,
       [req.session.userId]);
     res.json(rows);
+  } catch (err) { next(err); }
+});
+
+/* Read the source description on demand; personal notes remain separate. */
+router.get("/assignments/:id/description", requireLogin, async (req, res, next) => {
+  try {
+    const id = parseId(req.params.id);
+    const a = id && await fetchOne(id, req.session.userId);
+    if (!a) return res.status(404).json({ error: "Assignment not found" });
+    const { rows } = await query("select external_course_id from course where course_id = $1 and user_id = $2", [a.course_id, req.session.userId]);
+    if (!/^\d+$/.test(a.external_assignment_id || "") || !/^\d+$/.test(rows[0]?.external_course_id || "")) return res.json({ description: null });
+    const conn = await getConnection(req.session.userId);
+    if (!conn || conn.lms_source_id !== a.lms_source_id) return res.json({ description: null });
+    const source = await canvasGet(await canvasBaseUrl(), conn.access_token,
+      `/courses/${rows[0].external_course_id}/assignments/${a.external_assignment_id}`);
+    res.json({ description: source.description || null });
   } catch (err) { next(err); }
 });
 

@@ -1,32 +1,44 @@
 <%- include("partials/head", { title: "Calendar", description: "View your assignment due dates by month and see what is scheduled each day.", noindex: true }) %>
   <div class="app overview-app">
 <%- include("partials/sidebar", { active: "calendar", user }) %>
-    <main class="main overview-main calendar-main">
+    <main class="main overview-main calendar-main calendar-loading">
       <header class="page-header">
         <div><h1>Calendar</h1><p class="sub">Your deadlines, at a glance.</p></div>
         <div class="toolbar"><button class="btn btn-secondary btn-sm" id="jump-today">Today</button><button class="btn btn-primary btn-sm" id="add-assignment">Add assignment</button></div>
       </header>
+      <div class="calendar-controls">
+      <div class="calendar-search-wrap">
+        <div class="calendar-search-box">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="10.5" cy="10.5" r="7"/><path d="m16 16 5 5"/></svg>
+          <input type="search" id="calendar-search" placeholder="Search assignments..." aria-label="Search assignments by title or class" autocomplete="off">
+          <button type="button" id="calendar-search-clear" class="btn btn-ghost btn-sm" hidden>Clear</button>
+        </div>
+
+      </div>
       <div class="calendar-toolbar">
         <div class="toolbar"><select class="select" id="calendar-class" aria-label="Filter calendar by class"></select><label class="check-label"><input type="checkbox" id="calendar-completed"> Include completed</label></div>
-        <p id="month-summary" role="status"></p>
       </div>
+      </div>
+      <div class="calendar-status"><p id="month-summary" role="status"></p><p id="calendar-search-status" role="status"></p></div>
       <div class="cal-layout">
         <section class="card month-panel" aria-labelledby="month-label">
           <div class="cal-head">
-            <h2 id="month-label"></h2>
+            <h2 id="month-label">Calendar</h2>
             <div class="cal-nav"><button class="btn btn-secondary btn-icon" id="prev-month" aria-label="Previous month"></button><button class="btn btn-secondary btn-icon" id="next-month" aria-label="Next month"></button></div>
           </div>
-          <div class="cal-grid" id="cal-grid" aria-label="Choose a date"></div>
+          <div class="cal-grid" id="cal-grid" aria-label="Choose a date" aria-busy="true">
+            <% for (let i = 0; i < 42; i++) { %><span class="calendar-skeleton-cell" aria-hidden="true"></span><% } %>
+          </div>
           <div class="calendar-key"><span><i class="today-key"></i>Today</span><span><i class="selected-key"></i>Selected day</span><span>Counts show open assignments</span></div>
         </section>
         <section class="card day-panel" aria-labelledby="day-label">
           <div class="day-nav">
-            <div><h2 id="day-label"></h2><p class="sub" id="day-sub"></p></div>
+            <div><h2 id="day-label" tabindex="-1">Daily assignments</h2><p class="sub" id="day-sub"></p></div>
             <div class="cal-nav"><button class="btn btn-secondary btn-icon" id="prev-day" aria-label="Previous day"></button><button class="btn btn-secondary btn-icon" id="next-day" aria-label="Next day"></button></div>
           </div>
           <div class="day-summary" id="day-summary"></div>
           <div class="compact-list agenda-list" id="day-list"></div>
-          <div class="list-footer" id="day-pagination"><span id="day-page" role="status"></span><div class="pager"><button class="btn btn-secondary btn-sm" id="day-prev-page" aria-label="Previous assignments">Previous</button><button class="btn btn-secondary btn-sm" id="day-next-page" aria-label="Next assignments">Next</button></div></div>
+          <div class="list-footer" id="day-pagination" hidden><span id="day-page" role="status"></span><div class="pager"><button class="btn btn-secondary btn-sm" id="day-prev-page" aria-label="Previous assignments">Previous</button><button class="btn btn-secondary btn-sm" id="day-next-page" aria-label="Next assignments">Next</button></div></div>
           <div class="agenda-next" id="agenda-next"></div>
         </section>
       </div>
