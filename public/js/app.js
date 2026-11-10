@@ -293,19 +293,19 @@ function assignmentRow(a, opts = {}) {
   const handle = opts.handle
     ? `<div class="handle" title="Drag to reorder">${ICONS.grip}</div>`
     : gutter ? `<div class="handle spacer" aria-hidden="true">${ICONS.grip}</div>` : "";
-  const check = `<div class="check ${isDone(a) ? "on" : ""}" title="${isDone(a) ? "Mark incomplete" : "Mark complete"}" data-check="${a.assignment_id}">${isDone(a) ? ICONS.check : ""}</div>`;
+  const check = `<button type="button" aria-label="${esc(a.title)}: ${isDone(a) ? "mark incomplete" : "mark complete"}" aria-pressed="${isDone(a)}" class="check ${isDone(a) ? "on" : ""}" title="${isDone(a) ? "Mark incomplete" : "Mark complete"}" data-check="${a.assignment_id}">${isDone(a) ? ICONS.check : ""}</button>`;
   const hasNote = a.notes && a.notes.trim();
   const type = typeLabel(a);
   const noteAddControl = opts.noteIconOnly
     ? `<button type="button" class="notes-add icon-only" data-edit-note="${a.assignment_id}" title="Add a note" aria-label="Add a note">${ICONS.pencil}</button>`
     : `<button type="button" class="notes-add" data-edit-note="${a.assignment_id}" title="Add a note">Add a note ${ICONS.pencil}</button>`;
   return `
-    <div class="a-row ${gutter ? "" : "compact"} ${isDone(a) ? "done" : ""}" data-id="${a.assignment_id}" ${opts.handle ? 'draggable="true"' : ""}>
+    <div class="a-row ${gutter ? "" : "compact"} ${isDone(a) ? "done" : ""}" data-id="${a.assignment_id}" ${opts.details ? `data-card-view="${a.assignment_id}"` : ""} ${opts.handle ? 'draggable="true"' : ""}>
       ${check}
       ${handle}
       <div class="bar" style="background:${cls.color_hex}"></div>
-      <div class="body" data-open="${a.assignment_id}" title="Edit assignment">
-        <div class="title">${opts.highlight && opts.highlight.length ? highlightText(a.title, opts.highlight) : esc(a.title)}</div>
+      <div class="body" ${opts.details ? "" : `data-open="${a.assignment_id}" title="Edit assignment"`}>
+        <div class="title">${opts.details ? `<button type="button" class="assignment-title-button" data-view="${a.assignment_id}">${esc(a.title)}</button>` : opts.highlight && opts.highlight.length ? highlightText(a.title, opts.highlight) : esc(a.title)}</div>
         <div class="meta">
           <button type="button" class="tag course clickable" data-filter-class="${esc(cls.course_code)}" style="--course-color:${cls.color_hex}" title="Filter by ${esc(cls.course_code)}">${esc(cls.course_code)}</button>
           ${type ? `<button type="button" class="tag type clickable" data-filter-type="${esc(type)}" title="Filter by ${esc(type)}">${esc(type)}</button>` : ""}
@@ -317,6 +317,7 @@ function assignmentRow(a, opts = {}) {
       <div class="notes ${hasNote ? "" : "empty-note"}" data-notes="${a.assignment_id}">
         ${hasNote ? `<span class="notes-text">${esc(a.notes)}</span><button type="button" class="pencil" data-edit-note="${a.assignment_id}" title="Edit note" aria-label="Edit note">${ICONS.pencil}</button>` : noteAddControl}
       </div>
+      ${opts.details ? `<button type="button" class="btn btn-secondary btn-sm assignment-edit" data-edit-assignment="${a.assignment_id}">${ICONS.pencil} Edit</button>` : ""}
       <div class="due ${dueClass(a)}">
         <div class="d">${fmtDayLabel(d)}</div>
         <div class="t">${a.due_time_known === false ? "Time Unknown" : fmtTime(d)}</div>
@@ -415,6 +416,12 @@ function bindChecks(container, onChange, opts = {}) {
   container.querySelectorAll("[data-open]").forEach(el => {
     el.addEventListener("click", () => openAssignmentModal({ assignment: getAssignment(Number(el.dataset.open)) }, onChange));
   });
+  container.querySelectorAll("[data-card-view]").forEach(el => {
+    el.addEventListener("click", e => {
+      if (e.target.closest("button, a, input, textarea, select, [data-notes]")) return;
+      openAssignmentView(Number(el.dataset.cardView), onChange);
+    });
+  });
   /* Compact rows: the row shows details; its hover buttons edit / open at the source */
   container.querySelectorAll("[data-view]").forEach(el => {
     el.addEventListener("click", () => openAssignmentView(Number(el.dataset.view), onChange));
@@ -472,6 +479,10 @@ function esc(s) {
 }
 
 /* ---------- Assignment modal: add, edit, delete (shared across pages) ---------- */
+function assignmentClassOptions(selected, allowNew = true) {
+  return (CLASSES.length ? "" : '<option value="">Choose a class</option>') + CLASSES.map(c => `<option value="${c.course_id}" ${c.course_id === selected ? "selected" : ""}>${esc(c.course_code)}${c.course_name ? ` · ${esc(c.course_name)}` : ""}</option>`).join("") + (allowNew ? '<option value="__new__">+ Add New Class</option>' : "");
+}
+
 function ensureAssignmentModal() {
   if (document.getElementById("assignment-modal")) return;
   const wrap = document.createElement("div");
@@ -486,6 +497,16 @@ function ensureAssignmentModal() {
         <div class="field">
           <label for="a-class">Class</label>
           <select class="select" id="a-class"></select>
+          <span class="hint" id="a-class-hint"></span>
+        </div>
+        <div class="inline-class-create" id="a-new-class" hidden>
+          <h4>New class</h4>
+          <p class="hint">Create a personal class. Link Canvas or Learning Suite classes from Assignments.</p>
+          <div class="field"><label for="a-course-code">Course code</label><input class="input" id="a-course-code" maxlength="30" placeholder="IS 402"></div>
+          <div class="field"><label for="a-course-name">Class name</label><input class="input" id="a-course-name" maxlength="150" placeholder="Database Systems"></div>
+          <div class="field"><label for="a-course-color">Class color</label><input id="a-course-color" type="color" value="#245b91"></div>
+          <div class="form-error" id="a-course-error" role="alert"></div>
+          <div class="row"><button type="button" class="btn btn-secondary btn-sm" id="a-course-cancel">Cancel</button><button type="button" class="btn btn-primary btn-sm" id="a-course-save">Create class</button></div>
         </div>
         <div class="field">
           <label for="a-title">Assignment name</label>
@@ -544,9 +565,59 @@ function ensureAssignmentModal() {
     if (span) span.textContent = msg || "";
   };
 
+  const classSelect = document.getElementById("a-class");
+  const newClass = document.getElementById("a-new-class");
+  classSelect.addEventListener("change", () => {
+    if (classSelect.value !== "__new__") { classSelect.dataset.previous = classSelect.value; newClass.hidden = true; submit.disabled = false; return; }
+    newClass.hidden = false;
+    document.getElementById("a-course-error").classList.remove("show");
+    document.getElementById("a-course-code").focus();
+    submit.disabled = true;
+  });
+  document.getElementById("a-course-cancel").addEventListener("click", () => {
+    newClass.hidden = true;
+    classSelect.value = classSelect.dataset.previous || String(CLASSES[0]?.course_id || "");
+    submit.disabled = false;
+    classSelect.focus();
+  });
+  document.getElementById("a-course-save").addEventListener("click", async () => {
+    const button = document.getElementById("a-course-save");
+    const error = document.getElementById("a-course-error");
+    const code = document.getElementById("a-course-code").value.trim();
+    const name = document.getElementById("a-course-name").value.trim();
+    error.classList.remove("show");
+    button.disabled = true;
+    classSelect.disabled = true;
+    document.getElementById("a-course-cancel").disabled = true;
+    try {
+      if (!code || !name) throw new Error("Enter a course code and class name.");
+      const normalize = value => value.trim().replace(/\s+/g, " ").toLowerCase();
+      let course = CLASSES.find(c => normalize(c.course_code) === normalize(code));
+      if (!course) {
+        const manual = LMS_SOURCES.find(source => source.name === "Manual");
+        if (!manual) throw new Error("Class creation is unavailable. Try reloading the page.");
+        course = await API.courses.create({ course_code: code, course_name: name, color_hex: document.getElementById("a-course-color").value, lms_source_id: manual.lms_source_id });
+        setClasses([...CLASSES, course]);
+      }
+      classSelect.innerHTML = assignmentClassOptions(course.course_id);
+      classSelect.value = String(course.course_id);
+      classSelect.dataset.previous = classSelect.value;
+      newClass.hidden = true;
+      submit.disabled = false;
+      classSelect.focus();
+      toast(`${course.course_code} selected`, "success");
+    } catch (err) { error.textContent = err.message; error.classList.add("show"); }
+    finally { button.disabled = false; classSelect.disabled = false; document.getElementById("a-course-cancel").disabled = false; }
+  });
+
   form.addEventListener("submit", async e => {
     e.preventDefault();
     errorBox.classList.remove("show");
+    if (!newClass.hidden || !Number(classSelect.value)) {
+      errorBox.textContent = "Choose a class or finish creating your new class.";
+      errorBox.classList.add("show");
+      return;
+    }
     const id = document.getElementById("a-id").value;
     const title = document.getElementById("a-title").value.trim();
     const date = document.getElementById("a-date").value;
@@ -637,8 +708,17 @@ function openAssignmentModal(opts = {}, onChange) {
   ["a-title", "a-date", "a-minutes"].forEach(id => document.getElementById(id).closest(".field").classList.remove("invalid"));
 
   const preselect = a ? a.course_id : opts.course_id;
-  document.getElementById("a-class").innerHTML = CLASSES.map(c =>
-    `<option value="${c.course_id}" ${c.course_id === preselect ? "selected" : ""}>${esc(c.course_code)}${c.course_name ? ` · ${esc(c.course_name)}` : ""}</option>`).join("");
+  const linked = !!a?.external_assignment_id;
+  const classSelect = document.getElementById("a-class");
+  classSelect.innerHTML = assignmentClassOptions(preselect, !linked);
+  classSelect.disabled = linked;
+  classSelect.dataset.previous = classSelect.value;
+  document.getElementById("a-class-hint").textContent = linked ? "This assignment stays associated with its linked source class." : "";
+  document.getElementById("a-new-class").hidden = true;
+  document.getElementById("a-course-code").value = "";
+  document.getElementById("a-course-name").value = "";
+  document.getElementById("a-course-color").value = nextClassColor();
+  document.getElementById("a-submit").disabled = false;
   document.getElementById("a-type").innerHTML = `<option value="">None</option>` +
     ASSIGNMENT_TYPES.map(t => `<option value="${t.assignment_type_id}" ${a && a.assignment_type_id === t.assignment_type_id ? "selected" : ""}>${esc(cap(t.name))}</option>`).join("");
   const subs = [...SUBMISSION_TYPES];
@@ -671,12 +751,13 @@ function ensureAssignmentView() {
   wrap.className = "modal-backdrop";
   wrap.id = "assignment-view";
   wrap.innerHTML = `
-    <div class="modal" role="dialog" aria-labelledby="v-title">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="v-title" tabindex="-1">
       <div class="view-head">
         <h3 id="v-title"></h3>
         <div class="view-status" id="v-status"></div>
       </div>
       <div class="detail-grid" id="v-grid"></div>
+      <div class="view-notes" id="v-description" hidden></div>
       <div class="view-notes" id="v-notes"></div>
       <div class="modal-actions">
         <a class="btn btn-secondary" id="v-open" target="_blank" rel="noopener" style="margin-right:auto">${ICONS.link} Open</a>
@@ -726,6 +807,23 @@ function openAssignmentView(id, onChange) {
   const open = document.getElementById("v-open");
   open.style.display = url ? "" : "none";
   if (url) { open.href = url; open.innerHTML = `${ICONS.link} Open on ${esc(cls.source)}`; }
+  const description = document.getElementById("v-description");
+  description.hidden = !document.querySelector(".assignments-page");
+  if (!description.hidden) {
+    description.innerHTML = '<div class="k">Description</div><div class="text" role="status">Loading description…</div>';
+    const request = {};
+    wrap._descriptionRequest = request;
+    apiFetch(`/api/assignments/${a.assignment_id}/description`).then(result => {
+      if (wrap._descriptionRequest !== request) return;
+      const doc = new DOMParser().parseFromString(result.description || "", "text/html");
+      doc.querySelectorAll("script, style, iframe").forEach(el => el.remove());
+      doc.querySelectorAll("br").forEach(el => el.replaceWith("\n"));
+      doc.querySelectorAll("p, div, li").forEach(el => el.append("\n"));
+      description.querySelector(".text").textContent = doc.body.textContent.trim() || "No description available. Check the source link for full instructions.";
+    }).catch(() => {
+      if (wrap._descriptionRequest === request) description.querySelector(".text").textContent = "Description could not load. Open the source link to view instructions.";
+    });
+  }
   openModal("assignment-view");
 }
 
@@ -771,7 +869,12 @@ function bindSidebar() {
     if (problems.some(isCanvasTokenRejected)) showCanvasTokenWarning();
     else if (problems.length) toast(problems[0], "error");
     else toast(`Synced ${assignments} assignment${assignments === 1 ? "" : "s"} from ${synced} class${synced === 1 ? "" : "es"}${removedNote(removed)}`, "success");
-    if (synced) setTimeout(() => window.location.reload(), problems.length ? 2200 : 900);
+    const refreshPage = window.refreshAssignmentsPage || window.refreshCalendarPage;
+    if (synced && refreshPage) {
+      try { await refreshPage(); }
+      catch { toast("Sync finished, but assignments could not refresh. Try syncing again.", "error"); }
+      finally { reset(); }
+    } else if (synced) setTimeout(() => window.location.reload(), problems.length ? 2200 : 900);
     else reset();
   });
 
@@ -798,10 +901,30 @@ function renderSyncNote() {
 }
 
 /* ---------- Modal / toast ---------- */
-function openModal(id) { document.getElementById(id).classList.add("open"); }
-function closeModal(id) { document.getElementById(id).classList.remove("open"); }
+function openModal(id) {
+  const modal = document.getElementById(id);
+  modal._returnFocus = document.activeElement;
+  modal.classList.add("open");
+  if (id === "assignment-view") modal.querySelector('[role="dialog"]').focus();
+}
+function closeModal(id) {
+  const modal = document.getElementById(id);
+  modal.classList.remove("open");
+  if (id === "assignment-view" && modal._returnFocus?.isConnected) modal._returnFocus.focus();
+}
+document.addEventListener("keydown", e => {
+  const wrap = document.getElementById("assignment-view");
+  if (!wrap?.classList.contains("open")) return;
+  if (e.key === "Escape") { e.preventDefault(); closeModal("assignment-view"); }
+  if (e.key === "Tab") {
+    const controls = [...wrap.querySelectorAll('button, a[href], [tabindex="0"]')].filter(el => el.getClientRects().length);
+    const first = controls[0], last = controls[controls.length - 1];
+    if (e.shiftKey && (document.activeElement === first || document.activeElement === wrap.querySelector('[role="dialog"]'))) { e.preventDefault(); last?.focus(); }
+    else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first?.focus(); }
+  }
+});
 document.addEventListener("click", e => {
-  if (e.target.classList.contains("modal-backdrop")) e.target.classList.remove("open");
+  if (e.target.classList.contains("modal-backdrop")) closeModal(e.target.id);
   const close = e.target.closest("[data-close]");
   if (close) closeModal(close.dataset.close);
 });
