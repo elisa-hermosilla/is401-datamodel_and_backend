@@ -363,8 +363,8 @@ async function deliverDueSummaries() {
       }
     }
     await query(
-      "update notification set status = $2, sent_at = case when $2 = 'sent' then now() else sent_at end where notification_id = $1 and status = 'pending'",
-      [notification.notification_id, delivered ? "sent" : "failed"]);
+      "update notification set status = case when $2 then 'sent' else 'failed' end, sent_at = case when $2 then now() else sent_at end where notification_id = $1 and status = 'pending'",
+      [notification.notification_id, delivered > 0]);
     if (!delivered && errors.length) console.error(`Summary notification ${notification.notification_id} failed:`, errors[0]);
   }
 }
