@@ -1,4 +1,5 @@
 <%# Page scripts, in order (they share globals: api -> data -> app -> page). Local: scripts (array of names under /js). %>
+<script src="/js/navigation.js"></script>
 <% scripts.forEach(name => { -%>
   <script src="/js/<%= name %>.js"></script>
 <% }); -%>

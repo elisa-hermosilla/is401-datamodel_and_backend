@@ -48,7 +48,7 @@ const API = {
     saveSummarySettings: fields => apiFetch("/api/notifications/summary", { method: "PUT", body: fields }),
     subscribe: subscription => apiFetch("/api/notifications/subscription", { method: "POST", body: subscription }),
     removeSubscriptions: () => apiFetch("/api/notifications/subscriptions", { method: "DELETE", body: {} }),
-    sendTest: () => apiFetch("/api/notifications/test", { method: "POST", body: {} }),
+    sendTest: endpoint => apiFetch("/api/notifications/test", { method: "POST", body: { endpoint } }),
   },
 
   lmsSources: () => apiFetch("/api/lms-sources"),

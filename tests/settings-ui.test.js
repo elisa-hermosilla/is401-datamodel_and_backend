@@ -11,7 +11,9 @@ test('Settings template retains controls within six distinct categories', async 
   for (const id of ['password-form', 'summary-on', 'hours-chips', 'dnd-start', 'push-test', 'canvas-row', 'ls-row', 'save', 'settings-back']) {
     assert.match(html, new RegExp(`id="${id}"`));
   }
-  assert.match(html, /Email delivery is not available/);
+  assert.doesNotMatch(html, /delivery-email|Enable email notifications|Text message|Add phone/);
+  assert.match(html, /<h3>Notifications<\/h3>/);
+  assert.match(html, /data-settings-category="delivery"[^>]*>[\s\S]*?Notifications/);
   assert.match(html, /assignments\?add_class=1/);
 });
 

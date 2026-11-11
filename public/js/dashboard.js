@@ -11,6 +11,22 @@
 
 function main(onboardingStatus) {
   const $ = id => document.getElementById(id);
+  const mobileDashboard = window.matchMedia("(max-width: 760px)");
+  let mobileVisible = 5;
+  const filterToggle = $("toggle-dashboard-filters");
+  function showFilters(open) {
+    $("dashboard-filters").classList.toggle("is-open", open);
+    filterToggle.setAttribute("aria-expanded", String(open));
+  }
+  filterToggle.addEventListener("click", () => showFilters(filterToggle.getAttribute("aria-expanded") !== "true"));
+  $("toggle-dashboard-overview").addEventListener("click", () => {
+    const button = $("toggle-dashboard-overview");
+    const open = button.getAttribute("aria-expanded") !== "true";
+    button.setAttribute("aria-expanded", String(open));
+    $("dashboard-overview").classList.toggle("is-open", open);
+  });
+  $("dashboard-show-more").addEventListener("click", () => { mobileVisible += 5; renderList(); });
+  mobileDashboard.addEventListener("change", () => { mobileVisible = 5; renderList(); });
   let scope = "all";
   let selectedDate = null;
   const filters = { classes: new Set(), types: new Set() };
@@ -53,6 +69,7 @@ function main(onboardingStatus) {
   }
   const scopeName = () => ({ all: showDone.checked ? "All assignments" : "All open assignments", past: "Past due", today: "Still due today", tomorrow: "Due tomorrow", week: "Due in the next 7 days", date: selectedDate ? `Due ${fmtDayLabel(selectedDate).toLowerCase()}` : "" })[scope];
   function setScope(value, date = null) {
+    mobileVisible = 5;
     scope = value; selectedDate = date;
     renderStats(); renderWeek(); renderList();
   }
@@ -152,7 +169,7 @@ function main(onboardingStatus) {
     ].filter(Boolean).join(" | "));
     return searchTokens.every(t => hay.includes(t));
   }
-  function updateSearch() { searchTokens = tokensOf(searchEl.value); renderList(); }
+  function updateSearch() { mobileVisible = 5; searchTokens = tokensOf(searchEl.value); renderList(); }
   let searchTimer = null;
   searchEl.addEventListener("input", () => { clearTimeout(searchTimer); searchTimer = setTimeout(updateSearch, 120); });
   searchEl.addEventListener("keydown", e => {
@@ -165,6 +182,7 @@ function main(onboardingStatus) {
     const el = document.activeElement;
     if (el && (["INPUT", "TEXTAREA", "SELECT"].includes(el.tagName) || el.isContentEditable)) return;
     e.preventDefault();
+    showFilters(true);
     searchEl.focus();
     searchEl.select();
   });
@@ -237,6 +255,7 @@ function main(onboardingStatus) {
 
   function renderList() {
     const list = sorted();
+    const visibleList = mobileDashboard.matches ? list.slice(0, mobileVisible) : list;
     const el = $("assignment-list");
     /* Drag handles and the Reset button only make sense in Custom mode, and
        Reset only when the custom order actually differs from due-date order.
@@ -248,9 +267,13 @@ function main(onboardingStatus) {
     if (!showReset) disarmReset();
     const hasFilters = filters.classes.size || filters.types.size || scope !== "all";
     el.innerHTML = list.length
-      ? list.map(a => compactAssignmentRow(a, { handle: custom, gutter: true, highlight: searchTokens })).join("")
+      ? visibleList.map(a => compactAssignmentRow(a, { handle: custom, gutter: true, highlight: searchTokens })).join("")
       : `<div class="empty queue-empty"><span class="empty-icon" aria-hidden="true">${ICONS.list}</span><strong>${ASSIGNMENTS.length ? "No assignments to show" : "Your assignments will appear here"}</strong><p>${searchTokens.length ? `Nothing matches “${esc(searchEl.value.trim())}”${hasFilters ? " with these filters" : ""}.` : ASSIGNMENTS.length ? "Try another date range or adjust your filters." : "Add a class to start planning your week."}</p>${ASSIGNMENTS.length ? '<button type="button" class="btn btn-secondary btn-sm" id="reset-queue">Reset filters</button>' : '<a class="btn btn-secondary btn-sm" href="/assignments">Add a class</a>'}</div>`;
-    $("filter-count").textContent = `${list.length} assignment${list.length === 1 ? "" : "s"}`;
+    $("filter-count").textContent = mobileDashboard.matches && list.length > visibleList.length
+      ? `Showing ${visibleList.length} of ${list.length}`
+      : `${list.length} assignment${list.length === 1 ? "" : "s"}`;
+    $("dashboard-show-more").hidden = !mobileDashboard.matches || visibleList.length >= list.length;
+    filterToggle.textContent = `Search & filters${filters.classes.size + filters.types.size + Number(showDone.checked) + Number(Boolean(searchTokens.length)) ? " · Active" : ""}`;
     $("queue-scope").textContent = scopeName();
     $("all-open").setAttribute("aria-pressed", scope === "all");
     sortSel.title = custom ? "Drag rows to reorder. Your order is saved automatically." : "Choose Custom order to drag rows into your own order.";
@@ -290,6 +313,7 @@ function main(onboardingStatus) {
   });
 
   function resetQueue() {
+    mobileVisible = 5;
     filters.classes.clear(); filters.types.clear(); scope = "all"; selectedDate = null;
     searchEl.value = ""; searchTokens = []; showDone.checked = false;
     renderAll();
@@ -381,17 +405,18 @@ function main(onboardingStatus) {
     });
   }
 
-  function refresh() { renderFilterControls(); renderList(); }
+  function refresh() { mobileVisible = 5; renderFilterControls(); renderList(); }
   function renderAll() { renderStats(); renderNext(); renderWeek(); renderFilterControls(); renderList(); }
   $("f-class").addEventListener("change", () => { if ($("f-class").value) { filters.classes.add($("f-class").value); refresh(); } });
   $("f-type").addEventListener("change", () => { if ($("f-type").value) { filters.types.add($("f-type").value); refresh(); } });
   sortSel.addEventListener("change", () => { rememberSort(); renderList(); });
-  showDone.addEventListener("change", renderList);
+  showDone.addEventListener("change", () => { mobileVisible = 5; renderList(); });
   $("all-open").addEventListener("click", resetQueue);
   $("add-assignment").addEventListener("click", () => {
     if (!CLASSES.length) { location.href = "/assignments"; return; }
     openAssignmentModal({}, renderAll);
   });
+  if (params.get("q") || params.get("class") || params.get("type")) showFilters(true);
   renderAll();
   renderStreaks(null);
   API.streaks().then(renderStreaks).catch(() => renderStreaks(null));

@@ -62,9 +62,6 @@ function main() {
     }
   });
 
-  /* Real user bits in otherwise-mock cards */
-  document.getElementById("delivery-email").textContent = USER.email || "No email on file";
-
   /* ---------- Canvas connection (real) ---------- */
   function renderCanvas() {
     const el = document.getElementById("canvas-row");
@@ -253,7 +250,8 @@ function main() {
     if (permission === "default") permission = await Notification.requestPermission();
     if (permission !== "granted") throw new Error("Allow notifications in your browser to enable push reminders.");
 
-    const registration = await navigator.serviceWorker.register("/service-worker.js", { scope: "/" });
+    await navigator.serviceWorker.register("/service-worker.js", { scope: "/" });
+    const registration = await navigator.serviceWorker.ready;
     let subscription = await registration.pushManager.getSubscription();
     if (!subscription) {
       subscription = await registration.pushManager.subscribe({
@@ -263,6 +261,7 @@ function main() {
     }
     await API.notifications.subscribe(subscription.toJSON());
     setPushStatus("This browser is connected. Save changes to turn on push delivery.");
+    return subscription.toJSON();
   }
 
   async function loadNotificationPreferences() {
@@ -496,9 +495,10 @@ function main() {
   pushTestButton.addEventListener("click", async () => {
     pushTestButton.disabled = true;
     try {
-      await API.notifications.sendTest();
-      setPushStatus("Test push sent. Check this device's notification center.");
-      toast("Test push sent", "success");
+      const subscription = await connectThisBrowserToPush();
+      await API.notifications.sendTest(subscription.endpoint);
+      setPushStatus("Push service accepted the test for this browser. If nothing appears, allow Google Chrome notifications and banners in system settings and check Focus / Do Not Disturb.");
+      toast("Test submitted for this browser", "success");
     } catch (err) {
       setPushStatus(err.message);
       toast(err.message, "error");
