@@ -957,7 +957,8 @@ function maybeShowSyncReminder() {
     const top = Math.max(12, Math.min(window.innerHeight - h - 12, r.top + r.height / 2 - h / 2));
     box.style.top = `${top}px`;
     box.style.left = `${r.right + 18}px`;
-    box.style.setProperty("--arrow-y", `${r.top + r.height / 2 - top}px`);
+    /* The arrow stays on the box's edge even when the box had to shift to fit the window */
+    box.style.setProperty("--arrow-y", `${Math.max(18, Math.min(h - 18, r.top + r.height / 2 - top))}px`);
   };
   place();
   window.addEventListener("resize", place);
