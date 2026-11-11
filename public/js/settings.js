@@ -118,10 +118,12 @@ function main() {
       });
       applySyncCooldown(document.getElementById("canvas-sync"));
       document.getElementById("canvas-sync").addEventListener("click", async e => {
-        const b = e.currentTarget; b.disabled = true; b.textContent = "Syncing";
+        const b = e.currentTarget;
+        if (syncOnCooldown(b)) return;
+        b.disabled = true; b.textContent = "Syncing";
         try {
           const r = await API.canvas.sync();
-          if (!r.courses_synced && r.courses_skipped) toast(`All classes were synced recently. Next sync ${nextSyncLabel(r.next_sync_at)}.`);
+          if (!r.courses_synced && r.courses_skipped) toast(`All classes were synced recently. ${cooldownTip(r.next_sync_at)}.`);
           else toast(`Synced ${r.assignments_synced} assignment${r.assignments_synced === 1 ? "" : "s"} from ${r.courses_synced} class${r.courses_synced === 1 ? "" : "es"}${removedNote(r.assignments_removed)}${r.courses_skipped ? ` · ${r.courses_skipped} synced recently, skipped` : ""}`, "success");
         } catch (err) {
           if (isCanvasTokenRejected(err)) showCanvasTokenWarning();
@@ -210,11 +212,12 @@ function main() {
     const btn = document.getElementById("ls-sync");
     applySyncCooldown(btn);
     if (btn) btn.addEventListener("click", async () => {
+      if (syncOnCooldown(btn)) return;
       btn.disabled = true; btn.textContent = "Syncing";
       try {
         const r = await API.learningSuite.sync();
         if (r.errors.length) { const e = document.getElementById("ls-error"); e.textContent = r.errors.map(x => `${x.course_code}: ${x.error}`).join(" · "); e.classList.add("show"); }
-        if (!r.courses_synced && r.courses_skipped && !r.errors.length) toast(`All classes were synced recently. Next sync ${nextSyncLabel(r.next_sync_at)}.`);
+        if (!r.courses_synced && r.courses_skipped && !r.errors.length) toast(`All classes were synced recently. ${cooldownTip(r.next_sync_at)}.`);
         else toast(`Synced ${r.assignments_synced} item${r.assignments_synced === 1 ? "" : "s"} from ${r.courses_synced} class${r.courses_synced === 1 ? "" : "es"}${removedNote(r.assignments_removed)}${r.courses_skipped ? ` · ${r.courses_skipped} synced recently, skipped` : ""}`, r.errors.length ? "error" : "success");
       } catch (err) {
         const e = document.getElementById("ls-error"); e.textContent = err.message; e.classList.add("show");

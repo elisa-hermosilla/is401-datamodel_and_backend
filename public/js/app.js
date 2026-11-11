@@ -125,18 +125,37 @@ function nextSyncLabel(iso) {
   const d = new Date(iso);
   return (d.toDateString() === new Date().toDateString() ? "" : "tomorrow at ") + fmtTime(d);
 }
+/* "Sync cooldown resets in 2 hours and 13 minutes" */
+function cooldownTip(iso = SYNC.next_sync_at) {
+  const mins = Math.max(1, Math.ceil((new Date(iso).getTime() - Date.now()) / 60000));
+  const h = Math.floor(mins / 60), m = mins % 60;
+  const parts = [];
+  if (h) parts.push(`${h} hour${h === 1 ? "" : "s"}`);
+  if (m || !h) parts.push(`${m} minute${m === 1 ? "" : "s"}`);
+  return `Sync cooldown resets in ${parts.join(" and ")}`;
+}
+/* A button in its cooldown keeps its label but is greyed out and explains
+   itself on hover. It is not `disabled`, because disabled buttons don't get
+   hover events in every browser; the click handlers check syncOnCooldown. */
 function applySyncCooldown(btn, { icon = false } = {}) {
   if (!btn || btn.classList.contains("syncing")) return;
-  const prefix = icon ? `${ICONS.sync} ` : "";
+  btn.innerHTML = `${icon ? `${ICONS.sync} ` : ""}Sync now`;
+  btn.disabled = false;
   if (cooldownActive()) {
-    btn.disabled = true;
-    btn.innerHTML = `${prefix}Next sync ${nextSyncLabel(SYNC.next_sync_at)}`;
-    btn.title = `Each class can be synced once every ${SYNC.cooldown_hours} hour${SYNC.cooldown_hours === 1 ? "" : "s"}.`;
+    btn.classList.add("cooldown");
+    btn.setAttribute("aria-disabled", "true");
+    btn.dataset.tip = cooldownTip();
   } else {
-    btn.disabled = false;
-    btn.innerHTML = `${prefix}Sync now`;
-    btn.title = "";
+    btn.classList.remove("cooldown");
+    btn.removeAttribute("aria-disabled");
+    delete btn.dataset.tip;
   }
+}
+/* True (with the same message as a toast) when a sync button was clicked during its cooldown */
+function syncOnCooldown(btn) {
+  if (!btn || !btn.classList.contains("cooldown")) return false;
+  toast(cooldownTip());
+  return true;
 }
 function applySyncCooldowns() {
   applySyncCooldown(document.getElementById("sync-btn"), { icon: true });
@@ -878,6 +897,7 @@ function bindSidebar() {
      page data. One class failing doesn't stop the others. */
   const btn = document.getElementById("sync-btn");
   btn.addEventListener("click", async () => {
+    if (syncOnCooldown(btn)) return;
     if (!SYNC.can_sync) { toast("Connect Canvas in Settings or add a Learning Suite class with an iCal link"); return; }
     const linked = CLASSES.filter(c => !c.is_archived && (
       (c.source === "Canvas" && c.external_course_id && SYNC.canvas_connected) ||
@@ -886,7 +906,7 @@ function bindSidebar() {
     /* Classes synced within the cooldown are left out of this run */
     const targets = linked.filter(classCanSync);
     const skipped = linked.length - targets.length;
-    if (!targets.length) { toast(`Everything was synced recently. Next sync ${nextSyncLabel(SYNC.next_sync_at)}.`); return; }
+    if (!targets.length) { toast(`Everything was synced recently. ${cooldownTip()}.`); return; }
 
     btn.disabled = true;
     btn.classList.add("syncing");
@@ -936,7 +956,7 @@ function bindSidebar() {
    student syncs or dismisses it; a dismissal holds for the rest of the day. */
 function maybeShowSyncReminder() {
   const btn = document.getElementById("sync-btn");
-  if (!SYNC || !SYNC.reminder_due || !SYNC.last_synced_at || !btn || btn.disabled || !btn.offsetParent) return;
+  if (!SYNC || !SYNC.reminder_due || !SYNC.last_synced_at || !btn || btn.classList.contains("cooldown") || !btn.offsetParent) return;
   if (document.querySelector("#onboarding-modal.open")) return;
   const key = `duelist.syncReminder.${USER.user_id}`;
   const today = new Date().toDateString();
