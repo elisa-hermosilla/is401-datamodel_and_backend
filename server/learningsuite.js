@@ -14,6 +14,7 @@ import { query } from "./db.js";
 import { decodeFeed, parseIcs, sameDayAt } from "./ics.js";
 import { guessType } from "./canvas.js";
 import { organizeWithClaude, haystack } from "./categorize.js";
+import { canSync, earliestNextSyncAt } from "./syncPolicy.js";
 
 /* A feed has no category data. Items are routed in two steps: first by the
    keywords stored on the course's categories (filled in by "Categorize using
@@ -262,7 +263,7 @@ export async function dropEmptyBuckets(courseId, liveIds) {
 /* Import one linked course's feed. Returns { stored, removed }: removed counts
    feed rows (ics:<uid>) that are no longer in the feed, i.e. items the
    professor took off the schedule. */
-export async function syncCourse(course, typeIds) {
+export async function syncCourse(course, typeIds, { setup = false } = {}) {
   const { rows: [log] } = await query("insert into sync_log (course_id) values ($1) returning sync_log_id", [course.course_id]);
   try {
     const events = await fetchFeed(course.ics_feed_url);
@@ -322,7 +323,9 @@ export async function syncCourse(course, typeIds) {
       removed = rowCount;
     }
 
-    await query("update course set last_synced_at = now() where course_id = $1", [course.course_id]);
+    await query(
+      "update course set last_synced_at = now(), cooldown_synced_at = case when $2 then cooldown_synced_at else now() end where course_id = $1",
+      [course.course_id, setup]);
     await query(
       "update sync_log set finished_at = now(), status = 'success', courses_synced = 1, assignments_synced = $2 where sync_log_id = $1",
       [log.sync_log_id, stored]);
@@ -337,7 +340,7 @@ export async function syncCourse(course, typeIds) {
 /* Every linked Learning Suite course the user has (or just one of them). */
 export async function linkedCourses(userId, courseId = null) {
   const { rows } = await query(
-    `select c.course_id, c.course_code, c.ics_feed_url, c.last_synced_at
+    `select c.course_id, c.course_code, c.ics_feed_url, c.last_synced_at, c.cooldown_synced_at
        from course c join lms_source s on s.lms_source_id = c.lms_source_id
       where c.user_id = $1 and s.name = 'Learning Suite' and c.ics_feed_url is not null and not c.is_archived
         and ($2::int is null or c.course_id = $2)
@@ -351,16 +354,19 @@ export async function assignmentTypeIds() {
   return Object.fromEntries(rows.map(t => [t.name, t.assignment_type_id]));
 }
 
-/* Sync all of them (or one). One bad feed doesn't stop the others; its error is reported per course. */
-export async function syncUser(userId, courseId = null) {
-  const courses = await linkedCourses(userId, courseId);
+/* Sync all of them (or one). One bad feed doesn't stop the others; its error
+   is reported per course. Syncing everything skips classes still inside the
+   cooldown; a single class was already checked by its route. */
+export async function syncUser(userId, courseId = null, { setup = false } = {}) {
+  const linked = await linkedCourses(userId, courseId);
+  const courses = courseId ? linked : linked.filter(c => canSync(c));
   const typeIds = await assignmentTypeIds();
 
   let coursesSynced = 0, assignmentsSynced = 0, removed = 0;
   const errors = [];
   for (const course of courses) {
     try {
-      const r = await syncCourse(course, typeIds);
+      const r = await syncCourse(course, typeIds, { setup });
       assignmentsSynced += r.stored;
       removed += r.removed;
       coursesSynced++;
@@ -368,7 +374,7 @@ export async function syncUser(userId, courseId = null) {
       errors.push({ course_id: course.course_id, course_code: course.course_code, error: err.message });
     }
   }
-  return { courses_linked: courses.length, courses_synced: coursesSynced, assignments_synced: assignmentsSynced, assignments_removed: removed, errors, finished_at: new Date().toISOString() };
+  return { courses_linked: linked.length, courses_synced: coursesSynced, courses_skipped: linked.length - courses.length, next_sync_at: earliestNextSyncAt(linked), assignments_synced: assignmentsSynced, assignments_removed: removed, errors, finished_at: new Date().toISOString() };
 }
 
 /* Per-course status for the Settings card. */

@@ -282,7 +282,7 @@ async function startOnboarding(onboardingStatus) {
         if (!item.course) throw new Error("Class setup is incomplete.");
         const rows = item.categoryRows ? collectSavedRows(item) : [];
         if (rows.length) await API.courses.saveCategories(item.course.course_id, rows);
-        await API.courses.sync(item.course.course_id);
+        await API.courses.sync(item.course.course_id, { after_mapping: true });
       } catch (err) { failures.push(`${item.course?.course_code || item.canvas?.course_code || "Class"}: ${err.message}`); }
       completed++;
       content.querySelector(".onboarding-sync-progress").textContent = `${completed} of ${selected.length} classes`;

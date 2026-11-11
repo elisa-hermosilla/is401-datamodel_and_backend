@@ -16,6 +16,7 @@
      checked off by hand (manually_completed) is left alone. */
 
 import { query } from "./db.js";
+import { canSync, earliestNextSyncAt } from "./syncPolicy.js";
 
 const DEFAULT_BASE_URL = "https://byu.instructure.com";
 const PAGE_SIZE = 100;
@@ -296,7 +297,7 @@ export async function discoverCategories(course, conn, typeIds) {
 }
 
 /* Pull every linked Canvas course for this user (or just one). Returns counts. */
-export async function syncUser(userId, courseId = null) {
+export async function syncUser(userId, courseId = null, { setup = false } = {}) {
   const conn = await getConnection(userId);
   if (!conn) throw new CanvasError("Canvas is not connected. Add your access token in Settings.", 400);
   const baseUrl = await canvasBaseUrl();
@@ -308,12 +309,15 @@ export async function syncUser(userId, courseId = null) {
     const { rows: typeRows } = await query("select assignment_type_id, name from assignment_type");
     const typeIds = Object.fromEntries(typeRows.map(t => [t.name, t.assignment_type_id]));
 
-    const { rows: courses } = await query(
-      `select course_id, external_course_id, course_code from course
+    const { rows: linked } = await query(
+      `select course_id, external_course_id, course_code, last_synced_at, cooldown_synced_at from course
         where user_id = $1 and lms_source_id = $2 and external_course_id is not null and not is_archived
           and ($3::int is null or course_id = $3)
         order by course_code`,
       [userId, conn.lms_source_id, courseId]);
+    /* Syncing everything skips classes still inside the cooldown; a single
+       class was already checked by its route. */
+    const courses = courseId ? linked : linked.filter(c => canSync(c));
 
     let coursesSynced = 0, assignmentsSynced = 0, skippedUndated = 0, plannerSynced = 0, removed = 0;
     for (const course of courses) {
@@ -382,7 +386,9 @@ export async function syncUser(userId, courseId = null) {
       assignmentsSynced += extra.stored;
       removed += extra.removed;
 
-      await query("update course set last_synced_at = now(), connected_account_id = $2 where course_id = $1", [course.course_id, conn.connected_account_id]);
+      await query(
+        "update course set last_synced_at = now(), cooldown_synced_at = case when $3 then cooldown_synced_at else now() end, connected_account_id = $2 where course_id = $1",
+        [course.course_id, conn.connected_account_id, setup]);
       coursesSynced++;
     }
 
@@ -390,7 +396,7 @@ export async function syncUser(userId, courseId = null) {
     await query(
       `update sync_log set finished_at = now(), status = 'success', courses_synced = $2, assignments_synced = $3 where sync_log_id = $1`,
       [log.sync_log_id, coursesSynced, assignmentsSynced]);
-    return { courses_synced: coursesSynced, assignments_synced: assignmentsSynced, assignments_removed: removed, planner_items: plannerSynced, skipped_undated: skippedUndated, finished_at: new Date().toISOString() };
+    return { courses_synced: coursesSynced, courses_skipped: linked.length - courses.length, next_sync_at: earliestNextSyncAt(linked), assignments_synced: assignmentsSynced, assignments_removed: removed, planner_items: plannerSynced, skipped_undated: skippedUndated, finished_at: new Date().toISOString() };
   } catch (err) {
     await query("update sync_log set finished_at = now(), status = 'failed', error_message = $2 where sync_log_id = $1",
       [log.sync_log_id, String(err.message).slice(0, 2000)]);

@@ -578,6 +578,16 @@ textarea.input { resize: vertical; line-height: 1.5; }
 }
 .form-error.show { display: block; }
 .btn[disabled] { opacity: .6; cursor: default; }
+/* A sync button inside its cooldown: greyed out, still hoverable for the tooltip */
+.btn.cooldown { opacity: .55; cursor: not-allowed; }
+.btn[data-tip] { position: relative; }
+.btn[data-tip]::after {
+  content: attr(data-tip); position: absolute; left: 50%; bottom: calc(100% + 8px); transform: translateX(-50%);
+  width: max-content; max-width: 230px; white-space: normal; text-align: center;
+  background: var(--navy); color: #fff; font-size: 12px; font-weight: 500; line-height: 1.35; padding: 6px 9px; border-radius: 7px;
+  box-shadow: 0 4px 14px rgba(15,23,42,.2); opacity: 0; visibility: hidden; transition: opacity .15s, visibility .15s; pointer-events: none; z-index: 70;
+}
+.btn[data-tip]:hover::after, .btn[data-tip]:focus-visible::after { opacity: 1; visibility: visible; transition-delay: .3s; }
 
 /* ---------- Dashboard: next up + progress (structure borrowed from Danny's mockup) ---------- */
 .next-grid { display: grid; grid-template-columns: 2fr 1fr; gap: 16px; margin-bottom: 16px; }
@@ -624,6 +634,14 @@ textarea.input { resize: vertical; line-height: 1.5; }
 .cat-table .select, .cat-table .input { padding: 7px 9px; font-size: 13px; }
 .cat-table tr.excluded td.name { color: var(--muted); text-decoration: line-through; }
 .cat-table td.kw .input { min-width: 160px; }
+/* Sync reminder: a callout beside the sidebar's Sync button */
+.sync-callout { position: fixed; z-index: 60; width: min(340px, calc(100vw - 300px)); background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 14px 38px 14px 16px; box-shadow: 0 8px 28px rgba(15,23,42,.18); color: var(--text); font-size: 13.5px; line-height: 1.45; }
+.sync-callout::before { content: ""; position: absolute; left: -10px; top: var(--arrow-y, 50%); width: 18px; height: 18px; background: var(--surface); border-left: 1px solid var(--border); border-bottom: 1px solid var(--border); transform: translateY(-50%) rotate(45deg); }
+.sync-callout strong { display: block; margin-bottom: 4px; color: var(--navy); }
+.sync-callout p { margin: 0; color: var(--muted); }
+.sync-callout .callout-close { position: absolute; top: 8px; right: 8px; width: 26px; height: 26px; border: 0; background: transparent; color: var(--muted); font-size: 18px; line-height: 1; cursor: pointer; border-radius: 6px; }
+.sync-callout .callout-close:hover { background: var(--navy-100); color: var(--text); }
+@media (max-width: 760px) { .sync-callout { display: none; } }
 .cat-tools { display: flex; justify-content: flex-end; margin-bottom: 10px; }
 /* Learning Suite: how to group the schedule */
 .cat-choice { display: grid; gap: 10px; }
