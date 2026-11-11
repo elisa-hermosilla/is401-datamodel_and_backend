@@ -2,6 +2,8 @@ import { Router } from "express";
 import { requireLogin } from "../middleware/auth.js";
 import * as canvas from "../canvas.js";
 import * as ls from "../learningsuite.js";
+import { query } from "../db.js";
+import { cooldownHours, reminderHours, earliestNextSyncAt } from "../syncPolicy.js";
 
 const router = Router();
 
@@ -40,14 +42,27 @@ router.get("/sync/status", requireLogin, async (req, res, next) => {
     const lsStatus = await ls.status(req.session.userId);
     const canvasLast = conn?.last_synced_at ? new Date(conn.last_synced_at).toISOString() : null;
     const lsLast = lsStatus.last_synced_at ? new Date(lsStatus.last_synced_at).toISOString() : null;
+    const lastSyncedAt = [canvasLast, lsLast].filter(Boolean).sort().pop() || null;
+    const canSync = !!conn || lsStatus.courses.length > 0;
+    /* Every class that Sync now would touch, for the cooldown */
+    const { rows: linked } = await query(
+      `select c.last_synced_at from course c join lms_source s on s.lms_source_id = c.lms_source_id
+        where c.user_id = $1 and not c.is_archived
+          and ((s.name = 'Canvas' and c.external_course_id is not null and $2::boolean)
+            or (s.name = 'Learning Suite' and c.ics_feed_url is not null))`,
+      [req.session.userId, !!conn]);
     res.json({
       canvas_connected: !!conn,
       canvas_status: conn?.status || null,
       canvas_last_synced_at: canvasLast,
       learning_suite_courses: lsStatus.courses.length,
       learning_suite_last_synced_at: lsLast,
-      last_synced_at: [canvasLast, lsLast].filter(Boolean).sort().pop() || null,
-      can_sync: !!conn || lsStatus.courses.length > 0,
+      last_synced_at: lastSyncedAt,
+      can_sync: canSync,
+      cooldown_hours: cooldownHours(),
+      reminder_hours: reminderHours(),
+      next_sync_at: linked.length ? earliestNextSyncAt(linked) : null,
+      reminder_due: canSync && !!lastSyncedAt && Date.now() - new Date(lastSyncedAt).getTime() >= reminderHours() * 3600000,
     });
   } catch (err) { next(err); }
 });

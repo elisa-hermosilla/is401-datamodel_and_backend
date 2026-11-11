@@ -624,6 +624,14 @@ textarea.input { resize: vertical; line-height: 1.5; }
 .cat-table .select, .cat-table .input { padding: 7px 9px; font-size: 13px; }
 .cat-table tr.excluded td.name { color: var(--muted); text-decoration: line-through; }
 .cat-table td.kw .input { min-width: 160px; }
+/* Sync reminder: a callout beside the sidebar's Sync button */
+.sync-callout { position: fixed; z-index: 60; width: min(340px, calc(100vw - 300px)); background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 14px 38px 14px 16px; box-shadow: 0 8px 28px rgba(15,23,42,.18); color: var(--text); font-size: 13.5px; line-height: 1.45; }
+.sync-callout::before { content: ""; position: absolute; left: -10px; top: var(--arrow-y, 50%); width: 18px; height: 18px; background: var(--surface); border-left: 1px solid var(--border); border-bottom: 1px solid var(--border); transform: translateY(-50%) rotate(45deg); }
+.sync-callout strong { display: block; margin-bottom: 4px; color: var(--navy); }
+.sync-callout p { margin: 0; color: var(--muted); }
+.sync-callout .callout-close { position: absolute; top: 8px; right: 8px; width: 26px; height: 26px; border: 0; background: transparent; color: var(--muted); font-size: 18px; line-height: 1; cursor: pointer; border-radius: 6px; }
+.sync-callout .callout-close:hover { background: var(--navy-100); color: var(--text); }
+@media (max-width: 760px) { .sync-callout { display: none; } }
 .cat-tools { display: flex; justify-content: flex-end; margin-bottom: 10px; }
 /* Learning Suite: how to group the schedule */
 .cat-choice { display: grid; gap: 10px; }

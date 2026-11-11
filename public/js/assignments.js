@@ -470,7 +470,7 @@ function main() {
       let msg = `${course.course_code} saved`;
       let syncFailed = false;
       try {
-        const r = await API.courses.sync(course.course_id);
+        const r = await API.courses.sync(course.course_id, { after_mapping: true });
         msg = `${course.course_code}: synced ${r.assignments_synced} item${r.assignments_synced === 1 ? "" : "s"}`;
       } catch (err) {
         syncFailed = true;

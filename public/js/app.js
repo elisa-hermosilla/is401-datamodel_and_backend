@@ -104,6 +104,43 @@ async function initApp(activeNav) {
 async function refreshSyncStatus() {
   try { SYNC = await API.sync.status(); } catch { /* keep what we have */ }
   renderSyncNote();
+  applySyncCooldowns();
+}
+
+/* ---------- Sync cooldown ----------
+   The server allows one sync per class every SYNC.cooldown_hours. While every
+   linked class is inside that window, sync buttons are disabled and say when
+   the next sync opens; SYNC.next_sync_at is null whenever some class may sync. */
+function cooldownActive() {
+  return !!(SYNC && SYNC.next_sync_at && new Date(SYNC.next_sync_at).getTime() > Date.now());
+}
+/* May this class be synced now? (mirrors the server's rule, from the class's own last sync) */
+function classCanSync(c) {
+  if (!SYNC || !SYNC.cooldown_hours || !c.last_synced_at) return true;
+  return Date.now() - new Date(c.last_synced_at).getTime() >= SYNC.cooldown_hours * 3600000;
+}
+/* "2:15 PM" or "tomorrow at 8:00 AM" */
+function nextSyncLabel(iso) {
+  const d = new Date(iso);
+  return (d.toDateString() === new Date().toDateString() ? "" : "tomorrow at ") + fmtTime(d);
+}
+function applySyncCooldown(btn, { icon = false } = {}) {
+  if (!btn || btn.classList.contains("syncing")) return;
+  const prefix = icon ? `${ICONS.sync} ` : "";
+  if (cooldownActive()) {
+    btn.disabled = true;
+    btn.innerHTML = `${prefix}Next sync ${nextSyncLabel(SYNC.next_sync_at)}`;
+    btn.title = `Each class can be synced once every ${SYNC.cooldown_hours} hour${SYNC.cooldown_hours === 1 ? "" : "s"}.`;
+  } else {
+    btn.disabled = false;
+    btn.innerHTML = `${prefix}Sync now`;
+    btn.title = "";
+  }
+}
+function applySyncCooldowns() {
+  applySyncCooldown(document.getElementById("sync-btn"), { icon: true });
+  applySyncCooldown(document.getElementById("canvas-sync"));
+  applySyncCooldown(document.getElementById("ls-sync"));
 }
 
 function sourceName(lmsSourceId) {
@@ -832,6 +869,8 @@ function openAssignmentView(id, onChange) {
    this fills in the sync note and wires up its two buttons. */
 function bindSidebar() {
   renderSyncNote();
+  applySyncCooldowns();
+  setInterval(applySyncCooldowns, 60000);
 
   /* Sync goes class by class (each linked Canvas class, each Learning Suite
      feed) so the toast can say which one is in progress, then reloads the
@@ -839,15 +878,19 @@ function bindSidebar() {
   const btn = document.getElementById("sync-btn");
   btn.addEventListener("click", async () => {
     if (!SYNC.can_sync) { toast("Connect Canvas in Settings or add a Learning Suite class with an iCal link"); return; }
-    const targets = CLASSES.filter(c => !c.is_archived && (
+    const linked = CLASSES.filter(c => !c.is_archived && (
       (c.source === "Canvas" && c.external_course_id && SYNC.canvas_connected) ||
       (c.source === "Learning Suite" && c.ics_feed_url)));
-    if (!targets.length) { toast("No Canvas or Learning Suite classes linked yet"); return; }
+    if (!linked.length) { toast("No Canvas or Learning Suite classes linked yet"); return; }
+    /* Classes synced within the cooldown are left out of this run */
+    const targets = linked.filter(classCanSync);
+    const skipped = linked.length - targets.length;
+    if (!targets.length) { toast(`Everything was synced recently. Next sync ${nextSyncLabel(SYNC.next_sync_at)}.`); return; }
 
     btn.disabled = true;
     btn.classList.add("syncing");
     btn.innerHTML = `${ICONS.sync} Syncing`;
-    const reset = () => { btn.disabled = false; btn.classList.remove("syncing"); btn.innerHTML = `${ICONS.sync} Sync now`; };
+    const reset = () => { btn.classList.remove("syncing"); applySyncCooldown(btn, { icon: true }); };
 
     let assignments = 0, synced = 0, removed = 0;
     const problems = [];
@@ -868,7 +911,7 @@ function bindSidebar() {
     await refreshSyncStatus();
     if (problems.some(isCanvasTokenRejected)) showCanvasTokenWarning();
     else if (problems.length) toast(problems[0], "error");
-    else toast(`Synced ${assignments} assignment${assignments === 1 ? "" : "s"} from ${synced} class${synced === 1 ? "" : "es"}${removedNote(removed)}`, "success");
+    else toast(`Synced ${assignments} assignment${assignments === 1 ? "" : "s"} from ${synced} class${synced === 1 ? "" : "es"}${removedNote(removed)}${skipped ? ` · ${skipped} synced recently, skipped` : ""}`, "success");
     const refreshPage = window.refreshAssignmentsPage || window.refreshCalendarPage;
     if (synced && refreshPage) {
       try { await refreshPage(); }
@@ -882,6 +925,50 @@ function bindSidebar() {
     try { await API.logout(); } catch { /* session is gone either way */ }
     window.location.href = "/login";
   });
+
+  maybeShowSyncReminder();
+}
+
+/* ---------- Sync reminder ----------
+   After SYNC.reminder_hours without a sync, a callout beside the Sync button
+   (same look as the quick-start tour) asks for one. It closes when the
+   student syncs or dismisses it; a dismissal holds for the rest of the day. */
+function maybeShowSyncReminder() {
+  const btn = document.getElementById("sync-btn");
+  if (!SYNC || !SYNC.reminder_due || !SYNC.last_synced_at || !btn || btn.disabled || !btn.offsetParent) return;
+  if (document.querySelector("#onboarding-modal.open")) return;
+  const key = `duelist.syncReminder.${USER.user_id}`;
+  const today = new Date().toDateString();
+  try { if (localStorage.getItem(key) === today) return; } catch { /* storage blocked: just show it */ }
+
+  const hours = Math.round((Date.now() - new Date(SYNC.last_synced_at).getTime()) / 3600000);
+  const ago = hours >= 48 ? `${Math.floor(hours / 24)} days` : `${hours} hours`;
+  const box = document.createElement("div");
+  box.className = "sync-callout";
+  box.setAttribute("role", "status");
+  box.innerHTML = `<button type="button" class="callout-close" aria-label="Dismiss reminder">×</button>
+    <strong>Time to sync</strong>
+    <p>It's been ${ago} since your last sync. Click <b>Sync now</b> to pull in anything new from Canvas and Learning Suite.</p>`;
+  document.body.appendChild(box);
+  btn.classList.add("onboarding-spotlight");
+
+  const place = () => {
+    const r = btn.getBoundingClientRect(), h = box.offsetHeight;
+    const top = Math.max(12, Math.min(window.innerHeight - h - 12, r.top + r.height / 2 - h / 2));
+    box.style.top = `${top}px`;
+    box.style.left = `${r.right + 18}px`;
+    box.style.setProperty("--arrow-y", `${r.top + r.height / 2 - top}px`);
+  };
+  place();
+  window.addEventListener("resize", place);
+  const close = remember => {
+    box.remove();
+    btn.classList.remove("onboarding-spotlight");
+    window.removeEventListener("resize", place);
+    if (remember) { try { localStorage.setItem(key, today); } catch { /* fine */ } }
+  };
+  box.querySelector(".callout-close").addEventListener("click", () => close(true));
+  btn.addEventListener("click", () => close(false), { once: true });
 }
 
 /* ", 2 removed" for a sync summary, or "" when nothing was deleted at the source */

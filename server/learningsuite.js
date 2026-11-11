@@ -14,6 +14,7 @@ import { query } from "./db.js";
 import { decodeFeed, parseIcs, sameDayAt } from "./ics.js";
 import { guessType } from "./canvas.js";
 import { organizeWithClaude, haystack } from "./categorize.js";
+import { canSync, earliestNextSyncAt } from "./syncPolicy.js";
 
 /* A feed has no category data. Items are routed in two steps: first by the
    keywords stored on the course's categories (filled in by "Categorize using
@@ -351,9 +352,12 @@ export async function assignmentTypeIds() {
   return Object.fromEntries(rows.map(t => [t.name, t.assignment_type_id]));
 }
 
-/* Sync all of them (or one). One bad feed doesn't stop the others; its error is reported per course. */
+/* Sync all of them (or one). One bad feed doesn't stop the others; its error
+   is reported per course. Syncing everything skips classes still inside the
+   cooldown; a single class was already checked by its route. */
 export async function syncUser(userId, courseId = null) {
-  const courses = await linkedCourses(userId, courseId);
+  const linked = await linkedCourses(userId, courseId);
+  const courses = courseId ? linked : linked.filter(c => canSync(c));
   const typeIds = await assignmentTypeIds();
 
   let coursesSynced = 0, assignmentsSynced = 0, removed = 0;
@@ -368,7 +372,7 @@ export async function syncUser(userId, courseId = null) {
       errors.push({ course_id: course.course_id, course_code: course.course_code, error: err.message });
     }
   }
-  return { courses_linked: courses.length, courses_synced: coursesSynced, assignments_synced: assignmentsSynced, assignments_removed: removed, errors, finished_at: new Date().toISOString() };
+  return { courses_linked: linked.length, courses_synced: coursesSynced, courses_skipped: linked.length - courses.length, next_sync_at: earliestNextSyncAt(linked), assignments_synced: assignmentsSynced, assignments_removed: removed, errors, finished_at: new Date().toISOString() };
 }
 
 /* Per-course status for the Settings card. */

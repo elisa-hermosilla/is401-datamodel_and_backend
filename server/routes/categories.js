@@ -13,6 +13,7 @@ import { requireLogin } from "../middleware/auth.js";
 import * as canvas from "../canvas.js";
 import * as ls from "../learningsuite.js";
 import { AiUnavailable } from "../categorize.js";
+import { nextSyncAt, syncTooSoonMessage } from "../syncPolicy.js";
 
 const router = Router();
 const TIME_RE = /^([01]\d|2[0-3]):[0-5]\d$/;
@@ -144,12 +145,17 @@ router.put("/courses/:id/categories", requireLogin, async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
-/* POST /api/courses/:id/sync — sync just this class from its source */
+/* POST /api/courses/:id/sync  { after_mapping? }
+   Sync just this class from its source. A class synced within the cooldown
+   is refused (429) unless the call follows a category change
+   (after_mapping), which has to take effect right away. */
 router.post("/courses/:id/sync", requireLogin, async (req, res, next) => {
   try {
     const id = parseId(req.params.id);
     const course = id && await ownedCourse(id, req.session.userId);
     if (!course) return res.status(404).json({ error: "Course not found" });
+    const soon = req.body?.after_mapping === true ? null : nextSyncAt(course.last_synced_at);
+    if (soon) return res.status(429).json({ error: syncTooSoonMessage(course, soon), next_sync_at: soon });
     if (course.source === "Canvas") {
       if (!course.external_course_id) return res.status(400).json({ error: "Pick the Canvas class first" });
       return res.json(await canvas.syncUser(req.session.userId, id));
