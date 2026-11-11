@@ -1385,3 +1385,207 @@ mark.hl { background: #fef08a; color: inherit; border-radius: 3px; padding: 0 1p
   .settings-profile-banner strong { font-size: 16px; }
   .settings-page .account-details > div { grid-template-columns: 85px minmax(0, 1fr); gap: 12px; padding: 16px 8px; }
 }
+
+/* Shared mobile layout and accessible navigation. */
+.mobile-header, .mobile-menu-close { display: none; }
+.nav-scrim[hidden] { display: none; }
+.skip-link { position: fixed; top: 8px; left: 8px; z-index: 100; transform: translateY(-160%); padding: 12px 18px; background: var(--surface); color: var(--navy); border: 2px solid var(--navy); border-radius: 8px; }
+.skip-link:focus { transform: none; }
+@media (max-width: 760px) {
+  .app, .overview-app { display: block; min-height: 100dvh; }
+  .mobile-header { display: flex; align-items: center; justify-content: space-between; gap: 16px; min-height: 72px; padding: 12px 16px; padding-top: max(12px, env(safe-area-inset-top)); border-bottom: 1px solid var(--border); background: var(--surface); }
+  .mobile-header .brand { color: var(--navy); font-size: 20px; }
+  .mobile-header .brand-mark { background: var(--navy); color: white; width: 34px; height: 34px; }
+  .mobile-header .btn { gap: 8px; }
+  body.navigation-open { overflow: hidden; }
+  .nav-scrim { position: fixed; inset: 0; z-index: 60; background: rgb(15 23 42 / 48%); }
+  .app .sidebar { position: fixed; inset: 0 auto 0 0; z-index: 61; width: min(320px, calc(100vw - 32px)); height: 100dvh; padding: 18px 16px max(18px, env(safe-area-inset-bottom)); display: flex; flex-direction: column; align-items: stretch; flex-wrap: nowrap; gap: 16px; overflow-y: auto; overscroll-behavior: contain; border: 0; border-right: 1px solid var(--border); visibility: hidden; transform: translateX(-100%); transition: transform .2s ease, visibility .2s; }
+  .app .sidebar.is-open { visibility: visible; transform: translateX(0); }
+  .app .sidebar .mobile-menu-close { display: inline-flex; align-self: flex-end; gap: 12px; }
+  .app .sidebar .brand { padding: 0 8px 12px; font-size: 22px; gap: 10px; }
+  .app .sidebar .brand-mark { width: 36px; height: 36px; }
+  .app .sidebar .nav { flex: none; flex-direction: column; justify-content: flex-start; gap: 6px; }
+  .app .sidebar .nav a { padding: 14px; min-height: 48px; font-size: 16px; gap: 12px; }
+  .app .sidebar .nav a span { display: inline; }
+  .app .sidebar .nav a.active { box-shadow: none; }
+  .app .sidebar .sidebar-bottom { display: block; margin-top: auto; padding-top: 16px; }
+  .app .sidebar .user-chip { padding: 12px; }
+  .app .sidebar .user-chip .name, .app .sidebar .user-chip .email { white-space: normal; overflow-wrap: anywhere; }
+  .main, .overview-main, .main.assignments-page, .main.calendar-main, .main.settings-page { padding: 20px 16px max(32px, env(safe-area-inset-bottom)); }
+  .main .page-header { align-items: flex-start; gap: 16px; margin-bottom: 20px; }
+  .main .page-header > div { min-width: 0; }
+  .main .page-header h1 { font-size: 26px; line-height: 1.2; overflow-wrap: anywhere; }
+  .main .page-header .sub { font-size: 14px; line-height: 1.6; }
+  .main .page-header > .toolbar { width: 100%; gap: 8px; }
+  .main .page-header .toolbar .btn { min-height: 44px; padding: 10px 14px; font-size: 14px; }
+  .btn, .chip, .text-button { min-height: 44px; }
+  .btn-icon, .row-action { min-width: 44px; min-height: 44px; }
+  .input, .select, textarea { font-size: 16px; min-height: 44px; max-width: 100%; }
+  .card, .class-card, .modal, .setting-row .info, .setting-row .control { min-width: 0; }
+  .card h2, .card h3, .assignment-name, .class-name, .setting-row .d, .callout, .account-details dd { overflow-wrap: anywhere; }
+  .queue-controls { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+  .queue-controls .input { grid-column: 1 / -1; }
+  .queue-controls #sort { grid-column: 1 / -1; }
+  .overview-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .dashboard-rail { grid-template-columns: minmax(0, 1fr); }
+  .queue-context, .list-footer, .day-nav, .cal-head { flex-wrap: wrap; gap: 10px; }
+  .assignment-name { white-space: normal; line-height: 1.5; }
+  .assignment-meta { line-height: 1.6; }
+  .calendar-main .calendar-toolbar .toolbar { grid-template-columns: minmax(0, 1fr); }
+  .calendar-main .calendar-toolbar .check-label { font-size: 14px; }
+  .calendar-main .month-panel { height: clamp(420px, 76svh, 560px); }
+  .calendar-main .month-panel .cal-day { min-height: 44px; }
+  .calendar-main .month-panel .cal-grid { grid-template-columns: repeat(7, minmax(0, 1fr)); }
+  .calendar-main .calendar-key { line-height: 1.5; }
+  .settings-page .setting-row .info { min-width: 0; flex-basis: 100%; }
+  .settings-page .setting-row .control { flex-wrap: wrap; gap: 12px; }
+  .settings-page .account-details > div { grid-template-columns: minmax(0, 1fr); gap: 6px; }
+  .settings-page .settings-save-actions { position: static; }
+  .settings-page #save { width: 100%; white-space: normal; }
+  .settings-page .row > .field { flex-basis: 100%; }
+  .modal-backdrop { padding: 16px; padding-bottom: max(16px, env(safe-area-inset-bottom)); }
+  .modal { max-width: 100%; max-height: calc(100dvh - 32px); overflow-y: auto; padding: 20px 16px; }
+  .modal .row { flex-wrap: wrap; }
+  .modal .row > .field { flex-basis: 100%; }
+  .modal-actions { flex-wrap: wrap; gap: 10px; }
+  .modal-actions .btn { flex: 1 1 auto; }
+  .auth-panel { padding: 32px 20px; }
+  .auth-card { min-width: 0; width: 100%; }
+  .auth-card > .sub { line-height: 1.6; }
+  .auth-card .row { flex-wrap: wrap; }
+  .auth-card .row > .field { flex-basis: 100%; }
+  .auth-card .between { flex-wrap: wrap; gap: 12px; }
+  .auth-footer { line-height: 1.7; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .app .sidebar { transition: none; }
+}
+
+/* Dashboard only: a short, task-first phone view. Desktop retains its layout. */
+.mobile-dashboard-control { display: none; }
+.dashboard-filters { display: contents; }
+@media (max-width: 760px) {
+  .dashboard-main .mobile-dashboard-control { display: inline-flex; }
+  .dashboard-main .mobile-dashboard-control[hidden] { display: none; }
+  .dashboard-main .page-header { gap: 10px; margin-bottom: 14px; }
+  .dashboard-main .page-header h1 { font-size: 22px; line-height: 1.3; }
+  .dashboard-main .page-header #today-line { font-size: 13px; margin-top: 4px; }
+  .dashboard-main .page-header .toolbar { width: auto; }
+  .dashboard-main .page-header .toolbar a { display: none; }
+  .dashboard-main .page-header .toolbar .btn { padding: 8px 12px; }
+  .dashboard-main .overview-stats { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; margin-bottom: 16px; }
+  .dashboard-main .overview-stats .stat { flex-direction: column-reverse; justify-content: center; align-items: center; padding: 10px 3px; gap: 4px; min-height: 72px; border-radius: 8px; box-shadow: none; }
+  .dashboard-main .overview-stats .stat-copy { display: block; text-align: center; }
+  .dashboard-main .overview-stats .label { font-size: 11px; line-height: 1.3; white-space: normal; }
+  .dashboard-main .overview-stats .value { font-size: 24px; line-height: 1; }
+  .dashboard-main .overview-stats .stat-icon, .dashboard-main .overview-stats .foot { display: none; }
+  .dashboard-main .queue-panel { padding: 14px 12px; border-radius: 12px; }
+  .dashboard-main .queue-panel > .card-header { gap: 8px; margin-bottom: 8px; align-items: center; }
+  .dashboard-main .queue-heading { gap: 8px; }
+  .dashboard-main .queue-heading h2 { font-size: 19px; }
+  .dashboard-main #toggle-dashboard-filters { padding: 8px; font-size: 12px; margin-left: auto; }
+  .dashboard-main .dashboard-filters { display: none; }
+  .dashboard-main .dashboard-filters.is-open { display: block; padding: 10px 0; }
+  .dashboard-main .dashboard-completed { display: none; }
+  .dashboard-main .queue-panel:has(.dashboard-filters.is-open) .dashboard-completed { display: flex; flex-basis: 100%; order: 3; min-height: 44px; }
+  .dashboard-main .queue-controls { margin: 0; }
+  .dashboard-main .queue-context { font-size: 12px; margin-bottom: 10px; }
+  .dashboard-main .compact-assignment, .dashboard-main .compact-assignment.sortable { grid-template-columns: 32px minmax(0, 1fr); gap: 4px 10px; padding: 12px 8px; min-height: 0; }
+  .dashboard-main .assignment-toggle { grid-column: 1; grid-row: 1 / 3; align-self: center; width: 30px; height: 30px; }
+  .dashboard-main .assignment-open { grid-column: 2; min-width: 0; }
+  .dashboard-main .assignment-name { font-size: 14px; line-height: 1.4; }
+  .dashboard-main .assignment-meta { font-size: 12px; line-height: 1.5; }
+  .dashboard-main .assignment-deadline { grid-column: 2; text-align: left; font-size: 12px; display: flex; flex-direction: row; flex-wrap: wrap; gap: 6px; align-items: baseline; }
+  .dashboard-main .assignment-deadline > * { font-size: inherit; }
+  .dashboard-main .row-actions, .dashboard-main .drag-handle { display: none; }
+  .dashboard-main .list-footer { padding-top: 12px; font-size: 12px; }
+  .dashboard-main #dashboard-show-more { margin-left: auto; }
+  .dashboard-main .dashboard-rail { display: none; }
+  .dashboard-main .dashboard-rail.is-open { display: grid; }
+  .dashboard-main #toggle-dashboard-overview { width: 100%; justify-content: space-between; font-size: 14px; }
+  .dashboard-main #toggle-dashboard-overview::after { content: '+'; font-size: 20px; }
+  .dashboard-main #toggle-dashboard-overview[aria-expanded="true"]::after { content: '−'; }
+}
+
+/* Compact secondary pages on phones; desktop controls keep their original flow. */
+.mobile-disclosure { display: none; }
+.mobile-filter-panel { display: contents; }
+@media (max-width: 760px) {
+  .mobile-disclosure { display: inline-flex; align-self: flex-start; }
+  .mobile-filter-panel { display: none; }
+  .mobile-filter-panel.is-open { display: block; }
+  .main:not(.dashboard-main) { padding-top: 16px; }
+  .main:not(.dashboard-main) .page-header { gap: 10px; margin-bottom: 14px; }
+  .main:not(.dashboard-main) .page-header h1 { font-size: 24px; }
+  .main:not(.dashboard-main) .page-header .sub { font-size: 13px; line-height: 1.5; margin-top: 4px; }
+  .main:not(.dashboard-main) .page-header > .toolbar { gap: 8px; }
+  .main:not(.dashboard-main) .page-header .toolbar .btn { padding: 8px 12px; }
+  /* Calendar: dates and counts first; full assignment titles are in the daily agenda. */
+  .calendar-main .calendar-controls { margin: 0; }
+  .calendar-main #calendar-filters.is-open { padding: 4px 0; }
+  .calendar-main .calendar-status { gap: 4px; }
+  .calendar-main .calendar-status p:empty { display: none; }
+  .calendar-main .month-panel { height: auto; }
+  .calendar-main .month-panel .cal-grid { flex: none; grid-template-rows: 24px repeat(var(--calendar-weeks, 6), minmax(44px, auto)); gap: 2px; }
+  .calendar-main .month-panel .cal-day { min-height: 44px; padding: 4px 2px; justify-content: center; }
+  .calendar-main .cal-date-line { flex-wrap: wrap; justify-content: center; gap: 2px 4px; }
+  .calendar-main .month-panel .cal-day .n { font-size: 13px; width: 24px; height: 24px; }
+  .calendar-main .cal-count { font-size: 11px; padding: 1px 3px; }
+  .calendar-main .cal-preview, .calendar-main .cal-more { display: none; }
+  .calendar-main .calendar-key { padding: 8px; gap: 4px 12px; font-size: 12px; }
+  .calendar-main .day-panel { padding: 14px 12px; }
+  .calendar-main .day-nav h2 { font-size: 19px; }
+  .calendar-main .agenda-list .compact-assignment { grid-template-columns: 30px minmax(0, 1fr); gap: 4px 8px; padding: 10px 4px; min-height: 0; }
+  .calendar-main .agenda-list .assignment-toggle { grid-column: 1; grid-row: 1 / 3; align-self: center; }
+  .calendar-main .agenda-list .assignment-open { grid-column: 2; }
+  .calendar-main .agenda-list .assignment-name { font-size: 14px; line-height: 1.4; }
+  .calendar-main .agenda-list .assignment-deadline { grid-column: 2; grid-row: 2; flex-direction: row; flex-wrap: wrap; gap: 6px; }
+  .calendar-main .agenda-list .row-actions { display: none; }
+  /* Classes retain their labeled collapse controls and management actions. */
+  .assignments-page .page-header .toolbar { display: flex; flex-wrap: wrap; }
+  .assignments-page #class-list-options.is-open { display: flex; flex-basis: 100%; flex-wrap: wrap; gap: 8px; order: 3; }
+  .assignments-page #class-list-options label { min-height: 44px; }
+  .assignments-page .class-grid { gap: 12px; }
+  .assignments-page .class-heading { padding: 12px; gap: 8px; }
+  .assignments-page .class-toggle { min-height: 44px; }
+  .assignments-page .class-toggle .code { font-size: 15px; line-height: 1.4; }
+  .assignments-page .class-toggle .cname { font-size: 12px; }
+  .assignments-page .class-actions { padding-left: 0; gap: 6px; }
+  .assignments-page .class-actions .btn { min-height: 44px; padding: 8px; font-size: 12px; }
+  .assignments-page .class-body { padding: 0 10px 10px; gap: 8px; }
+  .assignments-page .a-row { padding: 10px 8px; }
+  .assignments-page .a-row .meta { font-size: 12px; line-height: 1.5; }
+  .assignments-page .a-row .tag { font-size: 11px; }
+  .assignments-page .assignment-edit, .assignments-page .notes-add { min-height: 44px; }
+  /* Settings: compact categories and short, readable form groups. */
+  .settings-page .settings-nav { padding: 6px; }
+  .settings-page .settings-nav a { min-height: 48px; padding: 8px 10px; font-size: 14px; gap: 10px; }
+  .settings-page .settings-category { gap: 12px; }
+  .settings-page .settings-back { padding: 8px 0; margin-bottom: 8px; }
+  .settings-page .card { padding: 14px 12px; border-radius: 10px; }
+  .settings-page .card-header { padding-bottom: 10px; margin-bottom: 10px; gap: 10px; }
+  .settings-page .card-header h3 { font-size: 18px; }
+  .settings-page .card-header .sub, .settings-page .setting-row .d { font-size: 13px; line-height: 1.5; }
+  .settings-page .setting-row { padding: 10px 0; gap: 8px; }
+  .settings-page .setting-row .t { font-size: 14px; }
+  .settings-page .settings-profile-banner { padding: 12px; margin-bottom: 12px; gap: 10px; }
+  .settings-page .settings-profile-banner p { font-size: 12px; }
+  .settings-page .account-details > div { padding: 12px 8px; gap: 4px; }
+  .settings-page .field { margin-bottom: 10px; }
+  .settings-page .callout { padding: 10px 12px; font-size: 13px; line-height: 1.5; }
+  .settings-page .settings-actions { padding: 12px; margin-top: 12px; }
+  /* Authentication and error pages use the same readable form rhythm. */
+  .auth-wrap .auth-panel { padding: 24px 20px; min-height: 100dvh; }
+  .auth-card h2 { font-size: 24px; line-height: 1.3; }
+  .auth-card .field { margin-bottom: 12px; }
+  .auth-card .row { gap: 0 12px; }
+  .auth-card .field label { font-size: 14px; }
+  .auth-card .hint { font-size: 12px; line-height: 1.5; }
+  .auth-login .login-intro h1 { font-size: 21px; margin-bottom: 6px; }
+  .auth-login .login-intro { padding-top: 14px; padding-bottom: 12px; }
+  .auth-login .login-intro-copy { margin-top: 10px; }
+  .auth-login .login-intro .hero-sources { margin-top: 8px; }
+  .auth-login .auth-panel { padding-top: 14px; padding-bottom: 20px; }
+  .modal .field { margin-bottom: 12px; }
+  .modal h3 { font-size: 20px; line-height: 1.3; }
+}

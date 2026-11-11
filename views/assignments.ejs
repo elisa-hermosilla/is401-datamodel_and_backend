@@ -2,17 +2,20 @@
   <div class="app">
 <%- include("partials/sidebar", { active: "assignments", user }) %>
 
-    <main class="main assignments-page">
+    <main id="main-content" tabindex="-1" class="main assignments-page">
       <div class="page-header">
         <div>
           <h1>Assignments</h1>
           <p class="sub">Your classes and the assignments in each. Add, edit, or delete a class.</p>
         </div>
         <div class="toolbar">
+          <button type="button" class="btn btn-secondary btn-sm mobile-disclosure" data-mobile-disclosure="class-list-options" aria-expanded="false" aria-controls="class-list-options">List options</button>
+          <div class="mobile-filter-panel" id="class-list-options">
           <label style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--muted)">
             <input type="checkbox" id="show-done"> Show completed
           </label>
           <button type="button" class="btn btn-ghost btn-sm" id="toggle-all-classes" aria-controls="class-grid" disabled>Collapse All</button>
+          </div>
           <button class="btn btn-primary" id="add-class-btn">Add Class</button>
         </div>
       </div>

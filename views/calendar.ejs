@@ -1,11 +1,13 @@
 <%- include("partials/head", { title: "Calendar", description: "View your assignment due dates by month and see what is scheduled each day.", noindex: true }) %>
   <div class="app overview-app">
 <%- include("partials/sidebar", { active: "calendar", user }) %>
-    <main class="main overview-main calendar-main calendar-loading">
+    <main id="main-content" tabindex="-1" class="main overview-main calendar-main calendar-loading">
       <header class="page-header">
         <div><h1>Calendar</h1><p class="sub">Your deadlines, at a glance.</p></div>
         <div class="toolbar"><button class="btn btn-secondary btn-sm" id="jump-today">Today</button><button class="btn btn-primary btn-sm" id="add-assignment">Add assignment</button></div>
       </header>
+      <button type="button" class="btn btn-secondary btn-sm mobile-disclosure" data-mobile-disclosure="calendar-filters" aria-expanded="false" aria-controls="calendar-filters">Search &amp; filters</button>
+      <div class="mobile-filter-panel" id="calendar-filters">
       <div class="calendar-controls">
       <div class="calendar-search-wrap">
         <div class="calendar-search-box">
@@ -17,6 +19,7 @@
       </div>
       <div class="calendar-toolbar">
         <div class="toolbar"><select class="select" id="calendar-class" aria-label="Filter calendar by class"></select><label class="check-label"><input type="checkbox" id="calendar-completed"> Include completed</label></div>
+      </div>
       </div>
       </div>
       <div class="calendar-status"><p id="month-summary" role="status"></p><p id="calendar-search-status" role="status"></p></div>

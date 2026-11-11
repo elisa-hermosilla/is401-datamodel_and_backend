@@ -243,7 +243,13 @@ router.post("/notifications/test", requireLogin, async (req, res, next) => {
     const { rows: devices } = await query(
       "select push_device_id, device_token from push_device where user_id = $1",
       [req.session.userId]);
-    if (!devices.length) throw new ValidationError("Connect this browser to push notifications first");
+    const targetDevices = req.body?.endpoint
+      ? devices.filter(device => {
+          try { return decodePushDeviceToken(device.device_token).endpoint === req.body.endpoint; }
+          catch { return false; }
+        })
+      : devices;
+    if (!targetDevices.length) throw new ValidationError("Connect this browser to push notifications first");
 
     const payload = JSON.stringify({
       title: "Push test",
@@ -252,9 +258,9 @@ router.post("/notifications/test", requireLogin, async (req, res, next) => {
     });
     let delivered = 0;
     const errors = [];
-    for (const device of devices) {
+    for (const device of targetDevices) {
       try {
-        await sendNotification(decodePushDeviceToken(device.device_token), payload, { TTL: 60 });
+        await sendNotification(decodePushDeviceToken(device.device_token), payload, { TTL: 60, urgency: "high" });
         delivered += 1;
       } catch (err) {
         if (err.statusCode === 404 || err.statusCode === 410) {
