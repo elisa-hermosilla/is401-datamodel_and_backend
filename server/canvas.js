@@ -297,7 +297,7 @@ export async function discoverCategories(course, conn, typeIds) {
 }
 
 /* Pull every linked Canvas course for this user (or just one). Returns counts. */
-export async function syncUser(userId, courseId = null) {
+export async function syncUser(userId, courseId = null, { setup = false } = {}) {
   const conn = await getConnection(userId);
   if (!conn) throw new CanvasError("Canvas is not connected. Add your access token in Settings.", 400);
   const baseUrl = await canvasBaseUrl();
@@ -310,7 +310,7 @@ export async function syncUser(userId, courseId = null) {
     const typeIds = Object.fromEntries(typeRows.map(t => [t.name, t.assignment_type_id]));
 
     const { rows: linked } = await query(
-      `select course_id, external_course_id, course_code, last_synced_at from course
+      `select course_id, external_course_id, course_code, last_synced_at, cooldown_synced_at from course
         where user_id = $1 and lms_source_id = $2 and external_course_id is not null and not is_archived
           and ($3::int is null or course_id = $3)
         order by course_code`,
@@ -386,7 +386,9 @@ export async function syncUser(userId, courseId = null) {
       assignmentsSynced += extra.stored;
       removed += extra.removed;
 
-      await query("update course set last_synced_at = now(), connected_account_id = $2 where course_id = $1", [course.course_id, conn.connected_account_id]);
+      await query(
+        "update course set last_synced_at = now(), cooldown_synced_at = case when $3 then cooldown_synced_at else now() end, connected_account_id = $2 where course_id = $1",
+        [course.course_id, conn.connected_account_id, setup]);
       coursesSynced++;
     }
 

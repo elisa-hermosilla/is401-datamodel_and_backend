@@ -46,7 +46,7 @@ router.get("/sync/status", requireLogin, async (req, res, next) => {
     const canSync = !!conn || lsStatus.courses.length > 0;
     /* Every class that Sync now would touch, for the cooldown */
     const { rows: linked } = await query(
-      `select c.last_synced_at from course c join lms_source s on s.lms_source_id = c.lms_source_id
+      `select c.cooldown_synced_at from course c join lms_source s on s.lms_source_id = c.lms_source_id
         where c.user_id = $1 and not c.is_archived
           and ((s.name = 'Canvas' and c.external_course_id is not null and $2::boolean)
             or (s.name = 'Learning Suite' and c.ics_feed_url is not null))`,

@@ -114,10 +114,11 @@ async function refreshSyncStatus() {
 function cooldownActive() {
   return !!(SYNC && SYNC.next_sync_at && new Date(SYNC.next_sync_at).getTime() > Date.now());
 }
-/* May this class be synced now? (mirrors the server's rule, from the class's own last sync) */
+/* May this class be synced now? Mirrors the server's rule: the clock runs
+   from the class's last counted sync (setup syncs don't count). */
 function classCanSync(c) {
-  if (!SYNC || !SYNC.cooldown_hours || !c.last_synced_at) return true;
-  return Date.now() - new Date(c.last_synced_at).getTime() >= SYNC.cooldown_hours * 3600000;
+  if (!SYNC || !SYNC.cooldown_hours || !c.cooldown_synced_at) return true;
+  return Date.now() - new Date(c.cooldown_synced_at).getTime() >= SYNC.cooldown_hours * 3600000;
 }
 /* "2:15 PM" or "tomorrow at 8:00 AM" */
 function nextSyncLabel(iso) {
