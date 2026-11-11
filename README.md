@@ -7,9 +7,9 @@ BYU students often struggle to keep track of assignments and deadlines because t
 <img width="3560" height="2580" alt="image" src="https://github.com/user-attachments/assets/6f792832-ad2e-4f49-8e81-d087fee3a7e5" />
 <h2>Data Flow Diagrams</h2>
 <h3>Level 0</h3>
-<img width="3560" height="2580" alt="image" src="https://www.figma.com/board/M4O8o9mri9Y32AsIndATaV/Sprint-2?node-id=8440-336&t=ME6WMRU1l32TAAOd-4" />
+<img width="1236" height="1019" alt="Sprint 2" src="https://github.com/user-attachments/assets/81bb1168-ee8e-42e2-9816-1ceb7e94be7d" />
 <h3>Level 1</h3>
-<img alt="image" src="https://www.figma.com/board/M4O8o9mri9Y32AsIndATaV/Sprint-2?node-id=8441-505&t=ME6WMRU1l32TAAOd-4" />
+<img width="1244" height="1580" alt="Sprint 2 (1)" src="https://github.com/user-attachments/assets/5894a6d6-ead4-4d99-ae75-de5b68a95b59" />
 
 <h2>TECH STACK:</h2>
 
