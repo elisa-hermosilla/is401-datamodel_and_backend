@@ -20,6 +20,7 @@ async function startOnboarding(onboardingStatus) {
   let configuring = null;
   let didSync = false;
   let editDraft = null;
+  let skipSnapshot = null;
   API.learningSuite.status().then(s => { learningSuiteStatus = s; }).catch(() => {});
 
   const button = (label, action, cls = "btn-primary") => `<button type="button" class="btn ${cls}" data-onboarding="${action}">${label}</button>`;
@@ -55,22 +56,23 @@ async function startOnboarding(onboardingStatus) {
     const rows = setupCourses.map((item, i) => {
       const cls = item.course || item.canvas || item;
       const label = `${esc(cls.course_code)}${cls.course_name ? ` · ${esc(cls.course_name)}` : ""}`;
-      return `<div class="onboarding-class-row"><label class="onboarding-class-pick"><input type="checkbox" data-pick="${i}" ${item.selected ? "checked" : ""}><span>${label}</span></label><span class="tag ${item.source === "Canvas" ? "canvas" : "ls"}">${esc(item.source)}</span><button type="button" class="btn btn-ghost btn-sm" data-onboarding="configure" data-index="${i}">Configure</button></div>`;
+      const configured = item.source === "Manual" || item.configured;
+      return `<div class="onboarding-class-row"><label class="onboarding-class-pick"><input type="checkbox" data-pick="${i}" ${item.selected ? "checked" : ""}><span>${label}</span></label><span class="tag ${item.source === "Canvas" ? "canvas" : item.source === "Learning Suite" ? "ls" : "type"}">${esc(item.source)}</span>${item.selected ? `<span class="onboarding-config-status ${configured ? "is-configured" : "needs-config"}">${configured ? "Configured" : "Needs setup"}</span>` : ""}</div>`;
     }).join("");
-    show("Classes to sync", `<p>Choose the classes DueList should track. Configure categories for each class now; you can change them later from Assignments.</p>${rows ? `<div class="onboarding-class-list">${rows}</div>` : `<div class="empty">No classes added yet.</div>`}<div class="form-error onboarding-error" role="alert"></div>`, `${button(CANVAS.connected ? "Add Canvas classes" : "Connect Canvas", CANVAS.connected ? "choose-canvas" : "choose-canvas-connect", "btn-secondary")}${button("Add Learning Suite class", "choose-ls", "btn-secondary")}${button("Save and sync", "save-setup")}`, { wide: true });
+    const selected = setupCourses.filter(item => item.selected);
+    const allConfigured = selected.length > 0 && selected.every(item => item.source === "Manual" || item.configured);
+    show("Classes to sync", `<p>Choose the classes DueList should track. You’ll configure each selected class and its assignment categories before the first sync.</p>${rows ? `<div class="onboarding-class-list">${rows}</div>` : `<div class="empty">No classes added yet.</div>`}<div class="form-error onboarding-error" role="alert"></div>`, `${button(CANVAS.connected ? "Add Canvas classes" : "Connect Canvas", CANVAS.connected ? "choose-canvas" : "choose-canvas-connect", "btn-secondary")}${button("Add Custom Class", "add-manual-class", "btn-secondary")}${button("Add Learning Suite class", "choose-ls", "btn-secondary")}${button(allConfigured ? "Save and sync" : "Configure selected classes", "configure-selected")}`, { wide: true });
     content.querySelectorAll("[data-pick]").forEach(cb => cb.addEventListener("change", () => {
-      const item = setupCourses[Number(cb.dataset.pick)];
+      const index = Number(cb.dataset.pick);
+      const item = setupCourses[index];
       item.selected = cb.checked;
       if (!cb.checked && item.createdHere && item.course?.course_id) {
         API.courses.remove(item.course.course_id).then(() => {
-          item.course = null; item.createdHere = false; item.categoryRows = null;
+          if (item.source === "Manual") setupCourses.splice(index, 1);
+          else { item.course = null; item.createdHere = false; item.categoryRows = null; item.configured = false; }
           return API.courses.list().then(setClasses);
-        }).catch(err => { item.selected = true; cb.checked = true; errBox(err.message); });
+        }).then(setupList).catch(err => { item.selected = true; cb.checked = true; errBox(err.message); });
       }
-    }));
-    content.querySelectorAll('[data-onboarding="configure"]').forEach(b => b.addEventListener("click", async () => {
-      try { await configureClass(setupCourses[Number(b.dataset.index)]); }
-      catch (err) { errBox(err.message); }
     }));
   }
 
@@ -170,10 +172,10 @@ async function startOnboarding(onboardingStatus) {
     });
     configuring.course = updated;
     configuring.source = editDraft.source;
-    configuring.selected = editDraft.source !== "Manual";
+    configuring.selected = true;
     if (previousSource !== editDraft.source) { configuring.categoryRows = null; configuring.categoryMode = null; }
     setClasses(await API.courses.list());
-    if (editDraft.source === "Manual") { setupList(); return; }
+    if (editDraft.source === "Manual") { configuring.configured = true; setupList(); return; }
     await openCategoryEditor(configuring);
   }
 
@@ -217,7 +219,7 @@ async function startOnboarding(onboardingStatus) {
     const isLS = item.source === "Learning Suite";
     const body = document.getElementById("onboarding-category-body");
     const cats = allCats.filter(c => (c.item_count ?? c.assignment_count ?? 0) > 0);
-    if (!cats.length) { body.innerHTML = `<div class="empty">No categories found yet. You can sync and edit categories later.</div>`; return; }
+    if (!cats.length) { body.innerHTML = `<div class="empty">No categories found yet. You can sync and edit categories later.</div>`; document.querySelector('[data-onboarding="category-finish"]').disabled = false; return; }
     const typeOpts = selected => `<option value="">None</option>${ASSIGNMENT_TYPES.map(t => `<option value="${t.assignment_type_id}" ${selected === t.assignment_type_id ? "selected" : ""}>${esc(t.name[0].toUpperCase() + t.name.slice(1))}</option>`).join("")}`;
     body.innerHTML = `<table class="cat-table"><thead><tr><th>Category</th><th>Show as</th>${isLS ? "<th>Keywords</th><th>Due time</th>" : ""}<th>Include</th></tr></thead><tbody>${cats.map(c => `<tr data-cat="${c.assignment_category_id}" class="${c.is_included ? "" : "excluded"}"><td class="name">${esc(c.name)}<span class="n">${c.item_count ?? c.assignment_count} items</span></td><td class="type"><select class="select" data-field="type">${typeOpts(c.assignment_type_id)}</select></td>${isLS ? `<td class="kw"><input class="input" data-field="keywords" value="${esc((c.match_keywords || []).join(", "))}" placeholder="e.g. reading, chapter"></td><td class="time"><input class="input" type="time" data-field="time" value="${esc(c.default_due_time || "")}"></td>` : ""}<td class="inc"><input type="checkbox" data-field="include" ${c.is_included ? "checked" : ""}></td></tr>`).join("")}</tbody></table>${isLS ? `<span class="hint onboarding-category-hint">Edit keywords to control which schedule items land in each group. Blank due time leaves all-day items without a set time.</span>` : ""}`;
     body.querySelectorAll('[data-field="include"]').forEach(cb => cb.addEventListener("change", () => cb.closest("tr").classList.toggle("excluded", !cb.checked)));
@@ -233,12 +235,27 @@ async function startOnboarding(onboardingStatus) {
     }));
   }
 
-  async function saveCategoryDraft() {
+  async function saveCategoryDraft(advance = true) {
     if (phase === "categories") {
       const edits = collectCategoryEdits();
       if (edits.length) configuring.categoryRows = mergeEdits(configuring.categoryRows, edits);
     }
+    if (advance) {
+      configuring.configured = true;
+      await configureNextSelected();
+    }
+  }
+
+  async function configureNextSelected() {
+    const next = setupCourses.find(item => item.selected && item.source !== "Manual" && !item.configured);
+    if (next) { await configureClass(next); return; }
     setupList();
+  }
+
+  async function addManualClass() {
+    phase = "manual-form";
+    show("Add a custom class", `<p>Add a class you want to track manually. You can add assignments to it from the Assignments page.</p><form id="onboarding-manual-form" class="onboarding-form"><label for="onboarding-manual-code">Course code</label><input class="input" id="onboarding-manual-code" maxlength="30" placeholder="e.g. MKTG 201" required><label for="onboarding-manual-name">Course name</label><input class="input" id="onboarding-manual-name" maxlength="150" placeholder="e.g. Marketing Management" required><label>Color</label><div class="color-swatches" id="onboarding-manual-colors">${CLASS_COLORS.map((c, i) => `<button type="button" class="color-swatch ${i === 0 ? "active" : ""}" data-manual-color="${c.hex}" style="background:${c.hex}" aria-label="${c.name}" title="${c.name}">${ICONS.check}</button>`).join("")}</div><input type="hidden" id="onboarding-manual-color" value="${CLASS_COLORS[0].hex}"><div class="form-error onboarding-error" role="alert"></div><button class="btn btn-primary" type="submit">Add class</button></form>`, button("Back", "back-setup", "btn-secondary"));
+    content.querySelectorAll("[data-manual-color]").forEach(b => b.addEventListener("click", () => { content.querySelectorAll("[data-manual-color]").forEach(x => x.classList.remove("active")); b.classList.add("active"); document.getElementById("onboarding-manual-color").value = b.dataset.manualColor; }));
   }
 
   function canvasPicker() {
@@ -252,7 +269,7 @@ async function startOnboarding(onboardingStatus) {
     content.querySelectorAll("[data-canvas-pick]").forEach(cb => cb.addEventListener("change", () => {
       const c = canvasCourses[Number(cb.dataset.canvasPick)];
       let item = setupCourses.find(x => x.canvas?.external_course_id === c.external_course_id || x.course?.external_course_id === c.external_course_id);
-      if (!item) { item = { source: "Canvas", canvas: c, selected: c.already_added, course: CLASSES.find(x => x.external_course_id === c.external_course_id) || null }; setupCourses.push(item); }
+      if (!item) { item = { source: "Canvas", canvas: c, selected: c.already_added, configured: false, course: CLASSES.find(x => x.external_course_id === c.external_course_id) || null }; setupCourses.push(item); }
       item.selected = cb.checked;
     }));
   }
@@ -272,11 +289,20 @@ async function startOnboarding(onboardingStatus) {
   async function saveAndSync() {
     const selected = setupCourses.filter(x => x.selected);
     if (!selected.length) { errBox("Select or add at least one class before syncing."); return; }
+    const unconfigured = selected.find(item => item.source !== "Manual" && !item.configured);
+    if (unconfigured) { await configureClass(unconfigured); return; }
+    const syncing = selected.filter(item => item.source !== "Manual");
+    if (!syncing.length) {
+      await Promise.all([API.courses.list().then(setClasses), API.assignments.list().then(a => { ASSIGNMENTS = a; })]);
+      didSync = true;
+      afterSync();
+      return;
+    }
     phase = "syncing";
     show("Syncing your classes", `<div class="onboarding-sync-state"><span class="onboarding-sync-icon" aria-hidden="true">↻</span><p>Preparing your first sync…</p><div class="onboarding-sync-progress" role="status">0 of ${selected.length} classes</div></div><div class="form-error onboarding-error" role="alert"></div>`, "", { skipAllowed: false });
     let completed = 0;
     const failures = [];
-    for (const item of selected) {
+    for (const item of syncing) {
       try {
         if (!item.course) item.course = item.source === "Canvas" ? await createCanvasClass(item) : item.course;
         if (!item.course) throw new Error("Class setup is incomplete.");
@@ -285,7 +311,7 @@ async function startOnboarding(onboardingStatus) {
         await API.courses.sync(item.course.course_id, { after_mapping: true });
       } catch (err) { failures.push(`${item.course?.course_code || item.canvas?.course_code || "Class"}: ${err.message}`); }
       completed++;
-      content.querySelector(".onboarding-sync-progress").textContent = `${completed} of ${selected.length} classes`;
+      content.querySelector(".onboarding-sync-progress").textContent = `${completed} of ${syncing.length} classes`;
     }
     didSync = true;
     await Promise.all([API.courses.list().then(setClasses), API.assignments.list().then(a => { ASSIGNMENTS = a; }), refreshSyncStatus()]);
@@ -301,7 +327,27 @@ async function startOnboarding(onboardingStatus) {
     is_included: c.is_included,
     match_keywords: c.match_keywords || [],
   })); }
-  function afterSync() { show("Your classes are ready", `<p>Your selected classes have synced. You can update class details and categories from Assignments at any time.</p>`, `${button("Continue", "after-sync")}`); }
+  function afterSync() {
+    const pastDue = ASSIGNMENTS.filter(a => !isDone(a) && dueDate(a) < new Date());
+    if (pastDue.length) {
+      phase = "past-due-choice";
+      show("Your classes are ready", `<p>Your selected classes have synced. You have <strong>${pastDue.length}</strong> past due assignment${pastDue.length === 1 ? "" : "s"}. Would you like to mark them all complete?</p><div class="form-error onboarding-error" role="alert"></div>`, `${button("No, continue", "past-due-no", "btn-secondary")}${button("Yes, mark complete", "past-due-yes")}`);
+      return;
+    }
+    show("Your classes are ready", `<p>Your selected classes have synced. You can update class details and categories from Assignments at any time.</p>`, `${button("Continue", "after-sync")}`);
+  }
+
+  async function markPastDueComplete() {
+    const pastDue = ASSIGNMENTS.filter(a => !isDone(a) && dueDate(a) < new Date());
+    try {
+      await Promise.all(pastDue.map(a => API.assignments.update(a.assignment_id, { completed: true })));
+      ASSIGNMENTS = await API.assignments.list();
+      show("Past due assignments updated", `<p>Marked ${pastDue.length} past due assignment${pastDue.length === 1 ? "" : "s"} complete. Your Past due count will now be zero.</p>`, button("Continue", "after-sync"));
+    } catch (err) {
+      try { ASSIGNMENTS = await API.assignments.list(); } catch { /* retain current rows */ }
+      show("Couldn’t update every assignment", `<p>${esc(err.message)} You can retry the remaining past due assignments now, or update them from Assignments.</p>`, `${button("Retry", "past-due-yes", "btn-secondary")}${button("Continue", "after-sync")}`, { wide: true });
+    }
+  }
 
   const tour = async index => {
     const pages = [["Dashboard", "Your home view highlights what is due soon, what is overdue, and your upcoming workload."],["Calendar", "See assignments by date and scan the week ahead to plan your study time."],["Assignments", "Manage your classes and assignment details, including adding or editing classes."],["Settings", "Manage connected accounts, notification preferences, and your account."]];
@@ -314,7 +360,23 @@ async function startOnboarding(onboardingStatus) {
     if (nav) { nav.classList.add("onboarding-spotlight"); const target = nav.getBoundingClientRect(), box = modalBox.getBoundingClientRect(); const top = Math.max(12, Math.min(window.innerHeight - box.height - 12, target.top + target.height / 2 - box.height / 2)); modalBox.style.setProperty("--tour-top", `${top}px`); modalBox.style.setProperty("--tour-arrow-y", `${Math.max(18, Math.min(box.height - 18, target.top + target.height / 2 - top))}px`); }
   };
 
-  skip.addEventListener("click", () => show("Skip the tutorial?", `<p>Are you sure you don't want to go through the tutorial?</p>`, `${button("No, go back", "skip-no", "btn-secondary")}${button("Yes, exit", "skip-yes")}`, { skipAllowed: false }));
+  skip.addEventListener("click", () => {
+    const contentNodes = document.createDocumentFragment();
+    while (content.firstChild) contentNodes.append(content.firstChild);
+    const actionNodes = document.createDocumentFragment();
+    while (actions.firstChild) actionNodes.append(actions.firstChild);
+    skipSnapshot = {
+      phase,
+      contentNodes,
+      actionNodes,
+      skipHidden: skip.hidden,
+      modalClass: modal.className,
+      modalBoxClass: modalBox.className,
+      modalBoxStyle: modalBox.getAttribute("style"),
+      bodyClass: document.body.className,
+    };
+    show("Skip the tutorial?", `<p>Are you sure you don't want to go through the tutorial?</p>`, `${button("No, go back", "skip-no", "btn-secondary")}${button("Yes, exit", "skip-yes")}`, { skipAllowed: false });
+  });
   actions.addEventListener("click", async e => {
     const act = e.target.closest("[data-onboarding]")?.dataset.onboarding; if (!act) return;
     try {
@@ -323,17 +385,35 @@ async function startOnboarding(onboardingStatus) {
       else if (act === "choose-canvas") { source = "Canvas"; if (CANVAS.connected) { canvasCourses = await API.canvas.courses(); initializeCanvasItems(); canvasPicker(); } else canvasConnect(); }
       else if (act === "choose-canvas-connect") canvasConnect();
       else if (act === "choose-ls") learningSuiteForm();
+      else if (act === "add-manual-class") await addManualClass();
       else if (act === "add-canvas-selected") await addSelectedCanvas();
       else if (act === "back-setup") setupList();
       else if (act === "edit-cancel") setupList();
       else if (act === "edit-next") await saveClassDraft();
-      else if (act === "category-back") { await saveCategoryDraft(); editDraft = { source: configuring.source, course_code: configuring.course.course_code, course_name: configuring.course.course_name || "", color_hex: configuring.course.color_hex, external_course_id: configuring.course.external_course_id || "", ics_feed_url: configuring.course.ics_feed_url || "" }; await renderClassEditor(); }
+      else if (act === "category-back") { await saveCategoryDraft(false); editDraft = { source: configuring.source, course_code: configuring.course.course_code, course_name: configuring.course.course_name || "", color_hex: configuring.course.color_hex, external_course_id: configuring.course.external_course_id || "", ics_feed_url: configuring.course.ics_feed_url || "" }; await renderClassEditor(); }
       else if (act === "category-finish") await saveCategoryDraft();
-      else if (act === "save-setup") await saveAndSync();
+      else if (act === "save-setup" || act === "configure-selected") {
+        const next = setupCourses.find(item => item.selected && item.source !== "Manual" && !item.configured);
+        if (next) await configureClass(next); else await saveAndSync();
+      }
       else if (act === "sources-done") { if (!setupCourses.length && !CLASSES.length) setupList(); else if (!setupCourses.length) await startClasses(); else setupList(); }
       else if (act === "after-sync") await tour(0);
+      else if (act === "past-due-no") await tour(0);
+      else if (act === "past-due-yes") await markPastDueComplete();
       else if (act === "finish") finish();
-      else if (act === "skip-no") { if (phase === "welcome") welcome(); else if (phase === "choose") connectPrompt(); else setupList(); }
+      else if (act === "skip-no") {
+        if (skipSnapshot) {
+          phase = skipSnapshot.phase;
+          content.replaceChildren(skipSnapshot.contentNodes);
+          actions.replaceChildren(skipSnapshot.actionNodes);
+          skip.hidden = skipSnapshot.skipHidden;
+          modal.className = skipSnapshot.modalClass;
+          modalBox.className = skipSnapshot.modalBoxClass;
+          if (skipSnapshot.modalBoxStyle == null) modalBox.removeAttribute("style"); else modalBox.setAttribute("style", skipSnapshot.modalBoxStyle);
+          document.body.className = skipSnapshot.bodyClass;
+          skipSnapshot = null;
+        }
+      }
       else if (act === "skip-yes") finish();
       else if (act.startsWith("tour-next-")) await tour(Number(act.split("-").pop()) + 1);
       else if (act.startsWith("tour-back-")) await tour(Math.max(0, Number(act.split("-").pop()) - 1));
@@ -345,14 +425,14 @@ async function startOnboarding(onboardingStatus) {
     return original.map(c => ({ ...c, ...(byId.get(c.assignment_category_id) || {}) }));
   }
   function startClasses() {
-    setupCourses = CLASSES.filter(c => !c.is_archived && c.source !== "Manual").map(course => ({ course, source: course.source, selected: true, categoryRows: null }));
+    setupCourses = CLASSES.filter(c => !c.is_archived && c.source !== "Manual").map(course => ({ course, source: course.source, selected: true, configured: false, categoryRows: null }));
     setupList();
   }
   function initializeCanvasItems() {
     for (const c of canvasCourses) {
       if (!setupCourses.some(x => x.canvas?.external_course_id === c.external_course_id || x.course?.external_course_id === c.external_course_id)) {
         const existing = CLASSES.find(x => x.external_course_id === c.external_course_id);
-        setupCourses.push({ source: "Canvas", canvas: c, course: existing || null, selected: !!c.already_added, categoryRows: null });
+        setupCourses.push({ source: "Canvas", canvas: c, course: existing || null, selected: !!c.already_added, configured: false, categoryRows: null });
       }
     }
   }
@@ -363,6 +443,24 @@ async function startOnboarding(onboardingStatus) {
   function welcome() { phase = "welcome"; show(`Welcome to DueList, ${esc(USER.first_name)}!`, `<p>DueList keeps your classes and assignments together so you can see what’s due and plan what to work on next.</p>`, button("Get started", "welcome-next")); }
 
   content.addEventListener("submit", async e => {
+    if (e.target.id === "onboarding-manual-form") {
+      e.preventDefault();
+      const submit = e.target.querySelector("[type=submit]");
+      submit.disabled = true; submit.textContent = "Adding";
+      try {
+        const manual = LMS_SOURCES.find(s => s.name === "Manual");
+        if (!manual) throw new Error("Custom class creation is unavailable. Try reloading the page.");
+        const course = await API.courses.create({
+          lms_source_id: manual.lms_source_id,
+          course_code: document.getElementById("onboarding-manual-code").value.trim(),
+          course_name: document.getElementById("onboarding-manual-name").value.trim(),
+          color_hex: document.getElementById("onboarding-manual-color").value,
+        });
+        setupCourses.push({ source: "Manual", course, selected: true, configured: true, createdHere: true });
+        setClasses(await API.courses.list());
+        setupList();
+      } catch (err) { errBox(err.message); submit.disabled = false; submit.textContent = "Add class"; }
+    }
     if (e.target.id === "onboarding-canvas-form") {
       e.preventDefault(); const token = document.getElementById("onboarding-token").value.trim();
       if (!token) return errBox("Paste your Canvas access token.");
@@ -377,7 +475,7 @@ async function startOnboarding(onboardingStatus) {
         const src = LMS_SOURCES.find(s => s.name === "Learning Suite");
         const course = await API.courses.create({ lms_source_id: src.lms_source_id, course_code: code, course_name: document.getElementById("onboarding-ls-name").value.trim() || null, color_hex: document.getElementById("onboarding-ls-color").value, ics_feed_url: url });
         setClasses(await API.courses.list());
-        const item = { source: "Learning Suite", course, selected: true, createdHere: true, categoryMode: null, categoryRows: null };
+        const item = { source: "Learning Suite", course, selected: true, configured: false, createdHere: true, categoryMode: null, categoryRows: null };
         setupCourses.push(item); learningSuiteStatus = await API.learningSuite.status();
         configuring = item;
         await openCategoryEditor(item);

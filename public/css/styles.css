@@ -500,6 +500,8 @@ textarea.input { resize: vertical; line-height: 1.5; }
 .onboarding-class-pick { display:flex; align-items:center; gap:10px; min-width:0; flex:1; color:var(--text); font-weight:600; cursor:pointer; }
 .onboarding-class-pick span { overflow-wrap:anywhere; }
 .onboarding-class-pick input, .onboarding-canvas-row input { width:17px; height:17px; flex:none; accent-color:var(--accent); }
+.onboarding-config-status { flex:none; font-size:11px; font-weight:700; color:var(--danger); white-space:nowrap; }
+.onboarding-config-status.is-configured { color:var(--ok); }
 .onboarding-class-row small { color:var(--muted); font-weight:400; }
 .onboarding-canvas-row { justify-content:space-between; }
 .onboarding-config-intro { margin-bottom:14px !important; }
