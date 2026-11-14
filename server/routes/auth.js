@@ -4,7 +4,7 @@ import { recordCheckIn } from "../middleware/checkin.js";
 
 const router = Router();
 
-const USER_COLUMNS = "user_id, username, email, first_name, last_name, no_past_due_best_streak, check_in_best_streak";
+const USER_COLUMNS = "user_id, username, email, first_name, last_name, no_past_due_best_streak, check_in_best_streak, is_admin";
 const USERNAME_RE = /^[a-zA-Z0-9._-]{3,50}$/;
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const MIN_PASSWORD = 8;

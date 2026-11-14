@@ -22,6 +22,7 @@ const { default: categoryRoutes } = await import("./routes/categories.js");
 const { default: streakRoutes } = await import("./routes/streaks.js");
 const { default: onboardingRoutes } = await import("./routes/onboarding.js");
 const { default: notificationRoutes } = await import("./routes/notifications.js");
+const { default: adminRoutes } = await import("./routes/admin.js");
 const { default: pageRoutes } = await import("./routes/pages.js");
 const { checkInOnActivity } = await import("./middleware/checkin.js");
 const { startReminderScheduler } = await import("./reminders.js");
@@ -68,6 +69,7 @@ app.use("/api", categoryRoutes);
 app.use("/api", streakRoutes);
 app.use("/api", onboardingRoutes);
 app.use("/api", notificationRoutes);
+app.use("/api", adminRoutes);
 
 /* JSON 404 for anything under /api that didn't match; a page for everything else */
 app.use("/api", (req, res) => {

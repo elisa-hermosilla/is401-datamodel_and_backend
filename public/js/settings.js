@@ -3,32 +3,10 @@
 initApp("settings").then(main);
 
 function main() {
-  const shell = document.getElementById("settings-shell");
-  const categories = [...document.querySelectorAll("[data-settings-category]")];
-  function selectCategory(key, focus = false) {
-    if (!categories.some(a => a.dataset.settingsCategory === key)) key = "account";
-    document.querySelectorAll("[data-settings-panel]").forEach(panel => { panel.hidden = panel.dataset.settingsPanel !== key; });
-    categories.forEach(a => {
-      const active = a.dataset.settingsCategory === key;
-      a.classList.toggle("active", active);
-      if (active) a.setAttribute("aria-current", "page"); else a.removeAttribute("aria-current");
-    });
-    document.getElementById("settings-save-actions").hidden = !["notifications", "delivery"].includes(key);
-    shell.classList.add("show-detail");
-    if (focus) document.getElementById("settings-back").focus();
-  }
-  categories.forEach(a => a.addEventListener("click", e => {
-    e.preventDefault();
-    history.replaceState(null, "", `#${a.dataset.settingsCategory}`);
-    selectCategory(a.dataset.settingsCategory, true);
-  }));
-  document.getElementById("settings-back").addEventListener("click", () => {
-    shell.classList.remove("show-detail");
-    categories.find(a => a.classList.contains("active"))?.focus();
+  bindCategoryNav(document.getElementById("settings-shell"), {
+    defaultKey: "account",
+    onSelect: key => { document.getElementById("settings-save-actions").hidden = !["notifications", "delivery"].includes(key); },
   });
-  window.addEventListener("hashchange", () => selectCategory(location.hash.slice(1)));
-  selectCategory(location.hash.slice(1));
-  if (!location.hash) shell.classList.remove("show-detail");
   document.getElementById("account-name").textContent = `${USER.first_name} ${USER.last_name}`;
   document.getElementById("account-username").textContent = USER.username;
   document.getElementById("account-email").textContent = USER.email;

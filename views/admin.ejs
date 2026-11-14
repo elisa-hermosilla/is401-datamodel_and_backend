@@ -1,0 +1,90 @@
+<%- include("partials/head", { title: "Admin", description: "DueList admin: user management and OKRs.", noindex: true }) %>
+  <div class="app">
+<%- include("partials/sidebar", { active: "admin", user }) %>
+
+    <main id="main-content" tabindex="-1" class="main settings-page admin-page">
+      <div class="page-header">
+        <div>
+          <h1>Admin</h1>
+          <p class="sub">Who can manage DueList, and how the app is doing against its goals.</p>
+        </div>
+      </div>
+      <div class="settings-shell" id="settings-shell">
+        <nav class="settings-nav" aria-label="Admin categories">
+          <% const adminIcons = {
+            okrs: '<path d="M4 20V10m6 10V4m6 16v-7"/><path d="M2 20h20"/>',
+            users: '<circle cx="9" cy="8" r="4"/><path d="M2 21v-2a7 7 0 0 1 14 0v2"/><path d="M16 3.5a4 4 0 0 1 0 9M22 21v-2a7 7 0 0 0-4-6.3"/>'
+          }; %>
+          <% for (const [key, label] of [['okrs','OKRs'],['users','Users']]) { %>
+            <a href="#<%= key %>" data-settings-category="<%= key %>"><span class="settings-category-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><%- adminIcons[key] %></svg></span><%= label %><span class="settings-category-arrow" aria-hidden="true">›</span></a>
+          <% } %>
+        </nav>
+        <div class="settings-detail">
+          <button type="button" class="btn btn-ghost settings-back" id="settings-back">‹ Admin categories</button>
+          <div class="settings-grid">
+
+            <!-- OKRs -->
+            <section class="settings-category" data-settings-panel="okrs" id="admin-okrs">
+              <div class="card okr-card">
+                <div class="card-header">
+                  <h3>User retention</h3>
+                  <div class="okr-toolbar">
+                    <label class="visually-hidden" for="okr-range">Chart range</label>
+                    <select class="select" id="okr-range" aria-label="Chart range">
+                      <option value="30">Last 30 days</option>
+                      <option value="90" selected>Last 90 days</option>
+                      <option value="180">Last 180 days</option>
+                    </select>
+                  </div>
+                </div>
+                <div class="stat-grid okr-tiles" id="retention-tiles" aria-live="polite"></div>
+                <div class="okr-charts">
+                  <figure class="okr-chart" id="chart-active">
+                    <figcaption>Active in the past 30 days (% of accounts)</figcaption>
+                    <div class="okr-chart-body"></div>
+                  </figure>
+                  <figure class="okr-chart" id="chart-days">
+                    <figcaption>Days per week among active users</figcaption>
+                    <div class="okr-chart-body"></div>
+                  </figure>
+                </div>
+              </div>
+
+              <div class="card okr-card">
+                <div class="card-header">
+                  <h3>Quick start setup</h3>
+                </div>
+                <div class="stat-grid okr-tiles" id="setup-tiles" aria-live="polite"></div>
+                <h4 class="okr-subhead">Time to finish</h4>
+                <div class="meter-list" id="setup-buckets"></div>
+              </div>
+            </section>
+
+            <!-- Users -->
+            <section class="settings-category" data-settings-panel="users" id="admin-users" hidden>
+              <div class="card users-card">
+                <div class="card-header">
+                  <div>
+                    <h3>Users</h3>
+                    <p class="sub" id="users-sub">Admins can open this page and grant or remove admin access.</p>
+                  </div>
+                </div>
+                <div class="user-tools">
+                  <label class="visually-hidden" for="user-search">Search users</label>
+                  <input class="input" type="search" id="user-search" placeholder="Search name, username, or email" autocomplete="off">
+                  <div class="chips" id="user-filter" role="group" aria-label="Show">
+                    <button type="button" class="chip active" data-filter="all" aria-pressed="true">All</button>
+                    <button type="button" class="chip" data-filter="admin" aria-pressed="false">Admins</button>
+                    <button type="button" class="chip" data-filter="non-admin" aria-pressed="false">Non-admins</button>
+                  </div>
+                </div>
+                <div class="admin-user-list" id="user-list"></div>
+              </div>
+            </section>
+
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+<%- include("partials/scripts", { scripts: ["api", "data", "app", "admin"] }) %>
