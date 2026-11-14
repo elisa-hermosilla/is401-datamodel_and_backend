@@ -56,6 +56,10 @@ router.put("/admin/users/:id/admin", async (req, res, next) => {
 
 const RANGES = new Set([30, 90, 180]);
 
+/* The quick start shipped on this campus day. Accounts created earlier never
+   saw it at sign-up, so they are left out of the setup OKR. */
+const QUICK_START_LAUNCHED = "2026-11-05";
+
 async function retentionSeries(days) {
   const today = todayStamp();
   const { rows } = await query(`
@@ -97,7 +101,9 @@ const BUCKETS = [
 async function setupStats() {
   const { rows } = await query(`
     select extract(epoch from onboarding_completed_at - created_at) / 60 as minutes
-    from app_user order by minutes nulls last`);
+    from app_user
+    where (created_at at time zone '${CAMPUS_TZ}')::date >= $1::date
+    order by minutes nulls last`, [QUICK_START_LAUNCHED]);
   const total = rows.length;
   const done = rows.filter(r => r.minutes !== null).map(r => Number(r.minutes));
   const avg = done.length ? done.reduce((a, b) => a + b, 0) / done.length : null;
