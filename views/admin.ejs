@@ -25,13 +25,9 @@
 
             <!-- OKRs -->
             <section class="settings-category" data-settings-panel="okrs" id="admin-okrs">
-              <div class="okr-grid">
               <div class="card okr-card">
                 <div class="card-header">
-                  <div>
-                    <h3>User retention</h3>
-                    <p class="sub">Active means they opened DueList in the past 30 days. Days per week is the distinct days each active user came back, averaged across them.</p>
-                  </div>
+                  <h3>User retention</h3>
                   <div class="okr-toolbar">
                     <label class="visually-hidden" for="okr-range">Chart range</label>
                     <select class="select" id="okr-range" aria-label="Chart range">
@@ -52,24 +48,15 @@
                     <div class="okr-chart-body"></div>
                   </figure>
                 </div>
-                <p class="sub okr-note" id="retention-note"></p>
-                <details class="okr-table">
-                  <summary>Show as a table</summary>
-                  <div class="okr-table-scroll"><table id="retention-table"></table></div>
-                </details>
               </div>
 
               <div class="card okr-card">
                 <div class="card-header">
-                  <div>
-                    <h3>Quick start setup</h3>
-                    <p class="sub">How many accounts finish the quick start, and how long it takes from creating the account to clicking Finish.</p>
-                  </div>
+                  <h3>Quick start setup</h3>
                 </div>
                 <div class="stat-grid okr-tiles" id="setup-tiles" aria-live="polite"></div>
                 <h4 class="okr-subhead">Time to finish</h4>
                 <div class="meter-list" id="setup-buckets"></div>
-              </div>
               </div>
             </section>
 

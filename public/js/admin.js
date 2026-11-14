@@ -20,7 +20,9 @@ function main() {
     renderUsers();
   }));
   let resizeTimer;
-  window.addEventListener("resize", () => { clearTimeout(resizeTimer); resizeTimer = setTimeout(redrawCharts, 120); });
+  const onResize = () => { clearTimeout(resizeTimer); resizeTimer = setTimeout(redrawCharts, 120); };
+  window.addEventListener("resize", onResize);
+  if (window.ResizeObserver) new ResizeObserver(onResize).observe(document.getElementById("admin-okrs"));
 }
 
 /* ---------- Users ---------- */
@@ -147,17 +149,7 @@ function renderRetention() {
     tile("Active in the past 30 days", pct(r.active_pct), `${r.active_users} of ${plural(r.total_users, "account")}`) +
     tile("Days per week", r.avg_days_per_week.toFixed(1), "average among active users") +
     tile("Accounts", String(r.total_users), "registered so far");
-  const note = document.getElementById("retention-note");
-  if (r.check_ins_since) {
-    const since = r.check_ins_since.slice(0, 10);
-    const first = r.series[0] && r.series[0].day;
-    note.textContent = `Visits have been recorded since ${longDate(since)}.` +
-      (first && first < since ? " Days before that read as no activity." : "");
-  } else {
-    note.textContent = "No visits have been recorded yet.";
-  }
   redrawCharts();
-  renderRetentionTable();
 }
 
 function redrawCharts() {
@@ -173,14 +165,6 @@ function redrawCharts() {
     fmt: v => v.toFixed(1),
     detail: p => plural(p.active_users, "active user"),
   });
-}
-
-function renderRetentionTable() {
-  const rows = OKRS.retention.series;
-  document.getElementById("retention-table").innerHTML =
-    "<thead><tr><th>Day</th><th>Accounts</th><th>Active (30d)</th><th>Active %</th><th>Days / week</th></tr></thead><tbody>" +
-    rows.map(p => `<tr><td>${esc(shortDate(p.day))}</td><td>${p.total_users}</td><td>${p.active_users}</td><td>${Math.round(p.active_pct)}%</td><td>${p.avg_days_per_week.toFixed(1)}</td></tr>`).join("") +
-    "</tbody>";
 }
 
 function renderSetup() {
@@ -199,14 +183,15 @@ function renderSetup() {
 }
 
 /* ---------- Line chart ----------
-   One series, drawn into `host` as an SVG sized to the host's width. A
+   One series, drawn into `host` as an SVG sized to the host's box (the
+   cards stretch to fill the screen, so the height comes from layout). A
    crosshair follows the pointer (or the arrow keys when the chart has
    focus) and a tooltip shows that day's value. */
 
 function drawLineChart(host, series, { value, max, ticks, fmt, detail }) {
   host.replaceChildren();
   if (!series.length) { host.innerHTML = '<p class="sub">No data yet.</p>'; return; }
-  const W = Math.max(260, host.clientWidth || 600), H = 160;
+  const W = Math.max(260, host.clientWidth || 600), H = Math.max(120, host.clientHeight || 160);
   const M = { top: 14, right: 48, bottom: 26, left: 36 };
   const pw = W - M.left - M.right, ph = H - M.top - M.bottom;
   const n = series.length;

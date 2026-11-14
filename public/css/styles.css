@@ -1616,23 +1616,27 @@ mark.hl { background: #fef08a; color: inherit; border-radius: 3px; padding: 0 1p
 .admin-page .settings-grid .card { padding: 14px 16px; }
 .admin-page .card-header { margin-bottom: 10px; }
 .admin-page .card-header .sub { font-size: 12px; line-height: 1.4; }
-.okr-grid { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); gap: 14px; align-items: start; }
-.okr-card .card-header { flex-wrap: nowrap; }
-.okr-card .card-header > div:first-child { min-width: 0; }
+/* OKRs: two cards stacked, sharing the height left under the page header */
+#admin-okrs { display: flex; flex-direction: column; gap: 12px; min-height: calc(100vh - 150px); }
+.okr-card { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; }
+.okr-card .card-header { flex: none; flex-wrap: nowrap; align-items: center; padding-bottom: 8px; margin-bottom: 8px; }
+.okr-card .card-header h3 { font-size: 17px; }
 .okr-toolbar { flex: none; }
 .okr-toolbar .select { width: auto; padding: 6px 28px 6px 10px; font-size: 13px; }
-.okr-tiles { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px 12px; margin-bottom: 12px; }
-.okr-tiles .stat { cursor: default; gap: 4px; padding: 10px 12px; }
+.okr-tiles { flex: none; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px 12px; margin-bottom: 8px; }
+.okr-tiles .stat { cursor: default; gap: 3px; padding: 8px 12px; }
 .okr-tiles .stat:hover { border-color: var(--border); background: var(--surface); }
 .okr-tiles .stat .label { font-size: 12px; }
-.okr-tiles .stat .value { font-size: 24px; white-space: nowrap; }
+.okr-tiles .stat .value { font-size: 22px; white-space: nowrap; }
 .okr-tiles .stat .foot { font-size: 12px; }
-.okr-charts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
-.okr-chart { margin: 0; min-width: 0; transition: opacity .15s; }
+.okr-charts { flex: 1 1 auto; min-height: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); grid-template-rows: minmax(0, 1fr); gap: 14px; }
+.okr-chart { margin: 0; min-width: 0; min-height: 0; display: flex; flex-direction: column; transition: opacity .15s; }
 .okr-chart.loading { opacity: .5; }
-.okr-chart figcaption { font-size: 12px; font-weight: 600; color: var(--muted); margin-bottom: 4px; }
-.okr-chart-body { position: relative; }
-.chart-svg { display: block; width: 100%; height: auto; overflow: visible; outline: none; }
+.okr-chart figcaption { flex: none; font-size: 12px; font-weight: 600; color: var(--muted); margin-bottom: 4px; }
+/* The SVG is absolutely positioned so its size never feeds back into the
+   box it is measured from; the box grows with the card. */
+.okr-chart-body { flex: 1 1 auto; min-height: 120px; position: relative; }
+.chart-svg { position: absolute; inset: 0; display: block; width: 100%; height: 100%; overflow: visible; outline: none; }
 .chart-svg:focus-visible { outline: 3px solid var(--accent); outline-offset: 4px; border-radius: 4px; }
 .chart-grid { stroke: #e2e8ef; stroke-width: 1; }
 .chart-axis { font-size: 11px; fill: var(--muted); }
@@ -1642,16 +1646,8 @@ mark.hl { background: #fef08a; color: inherit; border-radius: 3px; padding: 0 1p
 .chart-tip.flip { transform: translate(calc(-100% - 12px), -50%); }
 .chart-tip strong { display: block; font-size: 18px; color: var(--text); line-height: 1.2; }
 .chart-tip-date { font-weight: 600; }
-.okr-note { margin: 8px 0 0; font-size: 12px; }
-.okr-table { margin-top: 6px; font-size: 12px; }
-.okr-table summary { cursor: pointer; color: var(--accent); font-weight: 500; }
-.okr-table-scroll { max-height: 220px; overflow: auto; margin-top: 8px; border: 1px solid #e2e8ef; border-radius: 8px; }
-.okr-table table { width: 100%; border-collapse: collapse; }
-.okr-table th, .okr-table td { text-align: right; padding: 5px 10px; border-bottom: 1px solid #e2e8ef; white-space: nowrap; }
-.okr-table th:first-child, .okr-table td:first-child { text-align: left; }
-.okr-table th { position: sticky; top: 0; background: #f5f8fc; font-size: 12px; color: var(--muted); }
-.okr-subhead { font-size: 12px; font-weight: 600; color: var(--muted); margin: 2px 0 6px; }
-.meter-list { display: grid; gap: 6px; }
+.okr-subhead { flex: none; font-size: 12px; font-weight: 600; color: var(--muted); margin: 2px 0 6px; }
+.meter-list { flex: 1 1 auto; min-height: 0; display: grid; gap: 6px; align-content: space-evenly; }
 .meter-row { display: grid; grid-template-columns: 150px minmax(0, 1fr) 60px; align-items: center; gap: 10px; font-size: 12px; }
 .meter-label { color: var(--text); }
 .meter-track { height: 8px; border-radius: 4px; background: #e6edf5; overflow: hidden; }
@@ -1673,13 +1669,13 @@ mark.hl { background: #fef08a; color: inherit; border-radius: 3px; padding: 0 1p
 .admin-user-row .btn-sm { padding: 5px 10px; font-size: 12px; }
 .admin-empty { padding: 16px 0; }
 .tag.admin-tag { background: #e0ecf8; color: #1e4a76; }
-@media (max-width: 1100px) {
-  .okr-grid { grid-template-columns: 1fr; }
-}
 @media (max-width: 760px) {
   .admin-page .settings-grid .card { padding: 14px 12px; }
+  #admin-okrs { min-height: 0; }
+  .okr-card { flex: none; }
   .okr-card .card-header { flex-wrap: wrap; }
-  .okr-charts { grid-template-columns: 1fr; }
+  .okr-charts { flex: none; grid-template-columns: 1fr; grid-template-rows: none; }
+  .okr-chart-body { flex: none; height: 150px; }
   .meter-row { grid-template-columns: 1fr; gap: 3px; }
   .meter-value { text-align: left; }
   .admin-user-list { max-height: none; min-height: 0; overflow: visible; }
