@@ -39,6 +39,15 @@ for (const page of ["dashboard", "calendar", "assignments", "settings"]) {
   router.get(`/${page}`, requirePage, (req, res) => res.render(page));
 }
 
+/* Admins only. Everyone else gets the same 404 as an unknown address, so the
+   page doesn't advertise itself. */
+router.get("/admin", requirePage, (req, res) => {
+  if (!res.locals.user.is_admin) {
+    return res.status(404).render("error", { code: 404, message: "There's nothing at this address.", signedIn: true });
+  }
+  res.render("admin");
+});
+
 /* The pages used to be static files; old bookmarks and links keep working.
    The query string comes along (?class=, ?type=, ?date=, ?q=). */
 const LEGACY = {

@@ -36,6 +36,11 @@ const API = {
     complete: () => apiFetch("/api/onboarding/complete", { method: "POST", body: {} }),
   },
   streaks: () => apiFetch("/api/streaks"),
+  admin: {
+    users: () => apiFetch("/api/admin/users"),
+    setAdmin: (id, is_admin) => apiFetch(`/api/admin/users/${id}/admin`, { method: "PUT", body: { is_admin } }),
+    okrs: days => apiFetch(`/api/admin/okrs?days=${days}`),
+  },
   register: fields => apiFetch("/api/register", { method: "POST", body: fields }),
   changePassword: (current_password, new_password) =>
     apiFetch("/api/change-password", { method: "POST", body: { current_password, new_password } }),

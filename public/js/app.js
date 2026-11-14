@@ -98,6 +98,41 @@ async function initApp(activeNav) {
   }
 }
 
+/* ---------- Category pages (Settings, Admin) ----------
+   A list of categories on the left and one panel on the right; on phones the
+   list and the panel take turns (`show-detail`). Links carry
+   data-settings-category, panels data-settings-panel, and the hash remembers
+   the open category. onSelect(key) runs after each switch. */
+function bindCategoryNav(shell, { defaultKey, onSelect } = {}) {
+  const categories = [...shell.querySelectorAll("[data-settings-category]")];
+  const back = shell.querySelector("#settings-back");
+  function selectCategory(key, focus = false) {
+    if (!categories.some(a => a.dataset.settingsCategory === key)) key = defaultKey || categories[0].dataset.settingsCategory;
+    shell.querySelectorAll("[data-settings-panel]").forEach(panel => { panel.hidden = panel.dataset.settingsPanel !== key; });
+    categories.forEach(a => {
+      const active = a.dataset.settingsCategory === key;
+      a.classList.toggle("active", active);
+      if (active) a.setAttribute("aria-current", "page"); else a.removeAttribute("aria-current");
+    });
+    shell.classList.add("show-detail");
+    if (focus && back) back.focus();
+    if (onSelect) onSelect(key);
+  }
+  categories.forEach(a => a.addEventListener("click", e => {
+    e.preventDefault();
+    history.replaceState(null, "", `#${a.dataset.settingsCategory}`);
+    selectCategory(a.dataset.settingsCategory, true);
+  }));
+  if (back) back.addEventListener("click", () => {
+    shell.classList.remove("show-detail");
+    categories.find(a => a.classList.contains("active"))?.focus();
+  });
+  window.addEventListener("hashchange", () => selectCategory(location.hash.slice(1)));
+  selectCategory(location.hash.slice(1));
+  if (!location.hash) shell.classList.remove("show-detail");
+  return selectCategory;
+}
+
 /* Re-fetch the sidebar sync summary and redraw just the "synced N min ago"
    note. Call after anything that runs a sync (Settings buttons, the class
    modal's Finish) so the sidebar doesn't wait for a page reload. */
