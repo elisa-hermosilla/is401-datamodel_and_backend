@@ -597,6 +597,10 @@ textarea.input { resize: vertical; line-height: 1.5; }
 .help-tip:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
 .help-corner, .help-corner[data-tip] { position: fixed; top: 12px; right: 14px; z-index: 40; width: 34px; height: 34px; background: var(--surface); border: 1px solid var(--border); box-shadow: 0 2px 10px rgba(15,23,42,.12); opacity: .9; }
 .help-corner:hover, .help-corner:focus-visible { background: #fef3c7; }
+/* Header buttons on pages that have them step left of the corner lightbulb */
+.dashboard-main .page-header .toolbar, .calendar-main .page-header .toolbar { padding-right: 44px; }
+/* A tour step can pin a row's hover actions open */
+.dashboard-main .compact-assignment.tour-actions .row-actions { display: flex; opacity: 1; }
 .help-corner[data-tip]::after { left: auto; right: 0; bottom: auto; top: calc(100% + 8px); transform: none; text-align: left; max-width: 200px; }
 body.navigation-open .help-corner { visibility: hidden; }
 
@@ -625,12 +629,14 @@ body.navigation-open .help-corner { visibility: hidden; }
 .walk-callout .walk-kicker { color: var(--navy); font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; margin: 0 0 4px; }
 .walk-callout h3 { font-size: 16px; margin: 0 0 4px; color: var(--navy); }
 .walk-callout p { margin: 0; color: var(--muted); }
+.walk-callout p + p { margin-top: 8px; }
 .walk-callout .walk-foot { display: flex; align-items: center; gap: 8px; margin-top: 12px; }
 .walk-callout .walk-foot .step-tag { margin: 0 auto 0 0; }
 .walk-callout .callout-close { position: absolute; top: 8px; right: 8px; width: 26px; height: 26px; border: 0; background: transparent; color: var(--muted); font-size: 18px; line-height: 1; cursor: pointer; border-radius: 6px; }
 .walk-callout .callout-close:hover { background: var(--navy-100); color: var(--navy); }
 @media (max-width: 760px) {
   .help-corner, .help-corner[data-tip] { top: calc(max(12px, env(safe-area-inset-top)) + 7px); right: 120px; width: 36px; height: 36px; }
+  .dashboard-main .page-header .toolbar, .calendar-main .page-header .toolbar { padding-right: 0; }
   .walk-callout { width: calc(100vw - 32px); }
 }
 

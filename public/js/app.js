@@ -1046,10 +1046,13 @@ function sidebarTourSteps() {
 
 /* Shows `steps` one at a time: everything but the target is dimmed and
    locked (pointer and keyboard), a callout sits beside the target with
-   Back / Next. A step is { target, title, text, reveal?, fallback? }:
+   Back / Next. A step is { target, title, text, reveal?, fallback?, enter?, exit? }:
    target is a selector, an element, or a function returning one (looked up
-   when the step shows); reveal names a phone disclosure button to open when
-   the target is hidden; fallback is a selector used when target is missing.
+   when the step shows); text is a string or an array of paragraphs; reveal
+   names a phone disclosure button to open when the target is hidden;
+   fallback is a selector used when target is missing; enter() runs before
+   the step shows (e.g. to apply a filter as a demo) and exit() when it is
+   left, including when the tour ends.
    Resolves { completed } when the student finishes, closes it, or presses
    Escape. */
 function startWalkthrough(steps, { kicker = "Quick tour" } = {}) {
@@ -1116,8 +1119,13 @@ function startWalkthrough(steps, { kicker = "Quick tour" } = {}) {
     };
     const lock = () => locked.forEach(el => { el.inert = true; });
     const unlock = () => locked.forEach(el => { el.inert = false; });
+    let shown = null;
+    const leave = () => { if (shown && shown.exit) { try { shown.exit(); } catch { /* demo cleanup only */ } } shown = null; };
     const render = () => {
+      leave();
       const st = steps[index], last = index === steps.length - 1;
+      if (st.enter) { try { st.enter(); } catch { /* demo only */ } }
+      shown = st;
       target = resolveTarget(st);
       /* On phones, sidebar targets need the drawer open and page targets need it closed */
       if (phone.matches && target) {
@@ -1133,7 +1141,7 @@ function startWalkthrough(steps, { kicker = "Quick tour" } = {}) {
       box.innerHTML = `<button type="button" class="callout-close" aria-label="Close tour">×</button>
         <p class="walk-kicker">${esc(kicker)}</p>
         <h3>${esc(st.title)}</h3>
-        <p>${esc(st.text)}</p>
+        ${(Array.isArray(st.text) ? st.text : [st.text]).map(t => `<p>${esc(t)}</p>`).join("")}
         <div class="walk-foot"><span class="step-tag">Step ${index + 1} of ${steps.length}</span>
           ${index ? '<button type="button" class="btn btn-secondary btn-sm" data-walk="back">Back</button>' : ""}
           <button type="button" class="btn btn-primary btn-sm" data-walk="next">${last ? "Finish" : "Next"}</button></div>`;
@@ -1142,6 +1150,7 @@ function startWalkthrough(steps, { kicker = "Quick tour" } = {}) {
       box.querySelector("[data-walk=next]").focus();
     };
     const end = completed => {
+      leave();
       blocker.remove(); mask.remove(); box.remove();
       document.body.classList.remove("walk-active");
       window.removeEventListener("resize", place);
