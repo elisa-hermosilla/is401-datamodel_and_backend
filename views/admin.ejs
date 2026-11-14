@@ -25,20 +25,20 @@
 
             <!-- OKRs -->
             <section class="settings-category" data-settings-panel="okrs" id="admin-okrs">
-              <div class="okr-toolbar">
-                <label for="okr-range">Chart range</label>
-                <select class="select" id="okr-range">
-                  <option value="30">Last 30 days</option>
-                  <option value="90" selected>Last 90 days</option>
-                  <option value="180">Last 180 days</option>
-                </select>
-              </div>
-
-              <div class="card">
+              <div class="okr-grid">
+              <div class="card okr-card">
                 <div class="card-header">
                   <div>
                     <h3>User retention</h3>
-                    <p class="sub">A user is active when they opened DueList in the past 30 days. Days per week counts the distinct days each active user came back, averaged across them.</p>
+                    <p class="sub">Active means they opened DueList in the past 30 days. Days per week is the distinct days each active user came back, averaged across them.</p>
+                  </div>
+                  <div class="okr-toolbar">
+                    <label class="visually-hidden" for="okr-range">Chart range</label>
+                    <select class="select" id="okr-range" aria-label="Chart range">
+                      <option value="30">Last 30 days</option>
+                      <option value="90" selected>Last 90 days</option>
+                      <option value="180">Last 180 days</option>
+                    </select>
                   </div>
                 </div>
                 <div class="stat-grid okr-tiles" id="retention-tiles" aria-live="polite"></div>
@@ -59,26 +59,36 @@
                 </details>
               </div>
 
-              <div class="card">
+              <div class="card okr-card">
                 <div class="card-header">
                   <div>
                     <h3>Quick start setup</h3>
-                    <p class="sub">How many accounts finish the quick start, and how long it takes them from creating the account to clicking Finish.</p>
+                    <p class="sub">How many accounts finish the quick start, and how long it takes from creating the account to clicking Finish.</p>
                   </div>
                 </div>
                 <div class="stat-grid okr-tiles" id="setup-tiles" aria-live="polite"></div>
                 <h4 class="okr-subhead">Time to finish</h4>
                 <div class="meter-list" id="setup-buckets"></div>
               </div>
+              </div>
             </section>
 
             <!-- Users -->
             <section class="settings-category" data-settings-panel="users" id="admin-users" hidden>
-              <div class="card">
+              <div class="card users-card">
                 <div class="card-header">
                   <div>
                     <h3>Users</h3>
                     <p class="sub" id="users-sub">Admins can open this page and grant or remove admin access.</p>
+                  </div>
+                </div>
+                <div class="user-tools">
+                  <label class="visually-hidden" for="user-search">Search users</label>
+                  <input class="input" type="search" id="user-search" placeholder="Search name, username, or email" autocomplete="off">
+                  <div class="chips" id="user-filter" role="group" aria-label="Show">
+                    <button type="button" class="chip active" data-filter="all" aria-pressed="true">All</button>
+                    <button type="button" class="chip" data-filter="admin" aria-pressed="false">Admins</button>
+                    <button type="button" class="chip" data-filter="non-admin" aria-pressed="false">Non-admins</button>
                   </div>
                 </div>
                 <div class="admin-user-list" id="user-list"></div>

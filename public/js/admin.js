@@ -10,6 +10,15 @@ function main() {
   loadUsers();
   loadOkrs();
   document.getElementById("okr-range").addEventListener("change", loadOkrs);
+  document.getElementById("user-search").addEventListener("input", renderUsers);
+  document.querySelectorAll("#user-filter .chip").forEach(chip => chip.addEventListener("click", () => {
+    document.querySelectorAll("#user-filter .chip").forEach(c => {
+      const on = c === chip;
+      c.classList.toggle("active", on);
+      c.setAttribute("aria-pressed", String(on));
+    });
+    renderUsers();
+  }));
   let resizeTimer;
   window.addEventListener("resize", () => { clearTimeout(resizeTimer); resizeTimer = setTimeout(redrawCharts, 120); });
 }
@@ -31,25 +40,43 @@ async function loadUsers() {
 
 function fullName(u) { return `${u.first_name || ""} ${u.last_name || ""}`.trim() || u.username; }
 
+/* The rows that match the search box and the All / Admins / Non-admins chips */
+function visibleUsers() {
+  const q = document.getElementById("user-search").value.trim().toLowerCase();
+  const filter = document.querySelector("#user-filter .chip.active")?.dataset.filter || "all";
+  return USERS.filter(u => {
+    if (filter === "admin" && !u.is_admin) return false;
+    if (filter === "non-admin" && u.is_admin) return false;
+    if (!q) return true;
+    return [fullName(u), u.username, u.email || ""].some(v => v.toLowerCase().includes(q));
+  });
+}
+
 function renderUsers() {
   const list = document.getElementById("user-list");
   const admins = USERS.filter(u => u.is_admin).length;
+  const shown = visibleUsers();
+  const count = shown.length === USERS.length ? plural(USERS.length, "account") : `${shown.length} of ${plural(USERS.length, "account")}`;
   document.getElementById("users-sub").textContent =
-    `${plural(USERS.length, "account")} · ${plural(admins, "admin")}. Admins can open this page and grant or remove admin access.`;
-  list.innerHTML = USERS.map(u => {
+    `${count} · ${plural(admins, "admin")}. Admins can open this page and grant or remove admin access.`;
+  if (!shown.length) {
+    list.innerHTML = '<p class="sub admin-empty">No users match.</p>';
+    return;
+  }
+  list.innerHTML = shown.map(u => {
     const me = u.user_id === USER.user_id;
     const joined = new Date(u.created_at);
     const facts = [
+      u.email || "",
       `Joined ${MONTHS[joined.getMonth()].slice(0, 3)} ${joined.getDate()}, ${joined.getFullYear()}`,
       `Last sign-in ${relTime(u.last_login_at)}`,
       u.onboarding_completed_at ? "Quick start done" : "Quick start not finished",
-    ];
+    ].filter(Boolean);
     const tag = u.is_admin ? `<span class="tag type admin-tag">${me ? "You · Admin" : "Admin"}</span>` : "";
     const button = me ? "" : `<button type="button" class="btn btn-secondary btn-sm" data-toggle-admin="${u.user_id}">${u.is_admin ? "Remove admin" : "Make admin"}</button>`;
-    return `<div class="setting-row admin-user-row">
+    return `<div class="admin-user-row">
       <div class="info">
         <div class="t">${esc(fullName(u))} <span class="admin-username">${esc(u.username)}</span></div>
-        <div class="d">${esc(u.email || "")}</div>
         <div class="d">${facts.map(esc).join(" · ")}</div>
       </div>
       <div class="control">${tag}${button}</div>
@@ -179,7 +206,7 @@ function renderSetup() {
 function drawLineChart(host, series, { value, max, ticks, fmt, detail }) {
   host.replaceChildren();
   if (!series.length) { host.innerHTML = '<p class="sub">No data yet.</p>'; return; }
-  const W = Math.max(260, host.clientWidth || 600), H = 190;
+  const W = Math.max(260, host.clientWidth || 600), H = 160;
   const M = { top: 14, right: 48, bottom: 26, left: 36 };
   const pw = W - M.left - M.right, ph = H - M.top - M.bottom;
   const n = series.length;
