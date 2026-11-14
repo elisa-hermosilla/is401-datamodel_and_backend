@@ -1136,7 +1136,8 @@ function startWalkthrough(steps, { kicker = "Quick tour" } = {}) {
       lock();
       if (target) {
         const r = target.getBoundingClientRect();
-        if (r.top < 0 || r.bottom > window.innerHeight) target.scrollIntoView({ block: "center" });
+        /* Centre small targets; a target taller than the screen is aligned to the top so its heading stays visible */
+        if (r.top < 0 || r.bottom > window.innerHeight) target.scrollIntoView({ block: r.height > window.innerHeight * 0.75 ? "start" : "center" });
       }
       box.innerHTML = `<button type="button" class="callout-close" aria-label="Close tour">×</button>
         <p class="walk-kicker">${esc(kicker)}</p>

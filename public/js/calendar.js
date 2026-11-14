@@ -161,6 +161,67 @@ function main() {
   renderAll();
   document.querySelector(".calendar-main").classList.remove("calendar-loading");
   $("cal-grid").setAttribute("aria-busy", "false");
+  window.PAGE_TOUR = () => startWalkthrough(calendarTourSteps(), { kicker: "Calendar tour" });
+
+  /* The Calendar tour (lightbulb -> "Calendar page"). One step selects the
+     busiest day of the month as a live demo and puts the old day back. */
+  function calendarTourSteps() {
+    const filters = '[data-mobile-disclosure="calendar-filters"]';
+    let before = selected;
+    const busiestDay = () => {
+      const counts = new Map();
+      for (const a of visibleAssignments()) {
+        if (isDone(a)) continue;
+        const d = dueDate(a);
+        if (d.getFullYear() !== viewMonth.getFullYear() || d.getMonth() !== viewMonth.getMonth()) continue;
+        const key = startOfDay(d).getTime();
+        counts.set(key, (counts.get(key) || 0) + 1);
+      }
+      let best = null;
+      for (const [key, n] of counts) if (!best || n > best.n) best = { key, n };
+      return best ? new Date(best.key) : selected;
+    };
+    return [
+      { target: ".page-header", title: "Your calendar", text: [
+        "This is where you see your deadlines laid out by month and plan your weeks around them.",
+        "Pick a day on the left and everything due that day shows on the right.",
+      ] },
+      { target: ".month-panel", title: "Month view", text: [
+        "Each day shows how many open assignments are due and a preview of the first few.",
+        "Today is marked with a filled dot, and the day you've selected is outlined.",
+      ] },
+      { target: ".cal-head .cal-nav", title: "Moving between months", text: [
+        "Use these arrows to look ahead or back a month.",
+        "The Today button at the top of the page brings you straight back to today.",
+      ] },
+      { target: () => $("cal-grid").querySelector('[aria-pressed="true"]'), fallback: "#cal-grid", title: "Pick a day",
+        enter: () => { before = selected; selectDay(busiestDay()); }, exit: () => selectDay(before),
+        text: [
+          "Click any day to see what's due on it.",
+          "Here the busiest day this month is selected, and its assignments are listed on the right.",
+        ] },
+      { target: ".day-panel", title: "Daily assignments", text: [
+        "Everything due on the selected day, with the time estimates added up at the top.",
+        "Check the box to mark one complete. The pencil edits it, and the link icon opens it on Canvas or Learning Suite.",
+      ] },
+      { target: ".day-nav .cal-nav", title: "One day at a time", text: [
+        "These arrows step to the previous or next day without touching the month view.",
+      ] },
+      { target: "#agenda-next", fallback: ".day-panel", title: "Next day with deadlines", text: [
+        "Nothing due on the selected day? This jumps straight to the next day that has something, so you never have to hunt for it.",
+      ] },
+      { target: ".calendar-search-box", title: "Search", reveal: filters, text: [
+        "Type part of an assignment's title or class.",
+        "The calendar jumps to the first day with a match, and the counts update to show only matching assignments.",
+      ] },
+      { target: ".calendar-toolbar", title: "Filters", reveal: filters, text: [
+        "Show one class at a time, or include completed assignments to look back at what you've finished.",
+      ] },
+      { target: "#add-assignment", title: "Add an assignment", text: [
+        "Adds an assignment due on the selected day, for any of your classes.",
+      ] },
+    ];
+  }
   if (typeof ResizeObserver !== "undefined") {
     let lastSize = "";
     new ResizeObserver(entries => {
