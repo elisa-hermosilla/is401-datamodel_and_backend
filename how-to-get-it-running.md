@@ -23,6 +23,7 @@ The app runs locally for development and is deployed to AWS Elastic Beanstalk fo
    |---|---|
    | `DATABASE_URL` | The Supabase **session pooler** connection string (Supabase dashboard → Connect → Session pooler, port 5432). Get the password from Jared; it is never committed to GitHub. If the password has special characters, URL-encode them (e.g. `@` → `%40`). |
    | `SESSION_SECRET` | Any long random string. Does not need to match anyone else's. |
+   | `APP_ENCRYPTION_KEY` | One shared base64 key for encrypting Canvas tokens and Learning Suite feed URLs. Generate it with `node -e "console.log(require('node:crypto').randomBytes(32).toString('base64'))"`. Keep it out of Git and share/store it securely; every app instance that uses the shared database must have the same key. |
 
    Leave `PORT=3000` as is.
 
@@ -33,6 +34,8 @@ The app runs locally for development and is deployed to AWS Elastic Beanstalk fo
 6. **Configure Web Push keys.** Generate a VAPID key pair with `npx web-push generate-vapid-keys`. Put the public and private keys in your local `.env` as `VAPID_PUBLIC_KEY` and `VAPID_PRIVATE_KEY`. Set `VAPID_SUBJECT` to a real `mailto:` contact. In Elastic Beanstalk, set the same three environment properties and `NODE_ENV=production`; keep the private key secret. The reminder scheduler runs in the Node app and uses a Postgres advisory lock so only one Elastic Beanstalk instance sends a given reminder.
 
    **iPhone/iPad:** Web Push is available when the user adds DueList to their Home Screen and opens it as a web app. The app manifest is served from `public/site.webmanifest`.
+
+7. **Apply application-level credential encryption once.** Set the same `APP_ENCRYPTION_KEY` in every local app configuration and in the Elastic Beanstalk environment properties before deploying this code. In the Supabase SQL editor, run `database/migrations/20261114_encrypt_credentials.sql`, then run `npm run encrypt:credentials` from a machine whose `.env` points at the shared database. That command encrypts existing Canvas tokens and iCalendar URLs in place and is safe to rerun. Keep a secure backup of the key: encrypted credentials cannot be recovered without it. Do not run this until every app instance that writes to the shared database is updated, or older versions may write new credentials as plaintext.
 
 ## Every time you want to run it
 

@@ -90,7 +90,7 @@ async function startOnboarding(onboardingStatus) {
     if (!item.selected) { item.selected = true; setupList(); }
     if (item.source === "Canvas") await createCanvasClass(item);
     configuring = item;
-    editDraft = { source: item.source, course_code: item.course.course_code, course_name: item.course.course_name || "", color_hex: item.course.color_hex, external_course_id: item.course.external_course_id || "", ics_feed_url: item.course.ics_feed_url || "" };
+    editDraft = { source: item.source, course_code: item.course.course_code, course_name: item.course.course_name || "", color_hex: item.course.color_hex, external_course_id: item.course.external_course_id || "", ics_feed_url: "" };
     await renderClassEditor();
   }
 
@@ -100,7 +100,7 @@ async function startOnboarding(onboardingStatus) {
     const canvasOptions = currentSource === "Canvas" && CANVAS.connected
       ? `<label for="onboarding-edit-canvas">Canvas class</label><select class="select" id="onboarding-edit-canvas"><option value="">Loading Canvas classes…</option></select><span class="hint">From your Canvas account. Picking one fills in the code and name below; assignments sync from it.</span>` : "";
     const sourceFields = currentSource === "Learning Suite"
-      ? `<label for="onboarding-edit-ics">iCalendar link</label><div class="onboarding-ics-row"><input class="input" id="onboarding-edit-ics" type="url" value="${esc(editDraft.ics_feed_url)}" placeholder="Paste the class iCal link"><button type="button" class="btn btn-secondary btn-sm" id="onboarding-edit-check-ics">Check Link</button></div><span class="hint" id="onboarding-edit-ics-note">In Learning Suite, open the course Schedule and copy its iCal link.</span>`
+      ? `<label for="onboarding-edit-ics">iCalendar link</label><div class="onboarding-ics-row"><input class="input" id="onboarding-edit-ics" type="url" value="${esc(editDraft.ics_feed_url)}" placeholder="${configuring.course.has_ics_feed_url && configuring.source === "Learning Suite" ? "Saved securely. Paste a new link to replace it." : "Paste the class iCal link"}"><button type="button" class="btn btn-secondary btn-sm" id="onboarding-edit-check-ics">Check Link</button></div><span class="hint" id="onboarding-edit-ics-note">In Learning Suite, open the course Schedule and copy its iCal link.</span>`
       : canvasOptions;
     const sourceButtons = LMS_SOURCES.map(s => `<button type="button" class="chip ${s.name === currentSource ? "active" : ""}" data-edit-source="${s.lms_source_id}"><span class="dot" style="background:${s.name === "Canvas" ? "#f87171" : s.name === "Learning Suite" ? "#60a5fa" : "#9ca3af"}"></span>${esc(s.name)}</button>`).join("");
     const swatches = CLASS_COLORS.map(c => `<button type="button" class="color-swatch ${editDraft.color_hex.toLowerCase() === c.hex.toLowerCase() ? "active" : ""}" data-edit-color="${c.hex}" style="background:${c.hex}" title="${c.name}" aria-label="${c.name}">${ICONS.check}</button>`).join("");
@@ -160,16 +160,21 @@ async function startOnboarding(onboardingStatus) {
     const sourceRecord = LMS_SOURCES.find(s => s.name === editDraft.source);
     if (!editDraft.course_code.trim()) return errBox("Course code is required.");
     if (editDraft.source === "Canvas" && CANVAS.connected && !editDraft.external_course_id) return errBox("Choose a Canvas class.");
-    if (editDraft.source === "Learning Suite" && !/^(https?|webcal):\/\/\S+$/i.test(editDraft.ics_feed_url.trim())) return errBox("Paste a full iCalendar link starting with https://.");
+    const keepingExistingFeed = editDraft.source === "Learning Suite" && configuring.source === "Learning Suite" && configuring.course.has_ics_feed_url && !editDraft.ics_feed_url.trim();
+    if (editDraft.source === "Learning Suite" && !keepingExistingFeed && !/^(https?|webcal):\/\/\S+$/i.test(editDraft.ics_feed_url.trim())) return errBox("Paste a full iCalendar link starting with https://.");
     const previousSource = configuring.source;
-    const updated = await API.courses.update(configuring.course.course_id, {
+    const updates = {
       lms_source_id: sourceRecord.lms_source_id,
       course_code: editDraft.course_code.trim(),
       course_name: editDraft.course_name.trim() || null,
       color_hex: editDraft.color_hex,
-      ics_feed_url: editDraft.source === "Learning Suite" ? editDraft.ics_feed_url.trim() : null,
-      external_course_id: editDraft.source === "Canvas" ? editDraft.external_course_id || null : null,
-    });
+    };
+    if (editDraft.source === "Canvas") updates.external_course_id = editDraft.external_course_id || null;
+    else if (previousSource !== "Learning Suite") updates.external_course_id = null;
+    if (editDraft.source !== "Learning Suite") updates.ics_feed_url = null;
+    else if (editDraft.ics_feed_url.trim()) updates.ics_feed_url = editDraft.ics_feed_url.trim();
+    else if (!keepingExistingFeed) updates.ics_feed_url = null;
+    const updated = await API.courses.update(configuring.course.course_id, updates);
     configuring.course = updated;
     configuring.source = editDraft.source;
     configuring.selected = true;
@@ -390,7 +395,7 @@ async function startOnboarding(onboardingStatus) {
       else if (act === "back-setup") setupList();
       else if (act === "edit-cancel") setupList();
       else if (act === "edit-next") await saveClassDraft();
-      else if (act === "category-back") { await saveCategoryDraft(false); editDraft = { source: configuring.source, course_code: configuring.course.course_code, course_name: configuring.course.course_name || "", color_hex: configuring.course.color_hex, external_course_id: configuring.course.external_course_id || "", ics_feed_url: configuring.course.ics_feed_url || "" }; await renderClassEditor(); }
+      else if (act === "category-back") { await saveCategoryDraft(false); editDraft = { source: configuring.source, course_code: configuring.course.course_code, course_name: configuring.course.course_name || "", color_hex: configuring.course.color_hex, external_course_id: configuring.course.external_course_id || "", ics_feed_url: "" }; await renderClassEditor(); }
       else if (act === "category-finish") await saveCategoryDraft();
       else if (act === "save-setup" || act === "configure-selected") {
         const next = setupCourses.find(item => item.selected && item.source !== "Manual" && !item.configured);

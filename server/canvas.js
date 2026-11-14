@@ -17,6 +17,7 @@
 
 import { query } from "./db.js";
 import { canSync, earliestNextSyncAt } from "./syncPolicy.js";
+import { credentialContext, decryptCredential } from "./credentialCrypto.js";
 
 const DEFAULT_BASE_URL = "https://byu.instructure.com";
 const PAGE_SIZE = 100;
@@ -84,7 +85,9 @@ export async function getConnection(userId) {
        join lms_source s on s.lms_source_id = ca.lms_source_id
       where ca.user_id = $1 and s.name = 'Canvas'`,
     [userId]);
-  return rows[0] || null;
+  const conn = rows[0] || null;
+  if (conn) conn.access_token = decryptCredential(conn.access_token, credentialContext("connected_account.access_token", conn.user_id));
+  return conn;
 }
 
 /* Verify a token by asking Canvas who it belongs to. */

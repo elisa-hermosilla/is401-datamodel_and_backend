@@ -14,6 +14,7 @@ import * as canvas from "../canvas.js";
 import * as ls from "../learningsuite.js";
 import { AiUnavailable } from "../categorize.js";
 import { nextSyncAt, syncTooSoonMessage } from "../syncPolicy.js";
+import { credentialContext, decryptCredential } from "../credentialCrypto.js";
 
 const router = Router();
 const TIME_RE = /^([01]\d|2[0-3]):[0-5]\d$/;
@@ -46,7 +47,9 @@ async function ownedCourse(courseId, userId) {
     `select c.*, s.name as source from course c join lms_source s on s.lms_source_id = c.lms_source_id
       where c.course_id = $1 and c.user_id = $2`,
     [courseId, userId]);
-  return rows[0] || null;
+  const course = rows[0] || null;
+  if (course?.ics_feed_url) course.ics_feed_url = decryptCredential(course.ics_feed_url, credentialContext("course.ics_feed_url", course.user_id));
+  return course;
 }
 
 async function listCategories(courseId) {

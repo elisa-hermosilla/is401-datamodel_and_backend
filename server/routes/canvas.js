@@ -2,6 +2,7 @@ import { Router } from "express";
 import { query } from "../db.js";
 import { requireLogin } from "../middleware/auth.js";
 import { CanvasError, canvasBaseUrl, getConnection, listCourses, syncUser, verifyToken } from "../canvas.js";
+import { credentialContext, encryptCredential } from "../credentialCrypto.js";
 
 const router = Router();
 
@@ -91,7 +92,7 @@ router.post("/canvas/connect", requireLogin, async (req, res, next) => {
          external_user_id = excluded.external_user_id, access_token = excluded.access_token,
          status = 'active', connected_at = now()
        returning connected_account_id`,
-      [src.lms_source_id, req.session.userId, me.id, token]);
+      [src.lms_source_id, req.session.userId, me.id, encryptCredential(token, credentialContext("connected_account.access_token", req.session.userId))]);
     /* Point any already-linked Canvas classes at this connection */
     await query(
       `update course set connected_account_id = $1

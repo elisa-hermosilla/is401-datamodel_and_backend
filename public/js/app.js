@@ -936,7 +936,7 @@ function bindSidebar() {
     if (!SYNC.can_sync) { toast("Connect Canvas in Settings or add a Learning Suite class with an iCal link"); return; }
     const linked = CLASSES.filter(c => !c.is_archived && (
       (c.source === "Canvas" && c.external_course_id && SYNC.canvas_connected) ||
-      (c.source === "Learning Suite" && c.ics_feed_url)));
+      (c.source === "Learning Suite" && c.has_ics_feed_url)));
     if (!linked.length) { toast("No Canvas or Learning Suite classes linked yet"); return; }
     /* Classes synced within the cooldown are left out of this run */
     const targets = linked.filter(classCanSync);

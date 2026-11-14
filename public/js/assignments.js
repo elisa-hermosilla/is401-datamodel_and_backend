@@ -256,7 +256,12 @@ function main() {
     document.getElementById("c-id").value = cls ? cls.course_id : "";
     document.getElementById("c-code").value = cls ? cls.course_code : "";
     document.getElementById("c-name").value = cls ? (cls.course_name || "") : "";
-    document.getElementById("c-ics").value = cls ? (cls.ics_feed_url || "") : "";
+    document.getElementById("c-ics").value = "";
+    document.getElementById("c-ics").placeholder = cls?.has_ics_feed_url
+      ? "Saved securely. Paste a new link to replace it."
+      : "Paste the class iCal link";
+    document.getElementById("c-ics-clear").checked = false;
+    document.getElementById("c-ics-clear-wrap").hidden = !cls?.has_ics_feed_url;
     document.getElementById("c-ics-note").textContent = ICS_DEFAULT_NOTE;
 
     const manual = LMS_SOURCES.find(s => s.name === "Manual");
@@ -279,14 +284,20 @@ function main() {
 
     const id = document.getElementById("c-id").value;
     const source = currentSourceName();
+    const originalSource = LMS_SOURCES.find(s => s.lms_source_id === cls?.lms_source_id)?.name;
+    const icsValue = document.getElementById("c-ics").value.trim();
     const fields = {
       course_code: document.getElementById("c-code").value.trim(),
       course_name: document.getElementById("c-name").value.trim() || null,
       lms_source_id: Number(document.getElementById("c-source").value),
       color_hex: document.getElementById("c-color").value,
-      ics_feed_url: source === "Learning Suite" ? (document.getElementById("c-ics").value.trim() || null) : null,
-      external_course_id: source === "Canvas" ? (document.getElementById("c-external-id").value || null) : null,
     };
+    const clearSavedFeed = document.getElementById("c-ics-clear").checked && !icsValue;
+    if (source === "Canvas") fields.external_course_id = document.getElementById("c-external-id").value || null;
+    else if (clearSavedFeed || !id || source !== originalSource) fields.external_course_id = null;
+    if (source !== "Learning Suite" || clearSavedFeed) fields.ics_feed_url = null;
+    else if (icsValue) fields.ics_feed_url = icsValue;
+    else if (!id || !cls?.has_ics_feed_url) fields.ics_feed_url = null;
 
     /* Inline validation (the server checks the same rules) */
     let ok = true;

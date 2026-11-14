@@ -15,6 +15,7 @@ import { decodeFeed, parseIcs, sameDayAt } from "./ics.js";
 import { guessType } from "./canvas.js";
 import { organizeWithClaude, haystack } from "./categorize.js";
 import { canSync, earliestNextSyncAt } from "./syncPolicy.js";
+import { credentialContext, decryptCredential } from "./credentialCrypto.js";
 
 /* A feed has no category data. Items are routed in two steps: first by the
    keywords stored on the course's categories (filled in by "Categorize using
@@ -340,13 +341,16 @@ export async function syncCourse(course, typeIds, { setup = false } = {}) {
 /* Every linked Learning Suite course the user has (or just one of them). */
 export async function linkedCourses(userId, courseId = null) {
   const { rows } = await query(
-    `select c.course_id, c.course_code, c.ics_feed_url, c.last_synced_at, c.cooldown_synced_at
+    `select c.course_id, c.user_id, c.course_code, c.ics_feed_url, c.last_synced_at, c.cooldown_synced_at
        from course c join lms_source s on s.lms_source_id = c.lms_source_id
       where c.user_id = $1 and s.name = 'Learning Suite' and c.ics_feed_url is not null and not c.is_archived
         and ($2::int is null or c.course_id = $2)
       order by c.course_code`,
     [userId, courseId]);
-  return rows;
+  return rows.map(course => ({
+    ...course,
+    ics_feed_url: decryptCredential(course.ics_feed_url, credentialContext("course.ics_feed_url", course.user_id)),
+  }));
 }
 
 export async function assignmentTypeIds() {
@@ -385,7 +389,8 @@ export async function status(userId) {
     const { rows: [last] } = await query(
       "select status, finished_at, assignments_synced, error_message from sync_log where course_id = $1 order by started_at desc limit 1",
       [c.course_id]);
-    out.push({ ...c, last_sync: last || null });
+    const { ics_feed_url, ...safeCourse } = c;
+    out.push({ ...safeCourse, has_ics_feed_url: !!ics_feed_url, last_sync: last || null });
   }
   return {
     courses: out,

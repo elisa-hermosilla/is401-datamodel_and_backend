@@ -2,6 +2,7 @@ import { Router } from "express";
 import { query } from "../db.js";
 import { requireLogin } from "../middleware/auth.js";
 import { courseIdFromFeedUrl } from "../learningsuite.js";
+import { credentialContext, encryptCredential } from "../credentialCrypto.js";
 
 const router = Router();
 
@@ -10,6 +11,12 @@ const ICS_URL_RE = /^(https?|webcal):\/\/\S+$/i;
 
 class ValidationError extends Error {
   constructor(message) { super(message); this.status = 400; }
+}
+
+/* Never send a stored feed credential back to the browser. */
+function courseResponse(course) {
+  const { ics_feed_url, ...safe } = course;
+  return { ...safe, has_ics_feed_url: !!ics_feed_url };
 }
 
 /* Validate the writable course fields. With partial=true, missing fields are
@@ -99,7 +106,7 @@ router.get("/courses", requireLogin, async (req, res, next) => {
         order by is_archived asc, course_code asc, course_id asc`,
       [req.session.userId]
     );
-    res.json(rows);
+    res.json(rows.map(courseResponse));
   } catch (err) { next(err); }
 });
 
@@ -116,9 +123,9 @@ router.post("/courses", requireLogin, async (req, res, next) => {
                end)
        returning *`,
       [req.session.userId, f.lms_source_id, f.course_code, f.course_name ?? null, f.color_hex,
-       f.ics_feed_url ?? null, f.external_course_id ?? null]
+       f.ics_feed_url ? encryptCredential(f.ics_feed_url, credentialContext("course.ics_feed_url", req.session.userId)) : null, f.external_course_id ?? null]
     );
-    res.status(201).json(rows[0]);
+    res.status(201).json(courseResponse(rows[0]));
   } catch (err) { next(err); }
 });
 
@@ -129,11 +136,17 @@ router.put("/courses/:id", requireLogin, async (req, res, next) => {
     if (!id) return res.status(404).json({ error: "Course not found" });
 
     const f = await validateCourse(req.body, { partial: true });
-    const keys = Object.keys(f);
+    const stored = { ...f };
+    if (Object.prototype.hasOwnProperty.call(stored, "ics_feed_url")) {
+      stored.ics_feed_url = stored.ics_feed_url
+        ? encryptCredential(stored.ics_feed_url, credentialContext("course.ics_feed_url", req.session.userId))
+        : null;
+    }
+    const keys = Object.keys(stored);
     if (keys.length === 0) throw new ValidationError("Nothing to update");
 
     const setList = keys.map((k, i) => `${k} = $${i + 1}`);
-    const params = [...keys.map(k => f[k])];
+    const params = [...keys.map(k => stored[k])];
     /* Re-point the Canvas connection whenever the source or external id changes */
     if ("external_course_id" in f || "lms_source_id" in f) {
       setList.push(`connected_account_id = case
@@ -152,7 +165,7 @@ router.put("/courses/:id", requireLogin, async (req, res, next) => {
       params
     );
     if (rows.length === 0) return res.status(404).json({ error: "Course not found" });
-    res.json(rows[0]);
+    res.json(courseResponse(rows[0]));
   } catch (err) { next(err); }
 });
 
