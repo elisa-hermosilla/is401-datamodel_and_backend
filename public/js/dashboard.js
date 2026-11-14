@@ -447,5 +447,24 @@ function main(onboardingStatus) {
   const mainEl = document.querySelector("main.main");
   mainEl.classList.remove("is-loading");
   mainEl.classList.add("reveal");
+  window.PAGE_TOUR = () => startWalkthrough(dashboardTourSteps(), { kicker: "Dashboard tour" });
   if (typeof startOnboarding === "function") startOnboarding(onboardingStatus);
+}
+
+/* The Dashboard tour (lightbulb -> "Dashboard page"). Targets are looked up
+   when each step shows; `reveal` opens the phone disclosures that hide the
+   filters and the right-hand rail. */
+function dashboardTourSteps() {
+  return [
+    { target: ".page-header", title: "Your dashboard", text: "Everything due, in one place: counts at the top, your assignments in the middle, and what's coming up on the right." },
+    { target: "#stat-grid", title: "Due in the next few days", text: "Past due, due today, due tomorrow and the next 7 days. Each count is open assignments only." },
+    { target: ".queue-panel", title: "Your assignments", text: "Every open assignment, soonest first. Tick the circle to mark one complete; turn on Include completed to see finished work." },
+    { target: "#next-grid", title: "Next deadline", text: "The single assignment due soonest, with a one-click Complete and a Details button.", reveal: "#toggle-dashboard-overview" },
+    { target: ".week-card", title: "Next 7 days", text: "How many assignments land on each of the next seven days, plus the week's progress bar.", reveal: "#toggle-dashboard-overview" },
+    { target: "#streak-row", title: "Streaks", text: "Check-in streak: days in a row you've opened DueList. Missing a Saturday or Sunday doesn't break it; missing a weekday does. No late turn-ins: days since you last completed something after its due date. If you've never been late, it counts from the day you joined.", reveal: "#toggle-dashboard-overview" },
+    { target: "#assignment-search", title: "Search", text: "Type part of a name, class, submission type or assignment type. Press / anywhere on the page to jump here.", reveal: "#toggle-dashboard-filters" },
+    { target: "#sort", title: "Sort", text: "Order the list by due date, class or type, or drag rows into your own custom order.", reveal: "#toggle-dashboard-filters" },
+    { target: ".queue-controls", title: "Filters", text: "Narrow the list by class or type here. The Due in… cards at the top and the days in Next 7 days are filters too: click one to show only those assignments, click again to clear.", reveal: "#toggle-dashboard-filters" },
+    { target: () => document.querySelector("#assignment-list .compact-assignment"), fallback: "#assignment-list", title: "Working with an assignment", text: "Click the name to see the details. Hover a row for the pencil (edit) and the link icon (open it on Canvas or Learning Suite). The circle on the left marks it complete." },
+  ];
 }
