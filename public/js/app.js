@@ -982,7 +982,113 @@ function bindSidebar() {
     window.location.href = "/login";
   });
 
+  document.getElementById("help-btn")?.addEventListener("click", () => {
+    if (document.querySelector(".walk-callout") || document.querySelector("#onboarding-modal.open")) return;
+    startWalkthrough(sidebarTourSteps());
+  });
+
   maybeShowSyncReminder();
+}
+
+/* ---------- Sidebar walkthrough ----------
+   The quick start runs it after setup; the lightbulb under the user chip
+   replays it. Steps are built from what the sidebar actually shows, so the
+   Admin link only gets a step for admins. */
+function sidebarTourSteps() {
+  const nav = {
+    Dashboard: "Your home view highlights what is due soon, what is overdue, and your upcoming workload.",
+    Calendar: "See assignments by date and scan the week ahead to plan your study time.",
+    Assignments: "Manage your classes and assignment details, including adding or editing classes.",
+    Settings: "Manage connected accounts, notification preferences, and your account.",
+    Admin: "Manage who has admin access and check how DueList is doing against its goals.",
+  };
+  const steps = [...document.querySelectorAll("#sidebar .nav a")]
+    .map(a => ({ target: a, title: a.getAttribute("aria-label"), text: nav[a.getAttribute("aria-label")] }))
+    .filter(st => st.text);
+  steps.push(
+    { target: "#sync-btn", title: "Sync now", text: "Pulls the latest assignments from Canvas and Learning Suite. Each class can sync once every few hours; hover the button to see when it is ready again." },
+    { target: "#logout-btn", title: "Sign out", text: "Signs you out of DueList on this browser." },
+    { target: "#help-btn", title: "Need a reminder?", text: "Look for this lightbulb around DueList. Hover it for a quick hint, or click it to replay a walkthrough like this one any time." },
+  );
+  return steps.filter(st => typeof st.target !== "string" || document.querySelector(st.target));
+}
+
+/* Shows `steps` ({ target, title, text }) one at a time in a callout beside
+   the target, with the sidebar dimmed and the target spotlighted. Resolves
+   { completed } when the student finishes, closes it, or presses Escape. */
+function startWalkthrough(steps, { kicker = "Quick tour" } = {}) {
+  return new Promise(resolve => {
+    if (!steps.length) return resolve({ completed: true });
+    document.querySelectorAll(".sync-callout, .walk-callout").forEach(el => el.remove());
+    const phone = window.matchMedia("(max-width: 760px)");
+    const sidebar = document.getElementById("sidebar");
+    const openedDrawer = phone.matches && !sidebar.classList.contains("is-open");
+    if (openedDrawer) document.getElementById("menu-open")?.click();
+
+    const box = document.createElement("div");
+    box.className = "walk-callout";
+    box.setAttribute("role", "dialog");
+    box.setAttribute("aria-live", "polite");
+    document.body.appendChild(box);
+    document.body.classList.add("onboarding-tour-active");
+
+    let index = 0, target = null;
+    const el = () => { const t = steps[index].target; return typeof t === "string" ? document.querySelector(t) : t; };
+    const place = () => {
+      if (!target) return;
+      const r = target.getBoundingClientRect(), h = box.offsetHeight;
+      if (phone.matches) {
+        /* Below the target when it fits, otherwise above it (arrow flips) */
+        const above = r.bottom + 14 + h > window.innerHeight - 12;
+        box.classList.toggle("above", above);
+        box.style.top = `${Math.max(12, above ? r.top - h - 14 : r.bottom + 14)}px`;
+        box.style.left = "16px";
+        box.style.setProperty("--arrow-x", `${Math.max(18, Math.min(window.innerWidth - 32 - 36, r.left + r.width / 2 - 16 - 9))}px`);
+      } else {
+        box.classList.remove("above");
+        const top = Math.max(12, Math.min(window.innerHeight - h - 12, r.top + r.height / 2 - h / 2));
+        box.style.top = `${top}px`;
+        box.style.left = `${r.right + 18}px`;
+        box.style.setProperty("--arrow-y", `${Math.max(18, Math.min(h - 18, r.top + r.height / 2 - top))}px`);
+      }
+    };
+    const render = () => {
+      if (target) target.classList.remove("onboarding-spotlight");
+      target = el();
+      const st = steps[index], last = index === steps.length - 1;
+      box.innerHTML = `<button type="button" class="callout-close" aria-label="Close walkthrough">×</button>
+        <p class="walk-kicker">${esc(kicker)}</p>
+        <h3>${esc(st.title)}</h3>
+        <p>${esc(st.text)}</p>
+        <div class="walk-foot"><span class="step-tag">Step ${index + 1} of ${steps.length}</span>
+          ${index ? '<button type="button" class="btn btn-secondary btn-sm" data-walk="back">Back</button>' : ""}
+          <button type="button" class="btn btn-primary btn-sm" data-walk="next">${last ? "Finish" : "Next"}</button></div>`;
+      if (target) target.classList.add("onboarding-spotlight");
+      place();
+      box.querySelector("[data-walk=next]").focus();
+    };
+    const end = completed => {
+      if (target) target.classList.remove("onboarding-spotlight");
+      box.remove();
+      document.body.classList.remove("onboarding-tour-active");
+      window.removeEventListener("resize", place);
+      document.removeEventListener("keydown", onKey);
+      if (openedDrawer) document.getElementById("menu-close")?.click();
+      resolve({ completed });
+    };
+    const onKey = e => { if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); end(false); } };
+    box.addEventListener("click", e => {
+      const b = e.target.closest("[data-walk], .callout-close");
+      if (!b) return;
+      if (b.classList.contains("callout-close")) return end(false);
+      if (b.dataset.walk === "back") { index--; render(); }
+      else if (index === steps.length - 1) end(true);
+      else { index++; render(); }
+    });
+    window.addEventListener("resize", place);
+    document.addEventListener("keydown", onKey, true);
+    render();
+  });
 }
 
 /* ---------- Sync reminder ----------

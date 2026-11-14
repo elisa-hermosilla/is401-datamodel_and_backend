@@ -528,16 +528,11 @@ textarea.input { resize: vertical; line-height: 1.5; }
 .onboarding-tour-active #sidebar { z-index:51; }
 .onboarding-tour-active #sidebar::after { content:""; position:absolute; inset:0; z-index:1; background:rgba(15,23,42,.42); pointer-events:none; }
 .onboarding-tour-active #sidebar .nav a.onboarding-spotlight { z-index:2; }
-#onboarding-modal.tour-mode { align-items:stretch; justify-content:flex-start; }
-#onboarding-modal .tour-callout { position:fixed; left:260px; top:var(--tour-top, 120px); width:min(420px, calc(100vw - 280px)); max-width:none; margin:0; overflow:visible; }
-#onboarding-modal .tour-callout::before { content:""; position:absolute; left:-10px; top:var(--tour-arrow-y, 50%); width:18px; height:18px; background:var(--surface); border-left:1px solid var(--border); border-bottom:1px solid var(--border); transform:translateY(-50%) rotate(45deg); }
 .onboarding-modal .color-swatches { margin:0 0 4px; }
 @media (max-width:520px) { .onboarding-footer { align-items:flex-start; flex-direction:column-reverse; } .onboarding-actions { width:100%; } .onboarding-actions .btn { flex:1; } }
 @media (max-width:640px) { .onboarding-class-row { flex-wrap:wrap; } .onboarding-class-pick { flex-basis:calc(100% - 20px); } .onboarding-class-row > .tag { margin-left:27px; } .onboarding-class-row > button { margin-left:auto; } .onboarding-class-edit { grid-template-columns:1fr 1fr; } .onboarding-class-edit label:nth-child(2) { grid-column:1 / -1; } }
 @media (max-width:760px) {
   .overview-app .nav a.onboarding-spotlight span { display:inline !important; }
-  #onboarding-modal .tour-callout { left:16px; top:var(--tour-top, 120px); width:calc(100vw - 32px); }
-  #onboarding-modal .tour-callout::before { left:32px; top:-8px; transform:rotate(135deg); }
 }
 /* View-only assignment modal */
 .view-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 14px; }
@@ -582,14 +577,47 @@ textarea.input { resize: vertical; line-height: 1.5; }
 .btn[disabled] { opacity: .6; cursor: default; }
 /* A sync button inside its cooldown: greyed out, still hoverable for the tooltip */
 .btn.cooldown { opacity: .55; cursor: not-allowed; }
-.btn[data-tip] { position: relative; }
-.btn[data-tip]::after {
+.btn[data-tip], .help-tip[data-tip] { position: relative; }
+.btn[data-tip]::after, .help-tip[data-tip]::after {
   content: attr(data-tip); position: absolute; left: 50%; bottom: calc(100% + 8px); transform: translateX(-50%);
   width: max-content; max-width: 230px; white-space: normal; text-align: center;
   background: var(--navy); color: #fff; font-size: 12px; font-weight: 500; line-height: 1.35; padding: 6px 9px; border-radius: 7px;
   box-shadow: 0 4px 14px rgba(15,23,42,.2); opacity: 0; visibility: hidden; transition: opacity .15s, visibility .15s; pointer-events: none; z-index: 70;
 }
-.btn[data-tip]:hover::after, .btn[data-tip]:focus-visible::after { opacity: 1; visibility: visible; transition-delay: .3s; }
+.btn[data-tip]:hover::after, .btn[data-tip]:focus-visible::after,
+.help-tip[data-tip]:hover::after, .help-tip[data-tip]:focus-visible::after { opacity: 1; visibility: visible; transition-delay: .3s; }
+
+/* ---------- Help lightbulbs ----------
+   A quiet amber bulb: hover for the data-tip hint, click to start a
+   walkthrough. .help-tip is generic so other pages can place one too. */
+.help-tip {
+  width: 28px; height: 28px; border-radius: 50%; border: 0; background: transparent; color: #d97706; opacity: .7;
+  display: inline-grid; place-items: center; cursor: pointer; transition: opacity .12s, background .12s;
+}
+.help-tip svg { width: 18px; height: 18px; }
+.help-tip:hover, .help-tip:focus-visible { opacity: 1; background: #fef3c7; }
+.help-tip:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+.sidebar-help { display: flex; justify-content: flex-end; padding-top: 6px; }
+.sidebar-help .help-tip[data-tip]::after { left: auto; right: 0; transform: none; text-align: left; max-width: 190px; }
+
+/* Walkthrough callout: one box that moves from target to target (the
+   quick start's tour and the sidebar lightbulb both use it). */
+.walk-callout { position: fixed; z-index: 60; width: min(380px, calc(100vw - 300px)); background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 14px 38px 12px 16px; box-shadow: 0 8px 28px rgba(15,23,42,.18); color: var(--text); font-size: 13.5px; line-height: 1.45; }
+.walk-callout::before { content: ""; position: absolute; left: -10px; top: var(--arrow-y, 50%); width: 18px; height: 18px; background: var(--surface); border-left: 1px solid var(--border); border-bottom: 1px solid var(--border); transform: translateY(-50%) rotate(45deg); }
+.walk-callout .walk-kicker { color: var(--navy); font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; margin: 0 0 4px; }
+.walk-callout h3 { font-size: 16px; margin: 0 0 4px; color: var(--navy); }
+.walk-callout p { margin: 0; color: var(--muted); }
+.walk-callout .walk-foot { display: flex; align-items: center; gap: 8px; margin-top: 12px; }
+.walk-callout .walk-foot .step-tag { margin: 0 auto 0 0; }
+.walk-callout .callout-close { position: absolute; top: 8px; right: 8px; width: 26px; height: 26px; border: 0; background: transparent; color: var(--muted); font-size: 18px; line-height: 1; cursor: pointer; border-radius: 6px; }
+.walk-callout .callout-close:hover { background: var(--navy-100); color: var(--navy); }
+.onboarding-tour-active #sidebar .onboarding-spotlight { z-index: 2; }
+.onboarding-tour-active #sidebar .user-chip { position: relative; }
+@media (max-width: 760px) {
+  .walk-callout { left: 16px !important; width: calc(100vw - 32px); }
+  .walk-callout::before { left: var(--arrow-x, 32px); top: -8px; transform: rotate(135deg); }
+  .walk-callout.above::before { top: auto; bottom: -8px; transform: rotate(-45deg); }
+}
 
 /* ---------- Dashboard: next up + progress (structure borrowed from Danny's mockup) ---------- */
 .next-grid { display: grid; grid-template-columns: 2fr 1fr; gap: 16px; margin-bottom: 16px; }

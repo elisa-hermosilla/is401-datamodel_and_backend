@@ -25,9 +25,6 @@ async function startOnboarding(onboardingStatus) {
 
   const button = (label, action, cls = "btn-primary") => `<button type="button" class="btn ${cls}" data-onboarding="${action}">${label}</button>`;
   const show = (title, body, buttons, { skipAllowed = true, wide = false, classEditor = false } = {}) => {
-    modal.classList.remove("tour-mode");
-    document.body.classList.remove("onboarding-tour-active");
-    modalBox.classList.remove("tour-callout");
     modalBox.classList.toggle("onboarding-wide", wide);
     modalBox.classList.toggle("onboarding-class-editor", classEditor);
     content.innerHTML = `${classEditor ? "" : `<p class="onboarding-kicker">DueList quick start</p>`}<h3 id="onboarding-title">${title}</h3><div class="onboarding-body">${body}</div>`;
@@ -42,10 +39,8 @@ async function startOnboarding(onboardingStatus) {
   const finish = async () => {
     try { await API.onboarding.complete(); }
     catch (err) { errBox(`Couldn't save tutorial completion: ${err.message}`); return; }
-    modal.classList.remove("open", "tour-mode"); modal.setAttribute("aria-hidden", "true");
-    modalBox.classList.remove("tour-callout", "onboarding-wide", "onboarding-class-editor");
-    document.body.classList.remove("onboarding-tour-active");
-    document.querySelectorAll(".onboarding-spotlight").forEach(el => el.classList.remove("onboarding-spotlight"));
+    modal.classList.remove("open"); modal.setAttribute("aria-hidden", "true");
+    modalBox.classList.remove("onboarding-wide", "onboarding-class-editor");
     releaseDeferredToasts();
     if (didSync) window.location.reload();
   };
@@ -349,15 +344,14 @@ async function startOnboarding(onboardingStatus) {
     }
   }
 
-  const tour = async index => {
-    const pages = [["Dashboard", "Your home view highlights what is due soon, what is overdue, and your upcoming workload."],["Calendar", "See assignments by date and scan the week ahead to plan your study time."],["Assignments", "Manage your classes and assignment details, including adding or editing classes."],["Settings", "Manage connected accounts, notification preferences, and your account."]];
-    document.querySelectorAll(".onboarding-spotlight").forEach(el => el.classList.remove("onboarding-spotlight"));
-    if (index >= pages.length) { show("You're all set!", `<p>Your classes and assignments are ready. Revisit your sources or preferences in Settings at any time.</p>`, button("Finish", "finish")); return; }
-    const [label, description] = pages[index];
-    const nav = document.querySelector(`#sidebar .nav a[aria-label="${label}"]`);
-    show(`Quick tour: ${label}`, `<p>${description}</p>`, `${index ? button("Back", `tour-back-${index}`, "btn-secondary") : ""}${button(index === pages.length - 1 ? "Finish" : "Next", `tour-next-${index}`)}`);
-    modal.classList.add("tour-mode"); document.body.classList.add("onboarding-tour-active"); modalBox.classList.add("tour-callout");
-    if (nav) { nav.classList.add("onboarding-spotlight"); const target = nav.getBoundingClientRect(), box = modalBox.getBoundingClientRect(); const top = Math.max(12, Math.min(window.innerHeight - box.height - 12, target.top + target.height / 2 - box.height / 2)); modalBox.style.setProperty("--tour-top", `${top}px`); modalBox.style.setProperty("--tour-arrow-y", `${Math.max(18, Math.min(box.height - 18, target.top + target.height / 2 - top))}px`); }
+  /* The sidebar walkthrough (shared with the lightbulb under the user chip,
+     see app.js). The modal steps aside while it runs, then comes back for
+     the final screen; closing the walkthrough early lands there too. */
+  const tour = async () => {
+    phase = "tour";
+    modal.classList.remove("open"); modal.setAttribute("aria-hidden", "true");
+    await startWalkthrough(sidebarTourSteps(), { kicker: "DueList quick start" });
+    show("You're all set!", `<p>Your classes and assignments are ready. Revisit your sources or preferences in Settings at any time, and click the lightbulb under your name whenever you want this walkthrough again.</p>`, button("Finish", "finish"));
   };
 
   skip.addEventListener("click", () => {
@@ -397,8 +391,8 @@ async function startOnboarding(onboardingStatus) {
         if (next) await configureClass(next); else await saveAndSync();
       }
       else if (act === "sources-done") { if (!setupCourses.length && !CLASSES.length) setupList(); else if (!setupCourses.length) await startClasses(); else setupList(); }
-      else if (act === "after-sync") await tour(0);
-      else if (act === "past-due-no") await tour(0);
+      else if (act === "after-sync") await tour();
+      else if (act === "past-due-no") await tour();
       else if (act === "past-due-yes") await markPastDueComplete();
       else if (act === "finish") finish();
       else if (act === "skip-no") {
@@ -415,8 +409,6 @@ async function startOnboarding(onboardingStatus) {
         }
       }
       else if (act === "skip-yes") finish();
-      else if (act.startsWith("tour-next-")) await tour(Number(act.split("-").pop()) + 1);
-      else if (act.startsWith("tour-back-")) await tour(Math.max(0, Number(act.split("-").pop()) - 1));
     } catch (err) { errBox(err.message); }
   });
 
