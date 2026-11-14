@@ -1617,7 +1617,7 @@ mark.hl { background: #fef08a; color: inherit; border-radius: 3px; padding: 0 1p
 .admin-page .card-header { margin-bottom: 10px; }
 .admin-page .card-header .sub { font-size: 12px; line-height: 1.4; }
 /* OKRs: two cards stacked, sharing the height left under the page header */
-#admin-okrs { display: flex; flex-direction: column; gap: 12px; min-height: calc(100vh - 150px); }
+#admin-okrs:not([hidden]) { display: flex; flex-direction: column; gap: 12px; min-height: calc(100vh - 150px); }
 .okr-card { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; }
 .okr-card .card-header { flex: none; flex-wrap: nowrap; align-items: center; padding-bottom: 8px; margin-bottom: 8px; }
 .okr-card .card-header h3 { font-size: 17px; }
