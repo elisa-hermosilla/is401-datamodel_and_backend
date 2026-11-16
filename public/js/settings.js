@@ -3,10 +3,60 @@
 initApp("settings").then(main);
 
 function main() {
-  bindCategoryNav(document.getElementById("settings-shell"), {
+  const shell = document.getElementById("settings-shell");
+  const selectCategory = bindCategoryNav(shell, {
     defaultKey: "account",
     onSelect: key => { document.getElementById("settings-save-actions").hidden = !["notifications", "delivery"].includes(key); },
   });
+
+  /* The Settings tour (lightbulb -> "Settings page"). Steps switch to the
+     category they describe; the one you were on comes back at the end. */
+  window.PAGE_TOUR = async () => {
+    const was = shell.querySelector("[data-settings-category].active")?.dataset.settingsCategory || "account";
+    const hadDetail = shell.classList.contains("show-detail");
+    await startWalkthrough(settingsTourSteps(), { kicker: "Settings tour" });
+    selectCategory(was);
+    if (!hadDetail) shell.classList.remove("show-detail");
+  };
+  function settingsTourSteps() {
+    const go = key => () => selectCategory(key);
+    return [
+      { target: ".page-header", title: "Settings", text: [
+        "This is where you manage your account, decide how DueList reminds you, and connect the services it pulls assignments from.",
+      ] },
+      { target: ".settings-nav", title: "Categories", enter: () => shell.classList.remove("show-detail"), text: [
+        "Pick a category here and its settings open beside it.",
+      ] },
+      { target: "#settings-account .card", title: "Account", enter: go("account"), text: [
+        "Your name, username and email as DueList knows them.",
+      ] },
+      { target: "#settings-password .card", title: "Password", enter: go("password"), text: [
+        "Change your password here. You stay signed in afterwards.",
+      ] },
+      { target: "#settings-notifications .card:first-child", title: "Summary notifications", enter: go("notifications"), text: [
+        "A daily digest of what's due, sent as a browser notification on the days and time you choose.",
+        "Pick whether it covers today, today and tomorrow, or the whole week.",
+      ] },
+      { target: "#settings-notifications .card:nth-child(2)", title: "Assignment reminders", enter: go("notifications"), text: [
+        "A reminder before each assignment is due, at whichever lead times you choose.",
+        "Quiet hours pause notifications overnight. The countdown skips that time, so a reminder still arrives before quiet hours begin.",
+      ] },
+      { target: "#settings-save-actions", title: "Save your changes", enter: go("notifications"), text: [
+        "Reminder settings only take effect once you press Save notification settings.",
+      ] },
+      { target: "#settings-delivery .card", title: "Notifications", enter: go("delivery"), text: [
+        "Turn on browser push notifications on each device you want reminders on.",
+        "Send a test to make sure they're coming through.",
+      ] },
+      { target: "#connected-accounts", title: "Connected accounts", enter: go("connected-accounts"), text: [
+        "Canvas and Learning Suite, the sources DueList imports from.",
+        "Connect or disconnect them here, see when each last synced, and sync one on its own.",
+      ] },
+      { target: "#settings-classes .card", title: "Classes", enter: go("classes"), text: [
+        "A quick list of your classes. Manage opens one on the Assignments page, where you can edit or delete it.",
+      ] },
+    ];
+  }
   document.getElementById("account-name").textContent = `${USER.first_name} ${USER.last_name}`;
   document.getElementById("account-username").textContent = USER.username;
   document.getElementById("account-email").textContent = USER.email;

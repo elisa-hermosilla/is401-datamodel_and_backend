@@ -447,5 +447,72 @@ function main(onboardingStatus) {
   const mainEl = document.querySelector("main.main");
   mainEl.classList.remove("is-loading");
   mainEl.classList.add("reveal");
+  window.PAGE_TOUR = () => startWalkthrough(dashboardTourSteps(), { kicker: "Dashboard tour" });
   if (typeof startOnboarding === "function") startOnboarding(onboardingStatus);
+
+  /* The Dashboard tour (lightbulb -> "Dashboard page"). Two steps apply a
+     filter as a live demo and undo it on the way out; one pins a row's
+     hover buttons open. `reveal` opens the phone disclosures that hide the
+     right-hand rail. */
+  function dashboardTourSteps() {
+    const firstRow = () => document.querySelector("#assignment-list .compact-assignment");
+    const busiestDay = () => {
+      const open = ASSIGNMENTS.filter(a => !isDone(a));
+      let best = 0, bestCount = -1;
+      for (let i = 0; i < 7; i++) {
+        const n = open.filter(a => sameDay(dueDate(a), addDays(today(), i))).length;
+        if (n > bestCount) { best = i; bestCount = n; }
+      }
+      return best;
+    };
+    let demoDay = 0;
+    return [
+      { target: ".page-header", title: "Your dashboard", text: [
+        "This is where you check what's due and decide what to work on next.",
+        "Everything on it comes from the classes you've connected or added, and it updates whenever you sync.",
+      ] },
+      { target: "#stat-grid", title: "Assignment counts", text: [
+        "These widgets show counts of your open assignments: past due, due today, due tomorrow, and due in the next 7 days.",
+      ] },
+      { target: ".queue-panel", title: "Your assignments", text: [
+        "Have a quick glance at some of your most important assignments.",
+        "You can search, sort, and filter through them, and check the box next to one to mark it complete.",
+      ] },
+      { target: "#stat-grid [data-scope=week]", fallback: "#stat-grid", title: "Filter by time range",
+        enter: () => setScope("week"), exit: () => setScope("all"),
+        text: [
+          "Click on one of the assignment count widgets to filter your assignments list to only the assignments in that time range.",
+          "Here the list is showing just the next 7 days. Click the widget again to clear the filter.",
+        ] },
+      { target: firstRow, fallback: "#assignment-list", title: "Working with an assignment",
+        enter: () => firstRow()?.classList.add("tour-actions"),
+        exit: () => document.querySelectorAll(".compact-assignment.tour-actions").forEach(r => r.classList.remove("tour-actions")),
+        text: [
+          "Click on an assignment to view its details.",
+          "The pencil edits it, and the link icon opens it on Canvas or Learning Suite. These appear when you hover over an assignment.",
+          "Check the box on the left to mark it complete.",
+        ] },
+      { target: "#next-grid", title: "Next deadline", reveal: "#toggle-dashboard-overview", text: [
+        "See the assignment due the soonest. This can give you a good idea of what to work on next.",
+      ] },
+      { target: ".week-card", title: "Next 7 days", reveal: "#toggle-dashboard-overview", text: [
+        "See how many assignments are due on each of the next seven days.",
+        "The bar underneath tracks how much of this week's work you've already finished.",
+      ] },
+      { target: () => document.querySelector(`#week-strip [data-day="${demoDay}"]`), fallback: "#week-strip", title: "Filter by day", reveal: "#toggle-dashboard-overview",
+        enter: () => { demoDay = busiestDay(); setScope("date", addDays(today(), demoDay)); }, exit: () => setScope("all"),
+        text: [
+          "Click a day to filter your assignments list to just that day.",
+          "Here the list is showing what's due on the selected day. Click the day again to clear the filter.",
+        ] },
+      { target: () => document.querySelectorAll("#streak-row .streak-mini")[0], fallback: "#streak-row", title: "Check-in streak", reveal: "#toggle-dashboard-overview", text: [
+        "Your check-in streak counts the days in a row you've opened DueList.",
+        "Missing a Saturday or Sunday doesn't break it; missing a weekday does.",
+      ] },
+      { target: () => document.querySelectorAll("#streak-row .streak-mini")[1], fallback: "#streak-row", title: "No late turn-ins", reveal: "#toggle-dashboard-overview", text: [
+        "Your no-late streak is how many days it's been since you completed an assignment after its due date.",
+        "If you've never been late, it counts from the day you joined.",
+      ] },
+    ];
+  }
 }

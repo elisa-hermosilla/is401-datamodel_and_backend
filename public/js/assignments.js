@@ -95,6 +95,56 @@ function main() {
   }
   showDone.addEventListener("change", render);
 
+  window.PAGE_TOUR = () => startWalkthrough(assignmentsTourSteps(), { kicker: "Assignments tour" });
+
+  /* The Assignments tour (lightbulb -> "Assignments page"). The first class
+     card is opened for the steps that look inside it and put back after. */
+  function assignmentsTourSteps() {
+    const options = '[data-mobile-disclosure="class-list-options"]';
+    const firstCard = () => document.querySelector("#class-grid .class-card");
+    let wasCollapsed = false;
+    const open = () => {
+      const button = firstCard()?.querySelector("[data-toggle]");
+      if (!button) return;
+      wasCollapsed = collapsed.has(Number(button.dataset.toggle));
+      if (wasCollapsed) setClassCollapsed(button, false);
+    };
+    const restore = () => {
+      const button = firstCard()?.querySelector("[data-toggle]");
+      if (button && wasCollapsed) setClassCollapsed(button, true);
+    };
+    return [
+      { target: ".page-header", title: "Your classes and assignments", text: [
+        "This is where you manage your classes and everything in them.",
+        "Each class is a card. The assignments in it are listed inside, soonest first.",
+      ] },
+      { target: "#add-class-btn", title: "Add a class", text: [
+        "Connect a Canvas class, paste a Learning Suite calendar link, or create a manual class for things you track yourself.",
+        "Canvas and Learning Suite classes sync their assignments; manual classes only show what you add.",
+      ] },
+      { target: () => firstCard()?.querySelector(".class-heading"), fallback: "#class-grid", title: "A class card", text: [
+        "The heading shows the class, how many assignments are still open, and how many there are in total.",
+        "Click the class name to collapse or expand the card.",
+      ] },
+      { target: () => firstCard()?.querySelector(".class-actions"), fallback: "#class-grid", title: "Class actions", text: [
+        "Add Assignment adds one to this class by hand.",
+        "Edit changes the class's details, or how its categories map to assignment types. Delete removes the class and its assignments.",
+      ] },
+      { target: () => firstCard()?.querySelector(".a-list > *"), fallback: "#class-grid", title: "An assignment",
+        enter: open, exit: restore,
+        text: [
+          "Check the box to mark it complete.",
+          "Click the title to see the details, or Edit to change the due date, type, notes and more. The source tag opens it on Canvas or Learning Suite.",
+        ] },
+      { target: "#show-done", reveal: options, title: "Show completed", text: [
+        "Completed assignments are hidden by default. Turn this on to see them inside each class.",
+      ] },
+      { target: "#toggle-all-classes", reveal: options, title: "Collapse or expand all", text: [
+        "Collapse or expand every class at once. DueList remembers which cards you left open.",
+      ] },
+    ];
+  }
+
   /* ---------- Add / edit class ---------- */
   const classForm = document.getElementById("class-form");
   const classError = document.getElementById("class-error");

@@ -1,4 +1,4 @@
-<%# Document head. Locals: title, description, noindex (app pages only). %>
+<%# Document head. Locals: title, description, noindex (app pages only), pageLabel (tour chooser; defaults to title). %>
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -15,4 +15,4 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <link rel="stylesheet" href="/css/styles.css">
 </head>
-<body>
+<body data-page-label="<%= locals.pageLabel || title %>">

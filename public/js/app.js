@@ -982,7 +982,200 @@ function bindSidebar() {
     window.location.href = "/login";
   });
 
+  document.getElementById("help-btn")?.addEventListener("click", openTourChooser);
+
   maybeShowSyncReminder();
+}
+
+/* ---------- Tours ----------
+   The lightbulb in the top corner opens a chooser: the navigation bar tour
+   (the sidebar, also run by the quick start) or the current page's tour,
+   which the page registers as window.PAGE_TOUR. While a tour runs the rest
+   of the page is dimmed and locked. */
+
+function openTourChooser() {
+  if (document.querySelector(".walk-callout, .tour-chooser-backdrop, #onboarding-modal.open")) return;
+  const label = document.body.dataset.pageLabel || document.title.split(" · ")[0];
+  const bd = document.createElement("div");
+  bd.className = "modal-backdrop open tour-chooser-backdrop";
+  bd.innerHTML = `<section class="modal tour-chooser" role="dialog" aria-modal="true" aria-labelledby="tour-chooser-title">
+      <p class="onboarding-kicker">Quick tour</p>
+      <h3 id="tour-chooser-title">What would you like a tour of?</h3>
+      <div class="tour-options">
+        <button type="button" class="tour-option" data-tour="nav"><strong>Navigation bar</strong><span>The sidebar: pages, Sync now and Sign out.</span></button>
+        <button type="button" class="tour-option" data-tour="page"><strong>${esc(label)} page</strong><span>What's on this page and how to use it.</span></button>
+      </div>
+      <div class="tour-chooser-foot"><button type="button" class="btn btn-ghost btn-sm" data-tour="cancel">Cancel</button></div>
+    </section>`;
+  document.body.appendChild(bd);
+  const close = () => { bd.remove(); document.removeEventListener("keydown", onKey, true); };
+  const onKey = e => { if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); close(); } };
+  document.addEventListener("keydown", onKey, true);
+  bd.addEventListener("click", e => {
+    if (e.target === bd) return close();
+    const b = e.target.closest("[data-tour]");
+    if (!b) return;
+    if (b.dataset.tour === "cancel") return close();
+    if (b.dataset.tour === "nav") { close(); startWalkthrough(sidebarTourSteps(), { kicker: "Navigation tour" }); }
+    else if (typeof window.PAGE_TOUR === "function") { close(); window.PAGE_TOUR(); }
+    /* No page tour registered yet: the button does nothing for now */
+  });
+  bd.querySelector("[data-tour=nav]").focus();
+}
+
+/* Steps for the navigation bar tour, built from what the sidebar actually
+   shows, so the Admin link only gets a step for admins. */
+function sidebarTourSteps() {
+  const nav = {
+    Dashboard: "Your home view highlights what is due soon, what is overdue, and your upcoming workload.",
+    Calendar: "See assignments by date and scan the week ahead to plan your study time.",
+    Assignments: "Manage your classes and assignment details, including adding or editing classes.",
+    Settings: "Manage connected accounts, notification preferences, and your account.",
+    Admin: "Manage who has admin access and check how DueList is doing against its goals.",
+  };
+  const steps = [...document.querySelectorAll("#sidebar .nav a")]
+    .map(a => ({ target: a, title: a.getAttribute("aria-label"), text: nav[a.getAttribute("aria-label")] }))
+    .filter(st => st.text);
+  steps.push(
+    { target: "#sync-btn", title: "Sync now", text: "Pulls the latest assignments from Canvas and Learning Suite. Each class can sync once every few hours; hover the button to see when it is ready again." },
+    { target: "#logout-btn", title: "Sign out", text: "Signs you out of DueList on this browser." },
+    { target: "#help-btn", title: "Need a reminder?", text: "Look for this lightbulb in the top corner of every page. Hover it for a hint, or click it to pick a quick tour of the navigation bar or the page you're on." },
+  );
+  return steps.filter(st => typeof st.target !== "string" || document.querySelector(st.target));
+}
+
+/* Shows `steps` one at a time: everything but the target is dimmed and
+   locked (pointer and keyboard), a callout sits beside the target with
+   Back / Next. A step is { target, title, text, reveal?, fallback?, enter?, exit? }:
+   target is a selector, an element, or a function returning one (looked up
+   when the step shows); text is a string or an array of paragraphs; reveal
+   names a phone disclosure button to open when the target is hidden;
+   fallback is a selector used when target is missing; enter() runs before
+   the step shows (e.g. to apply a filter as a demo) and exit() when it is
+   left, including when the tour ends.
+   Resolves { completed } when the student finishes, closes it, or presses
+   Escape. */
+function startWalkthrough(steps, { kicker = "Quick tour" } = {}) {
+  return new Promise(resolve => {
+    if (!steps.length) return resolve({ completed: true });
+    document.querySelectorAll(".sync-callout, .walk-callout, .walk-mask, .walk-blocker").forEach(el => el.remove());
+    const phone = window.matchMedia("(max-width: 760px)");
+    const sidebar = document.getElementById("sidebar");
+    const drawerOpen = () => sidebar.classList.contains("is-open");
+    let openedDrawer = false;
+    const revealed = new Set();
+    const locked = ["#main-content", "#sidebar", ".mobile-header", "#help-btn"].map(sel => document.querySelector(sel)).filter(Boolean);
+
+    const blocker = document.createElement("div"); blocker.className = "walk-blocker";
+    const mask = document.createElement("div"); mask.className = "walk-mask";
+    const box = document.createElement("div");
+    box.className = "walk-callout";
+    box.setAttribute("role", "dialog");
+    box.setAttribute("aria-live", "polite");
+    document.body.append(blocker, mask, box);
+    document.body.classList.add("walk-active");
+
+    let index = 0, target = null;
+    const lookup = t => typeof t === "function" ? t() : typeof t === "string" ? document.querySelector(t) : t;
+    const resolveTarget = st => {
+      let t = lookup(st.target);
+      if (t && !t.offsetParent && st.reveal) {
+        const btn = document.querySelector(st.reveal);
+        if (btn && btn.getAttribute("aria-expanded") !== "true") { btn.click(); revealed.add(btn); }
+        t = lookup(st.target);
+      }
+      if (!t || !t.offsetParent) t = (st.fallback && document.querySelector(st.fallback)) || t;
+      return t;
+    };
+    const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+    const place = () => {
+      if (!target) return;
+      const r = target.getBoundingClientRect(), h = box.offsetHeight, w = box.offsetWidth;
+      const pad = 4;
+      mask.style.top = `${r.top - pad}px`; mask.style.left = `${r.left - pad}px`;
+      mask.style.width = `${r.width + pad * 2}px`; mask.style.height = `${r.height + pad * 2}px`;
+      const vw = window.innerWidth, vh = window.innerHeight;
+      box.classList.remove("side-left", "side-right", "side-top", "side-bottom");
+      let side;
+      if (phone.matches) side = r.bottom + 14 + h <= vh - 12 ? "below" : "above";
+      else if (r.right + 18 + w <= vw - 12) side = "right";
+      else if (r.left - 18 - w >= 12) side = "left";
+      else if (r.bottom + 14 + h <= vh - 12) side = "below";
+      else side = "above";
+      if (side === "right" || side === "left") {
+        const top = clamp(r.top + r.height / 2 - h / 2, 12, vh - h - 12);
+        box.style.top = `${top}px`;
+        box.style.left = `${side === "right" ? r.right + 18 : r.left - 18 - w}px`;
+        box.style.setProperty("--arrow-y", `${clamp(r.top + r.height / 2 - top, 18, h - 18)}px`);
+        box.classList.add(side === "right" ? "side-left" : "side-right");
+      } else {
+        const left = phone.matches ? 16 : clamp(r.left + r.width / 2 - w / 2, 12, vw - w - 12);
+        const top = side === "below" ? r.bottom + 14 : r.top - 14 - h;
+        box.style.top = `${clamp(top, 12, Math.max(12, vh - h - 12))}px`;
+        box.style.left = `${left}px`;
+        box.style.setProperty("--arrow-x", `${clamp(r.left + r.width / 2 - left, 18, w - 18)}px`);
+        box.classList.add(side === "below" ? "side-top" : "side-bottom");
+      }
+    };
+    const lock = () => locked.forEach(el => { el.inert = true; });
+    const unlock = () => locked.forEach(el => { el.inert = false; });
+    let shown = null;
+    const leave = () => { if (shown && shown.exit) { try { shown.exit(); } catch { /* demo cleanup only */ } } shown = null; };
+    const render = () => {
+      leave();
+      const st = steps[index], last = index === steps.length - 1;
+      if (st.enter) { try { st.enter(); } catch { /* demo only */ } }
+      shown = st;
+      target = resolveTarget(st);
+      /* On phones, sidebar targets need the drawer open and page targets need it closed */
+      if (phone.matches && target) {
+        const inSidebar = sidebar.contains(target);
+        if (inSidebar && !drawerOpen()) { document.getElementById("menu-open")?.click(); openedDrawer = true; }
+        else if (!inSidebar && drawerOpen() && openedDrawer) { document.getElementById("menu-close")?.click(); openedDrawer = false; }
+      }
+      lock();
+      if (target) {
+        const r = target.getBoundingClientRect();
+        /* Centre small targets; a target taller than the screen is aligned to the top so its heading stays visible */
+        if (r.top < 0 || r.bottom > window.innerHeight) target.scrollIntoView({ block: r.height > window.innerHeight * 0.75 ? "start" : "center" });
+      }
+      box.innerHTML = `<button type="button" class="callout-close" aria-label="Close tour">×</button>
+        <p class="walk-kicker">${esc(kicker)}</p>
+        <h3>${esc(st.title)}</h3>
+        ${(Array.isArray(st.text) ? st.text : [st.text]).map(t => `<p>${esc(t)}</p>`).join("")}
+        <div class="walk-foot"><span class="step-tag">Step ${index + 1} of ${steps.length}</span>
+          ${index ? '<button type="button" class="btn btn-secondary btn-sm" data-walk="back">Back</button>' : ""}
+          <button type="button" class="btn btn-primary btn-sm" data-walk="next">${last ? "Finish" : "Next"}</button></div>`;
+      mask.hidden = !target;
+      place();
+      box.querySelector("[data-walk=next]").focus();
+    };
+    const end = completed => {
+      leave();
+      blocker.remove(); mask.remove(); box.remove();
+      document.body.classList.remove("walk-active");
+      window.removeEventListener("resize", place);
+      window.removeEventListener("scroll", place, true);
+      document.removeEventListener("keydown", onKey, true);
+      unlock();
+      revealed.forEach(btn => { if (btn.getAttribute("aria-expanded") === "true") btn.click(); });
+      if (openedDrawer) document.getElementById("menu-close")?.click();
+      resolve({ completed });
+    };
+    const onKey = e => { if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); end(false); } };
+    box.addEventListener("click", e => {
+      const b = e.target.closest("[data-walk], .callout-close");
+      if (!b) return;
+      if (b.classList.contains("callout-close")) return end(false);
+      if (b.dataset.walk === "back") { index--; render(); }
+      else if (index === steps.length - 1) end(true);
+      else { index++; render(); }
+    });
+    window.addEventListener("resize", place);
+    window.addEventListener("scroll", place, true);
+    document.addEventListener("keydown", onKey, true);
+    render();
+  });
 }
 
 /* ---------- Sync reminder ----------

@@ -6,7 +6,44 @@ initApp("admin").then(main);
 const SERIES_COLOR = "#245b91";
 
 function main() {
-  bindCategoryNav(document.getElementById("settings-shell"), { defaultKey: "okrs" });
+  const shell = document.getElementById("settings-shell");
+  const selectCategory = bindCategoryNav(shell, { defaultKey: "okrs" });
+
+  /* The Admin tour (lightbulb -> "Admin page"). Steps switch to the panel
+     they describe; the one you were on comes back at the end. */
+  window.PAGE_TOUR = async () => {
+    const was = shell.querySelector("[data-settings-category].active")?.dataset.settingsCategory || "okrs";
+    const hadDetail = shell.classList.contains("show-detail");
+    await startWalkthrough(adminTourSteps(), { kicker: "Admin tour" });
+    selectCategory(was);
+    if (!hadDetail) shell.classList.remove("show-detail");
+  };
+  function adminTourSteps() {
+    const go = key => () => selectCategory(key);
+    return [
+      { target: ".page-header", title: "Admin", text: [
+        "This page is for the people who run DueList: who has admin access, and how the app is doing against its goals.",
+      ] },
+      { target: "#retention-tiles", title: "User retention", enter: go("okrs"), text: [
+        "The share of accounts that opened DueList in the past 30 days, and how many days a week those active users come back.",
+      ] },
+      { target: ".okr-charts", title: "Retention over time", enter: go("okrs"), text: [
+        "The same two numbers for every day in the range. Change the range in the corner of the card.",
+        "Hover a chart, or focus it and use the arrow keys, to read off a single day.",
+      ] },
+      { target: ".okr-card:nth-child(2)", title: "Quick start setup", enter: go("okrs"), text: [
+        "How many accounts finish the quick start, and how long it takes them from creating the account to clicking Finish.",
+        "The bars show how that time is spread out.",
+      ] },
+      { target: ".user-tools", title: "Find a user", enter: go("users"), text: [
+        "Search by name, username or email, and narrow the list to admins or non-admins.",
+      ] },
+      { target: () => document.querySelector(".admin-user-row"), fallback: "#user-list", title: "Admin access", enter: go("users"), text: [
+        "Make admin gives someone this page and the ability to promote others. Remove admin takes it away.",
+        "You can't remove your own access, so there is always at least one admin.",
+      ] },
+    ];
+  }
   loadUsers();
   loadOkrs();
   document.getElementById("okr-range").addEventListener("change", loadOkrs);

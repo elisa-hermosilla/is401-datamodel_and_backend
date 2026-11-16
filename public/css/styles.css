@@ -525,19 +525,11 @@ textarea.input { resize: vertical; line-height: 1.5; }
 .onboarding-spotlight svg { color:var(--navy) !important; }
 /* Keep the sidebar above the scrim, then tint its contents independently. The
    current tab is raised above this tint so only that tab stays bright. */
-.onboarding-tour-active #sidebar { z-index:51; }
-.onboarding-tour-active #sidebar::after { content:""; position:absolute; inset:0; z-index:1; background:rgba(15,23,42,.42); pointer-events:none; }
-.onboarding-tour-active #sidebar .nav a.onboarding-spotlight { z-index:2; }
-#onboarding-modal.tour-mode { align-items:stretch; justify-content:flex-start; }
-#onboarding-modal .tour-callout { position:fixed; left:260px; top:var(--tour-top, 120px); width:min(420px, calc(100vw - 280px)); max-width:none; margin:0; overflow:visible; }
-#onboarding-modal .tour-callout::before { content:""; position:absolute; left:-10px; top:var(--tour-arrow-y, 50%); width:18px; height:18px; background:var(--surface); border-left:1px solid var(--border); border-bottom:1px solid var(--border); transform:translateY(-50%) rotate(45deg); }
 .onboarding-modal .color-swatches { margin:0 0 4px; }
 @media (max-width:520px) { .onboarding-footer { align-items:flex-start; flex-direction:column-reverse; } .onboarding-actions { width:100%; } .onboarding-actions .btn { flex:1; } }
 @media (max-width:640px) { .onboarding-class-row { flex-wrap:wrap; } .onboarding-class-pick { flex-basis:calc(100% - 20px); } .onboarding-class-row > .tag { margin-left:27px; } .onboarding-class-row > button { margin-left:auto; } .onboarding-class-edit { grid-template-columns:1fr 1fr; } .onboarding-class-edit label:nth-child(2) { grid-column:1 / -1; } }
 @media (max-width:760px) {
   .overview-app .nav a.onboarding-spotlight span { display:inline !important; }
-  #onboarding-modal .tour-callout { left:16px; top:var(--tour-top, 120px); width:calc(100vw - 32px); }
-  #onboarding-modal .tour-callout::before { left:32px; top:-8px; transform:rotate(135deg); }
 }
 /* View-only assignment modal */
 .view-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 14px; }
@@ -582,14 +574,71 @@ textarea.input { resize: vertical; line-height: 1.5; }
 .btn[disabled] { opacity: .6; cursor: default; }
 /* A sync button inside its cooldown: greyed out, still hoverable for the tooltip */
 .btn.cooldown { opacity: .55; cursor: not-allowed; }
-.btn[data-tip] { position: relative; }
-.btn[data-tip]::after {
+.btn[data-tip], .help-tip[data-tip] { position: relative; }
+.btn[data-tip]::after, .help-tip[data-tip]::after {
   content: attr(data-tip); position: absolute; left: 50%; bottom: calc(100% + 8px); transform: translateX(-50%);
   width: max-content; max-width: 230px; white-space: normal; text-align: center;
   background: var(--navy); color: #fff; font-size: 12px; font-weight: 500; line-height: 1.35; padding: 6px 9px; border-radius: 7px;
   box-shadow: 0 4px 14px rgba(15,23,42,.2); opacity: 0; visibility: hidden; transition: opacity .15s, visibility .15s; pointer-events: none; z-index: 70;
 }
-.btn[data-tip]:hover::after, .btn[data-tip]:focus-visible::after { opacity: 1; visibility: visible; transition-delay: .3s; }
+.btn[data-tip]:hover::after, .btn[data-tip]:focus-visible::after,
+.help-tip[data-tip]:hover::after, .help-tip[data-tip]:focus-visible::after { opacity: 1; visibility: visible; transition-delay: .3s; }
+
+/* ---------- Help lightbulb & tours ----------
+   A quiet amber bulb fixed in the top-right corner: hover for the data-tip
+   hint, click for the tour chooser. .help-tip is generic so other pages can
+   place one inline too. */
+.help-tip {
+  width: 28px; height: 28px; border-radius: 50%; border: 0; background: transparent; color: #d97706; opacity: .75;
+  display: inline-grid; place-items: center; cursor: pointer; transition: opacity .12s, background .12s;
+}
+.help-tip svg { width: 18px; height: 18px; }
+.help-tip:hover, .help-tip:focus-visible { opacity: 1; background: #fef3c7; }
+.help-tip:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+.help-corner, .help-corner[data-tip] { position: fixed; top: 12px; right: 14px; z-index: 40; width: 34px; height: 34px; background: var(--surface); border: 1px solid var(--border); box-shadow: 0 2px 10px rgba(15,23,42,.12); opacity: .9; }
+.help-corner:hover, .help-corner:focus-visible { background: #fef3c7; }
+/* Header buttons on pages that have them step left of the corner lightbulb */
+.dashboard-main .page-header .toolbar, .calendar-main .page-header .toolbar { padding-right: 44px; }
+/* A tour step can pin a row's hover actions open */
+.dashboard-main .compact-assignment.tour-actions .row-actions { display: flex; opacity: 1; }
+.help-corner[data-tip]::after { left: auto; right: 0; bottom: auto; top: calc(100% + 8px); transform: none; text-align: left; max-width: 200px; }
+body.navigation-open .help-corner { visibility: hidden; }
+
+/* Tour chooser modal */
+.tour-chooser h3 { margin-bottom: 14px; }
+.tour-options { display: grid; gap: 10px; }
+.tour-option { display: grid; gap: 2px; text-align: left; padding: 12px 14px; border: 1px solid var(--border); border-radius: 10px; background: var(--surface); cursor: pointer; font: inherit; color: var(--text); }
+.tour-option:hover, .tour-option:focus-visible { background: var(--navy-100); border-color: #c7d7e7; }
+.tour-option:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+.tour-option strong { color: var(--navy); font-size: 15px; }
+.tour-option span { color: var(--muted); font-size: 13px; }
+.tour-chooser-foot { display: flex; justify-content: flex-end; margin-top: 14px; }
+
+/* Walkthrough: a blocker locks the page, the mask dims everything except
+   the target (its shadow does the dimming, so no z-index games with page
+   elements), and one callout moves from target to target. */
+.walk-blocker { position: fixed; inset: 0; z-index: 990; background: transparent; }
+.walk-mask { position: fixed; z-index: 991; border-radius: 10px; box-shadow: 0 0 0 200vmax rgba(15,23,42,.45); outline: 3px solid #fbbf24; pointer-events: none; }
+.walk-mask[hidden] { display: none; }
+.walk-callout { position: fixed; z-index: 992; width: min(380px, calc(100vw - 32px)); background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 14px 38px 12px 16px; box-shadow: 0 8px 28px rgba(15,23,42,.18); color: var(--text); font-size: 13.5px; line-height: 1.45; }
+.walk-callout::before { content: ""; position: absolute; width: 18px; height: 18px; background: var(--surface); border-left: 1px solid var(--border); border-bottom: 1px solid var(--border); }
+.walk-callout.side-left::before { left: -10px; top: var(--arrow-y, 50%); transform: translateY(-50%) rotate(45deg); }
+.walk-callout.side-right::before { right: -10px; top: var(--arrow-y, 50%); transform: translateY(-50%) rotate(225deg); }
+.walk-callout.side-top::before { top: -10px; left: var(--arrow-x, 32px); transform: translateX(-50%) rotate(135deg); }
+.walk-callout.side-bottom::before { bottom: -10px; left: var(--arrow-x, 32px); transform: translateX(-50%) rotate(-45deg); }
+.walk-callout .walk-kicker { color: var(--navy); font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; margin: 0 0 4px; }
+.walk-callout h3 { font-size: 16px; margin: 0 0 4px; color: var(--navy); }
+.walk-callout p { margin: 0; color: var(--muted); }
+.walk-callout p + p { margin-top: 8px; }
+.walk-callout .walk-foot { display: flex; align-items: center; gap: 8px; margin-top: 12px; }
+.walk-callout .walk-foot .step-tag { margin: 0 auto 0 0; }
+.walk-callout .callout-close { position: absolute; top: 8px; right: 8px; width: 26px; height: 26px; border: 0; background: transparent; color: var(--muted); font-size: 18px; line-height: 1; cursor: pointer; border-radius: 6px; }
+.walk-callout .callout-close:hover { background: var(--navy-100); color: var(--navy); }
+@media (max-width: 760px) {
+  .help-corner, .help-corner[data-tip] { top: calc(max(12px, env(safe-area-inset-top)) + 7px); right: 120px; width: 36px; height: 36px; }
+  .dashboard-main .page-header .toolbar, .calendar-main .page-header .toolbar { padding-right: 0; }
+  .walk-callout { width: calc(100vw - 32px); }
+}
 
 /* ---------- Dashboard: next up + progress (structure borrowed from Danny's mockup) ---------- */
 .next-grid { display: grid; grid-template-columns: 2fr 1fr; gap: 16px; margin-bottom: 16px; }
