@@ -282,7 +282,7 @@ async function startOnboarding(onboardingStatus) {
   function learningSuiteForm() {
     source = "Learning Suite";
     phase = "ls-form";
-    show("Add a Learning Suite class", `<p>Paste the class iCalendar link. After adding it, you’ll choose how its schedule is grouped.</p><form id="onboarding-ls-form" class="onboarding-form"><label for="onboarding-ics">iCalendar link</label><input class="input" id="onboarding-ics" type="url" placeholder="Paste the class iCal link" required><label for="onboarding-ls-code">Course code</label><input class="input" id="onboarding-ls-code" maxlength="30" placeholder="e.g. MKTG 201" required><label for="onboarding-ls-name">Course name</label><input class="input" id="onboarding-ls-name" maxlength="150" placeholder="e.g. Marketing Management"><label>Color</label><div class="color-swatches" id="onboarding-ls-colors">${CLASS_COLORS.map((c, i) => `<button type="button" class="color-swatch ${i === 0 ? "active" : ""}" data-color="${c.hex}" style="background:${c.hex}" aria-label="${c.name}" title="${c.name}">${ICONS.check}</button>`).join("")}</div><input type="hidden" id="onboarding-ls-color" value="${CLASS_COLORS[0].hex}"><div class="form-error onboarding-error" role="alert"></div><button class="btn btn-primary" type="submit">Add</button></form>`, button("Back", "back-setup", "btn-secondary"));
+    show("Add a Learning Suite class", `<p>Paste the class iCalendar link. You can configure its schedule categories from the classes list after adding it.</p><form id="onboarding-ls-form" class="onboarding-form"><label for="onboarding-ics">iCalendar link</label><input class="input" id="onboarding-ics" type="url" placeholder="Paste the class iCal link" required><label for="onboarding-ls-code">Course code</label><input class="input" id="onboarding-ls-code" maxlength="30" placeholder="e.g. MKTG 201" required><label for="onboarding-ls-name">Course name</label><input class="input" id="onboarding-ls-name" maxlength="150" placeholder="e.g. Marketing Management"><label>Color</label><div class="color-swatches" id="onboarding-ls-colors">${CLASS_COLORS.map((c, i) => `<button type="button" class="color-swatch ${i === 0 ? "active" : ""}" data-color="${c.hex}" style="background:${c.hex}" aria-label="${c.name}" title="${c.name}">${ICONS.check}</button>`).join("")}</div><input type="hidden" id="onboarding-ls-color" value="${CLASS_COLORS[0].hex}"><div class="form-error onboarding-error" role="alert"></div><button class="btn btn-primary" type="submit">Add</button></form>`, button("Back", "back-setup", "btn-secondary"));
     content.querySelectorAll(".color-swatch").forEach(b => b.addEventListener("click", () => { content.querySelectorAll(".color-swatch").forEach(x => x.classList.remove("active")); b.classList.add("active"); document.getElementById("onboarding-ls-color").value = b.dataset.color; }));
   }
 
@@ -474,8 +474,7 @@ async function startOnboarding(onboardingStatus) {
         setClasses(await API.courses.list());
         const item = { source: "Learning Suite", course, selected: true, configured: false, createdHere: true, categoryMode: null, categoryRows: null };
         setupCourses.push(item); learningSuiteStatus = await API.learningSuite.status();
-        configuring = item;
-        await openCategoryEditor(item);
+        setupList();
       } catch (err) { errBox(err.message); submit.disabled = false; submit.textContent = "Add"; }
     }
   });
