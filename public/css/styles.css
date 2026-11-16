@@ -1662,22 +1662,30 @@ mark.hl { background: #fef08a; color: inherit; border-radius: 3px; padding: 0 1p
 /* Admin page: OKR tiles, charts, meters, user list.
    Compact on purpose: at desktop widths each panel fits one screen. */
 .admin-page .page-header { margin-bottom: 14px; }
-.admin-page .settings-grid .card { padding: 14px 16px; }
+.admin-page .settings-grid .card { padding: 12px 16px; }
 .admin-page .card-header { margin-bottom: 10px; }
 .admin-page .card-header .sub { font-size: 12px; line-height: 1.4; }
 /* OKRs: two cards stacked, sharing the height left under the page header */
-#admin-okrs:not([hidden]) { display: flex; flex-direction: column; gap: 12px; min-height: calc(100vh - 150px); }
-.okr-card { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; }
-.okr-card .card-header { flex: none; flex-wrap: nowrap; align-items: center; padding-bottom: 8px; margin-bottom: 8px; }
-.okr-card .card-header h3 { font-size: 17px; }
+#admin-okrs:not([hidden]) { display: flex; flex-direction: column; gap: 8px; min-height: calc(100vh - 150px); }
+.okr-objective { flex: none; display: flex; align-items: center; gap: 10px; padding: 2px 2px 0; }
+.okr-kicker { flex: none; font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: #fff; background: var(--navy); padding: 3px 8px; border-radius: 999px; }
+.okr-objective h4 { flex: 1 1 auto; min-width: 0; margin: 0; font-size: 14px; font-weight: 600; color: var(--text); }
+.okr-pair { flex: 1 1 auto; min-height: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.okr-card { min-height: 0; display: flex; flex-direction: column; }
+.okr-card .card-header { flex: none; flex-wrap: nowrap; align-items: center; gap: 10px; padding-bottom: 6px; margin-bottom: 6px; }
+.okr-card .card-header h3 { font-size: 17px; min-width: 0; }
+.okr-target { flex: none; font-size: 12px; font-weight: 600; padding: 4px 10px; border-radius: 999px; background: var(--navy-100); color: var(--navy); white-space: nowrap; }
+.okr-target.met { background: var(--ok-bg); color: var(--ok); }
+.okr-target.missed { background: var(--warn-bg); color: var(--warn); }
+.okr-charts.single { grid-template-columns: 1fr; }
 .okr-toolbar { flex: none; }
 .okr-toolbar .select { width: auto; padding: 6px 28px 6px 10px; font-size: 13px; }
-.okr-tiles { flex: none; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px 12px; margin-bottom: 8px; }
+.okr-tiles { flex: none; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px 10px; margin-bottom: 6px; }
 .okr-tiles .stat { cursor: default; gap: 3px; padding: 8px 12px; }
 .okr-tiles .stat:hover { border-color: var(--border); background: var(--surface); }
-.okr-tiles .stat .label { font-size: 12px; }
-.okr-tiles .stat .value { font-size: 22px; white-space: nowrap; }
-.okr-tiles .stat .foot { font-size: 12px; }
+.okr-tiles .stat .label { font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.okr-tiles .stat .value { font-size: 21px; white-space: nowrap; }
+.okr-tiles .stat .foot { font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .okr-charts { flex: 1 1 auto; min-height: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); grid-template-rows: minmax(0, 1fr); gap: 14px; }
 .okr-chart { margin: 0; min-width: 0; min-height: 0; display: flex; flex-direction: column; transition: opacity .15s; }
 .okr-chart.loading { opacity: .5; }
@@ -1695,11 +1703,11 @@ mark.hl { background: #fef08a; color: inherit; border-radius: 3px; padding: 0 1p
 .chart-tip.flip { transform: translate(calc(-100% - 12px), -50%); }
 .chart-tip strong { display: block; font-size: 18px; color: var(--text); line-height: 1.2; }
 .chart-tip-date { font-weight: 600; }
-.okr-subhead { flex: none; font-size: 12px; font-weight: 600; color: var(--muted); margin: 2px 0 6px; }
-.meter-list { flex: 1 1 auto; min-height: 0; display: grid; gap: 6px; align-content: space-evenly; }
+.okr-subhead { flex: none; font-size: 12px; font-weight: 600; color: var(--muted); margin: 0 0 4px; }
+.meter-list { flex: 1 1 auto; min-height: 0; display: grid; gap: 4px; align-content: space-evenly; }
 .meter-row { display: grid; grid-template-columns: 150px minmax(0, 1fr) 60px; align-items: center; gap: 10px; font-size: 12px; }
 .meter-label { color: var(--text); }
-.meter-track { height: 8px; border-radius: 4px; background: #e6edf5; overflow: hidden; }
+.meter-track { height: 7px; border-radius: 4px; background: #e6edf5; overflow: hidden; }
 .meter-fill { height: 100%; min-width: 0; border-radius: 0 4px 4px 0; background: #245b91; }
 .meter-value { text-align: right; color: var(--muted); font-variant-numeric: tabular-nums; }
 
@@ -1718,11 +1726,16 @@ mark.hl { background: #fef08a; color: inherit; border-radius: 3px; padding: 0 1p
 .admin-user-row .btn-sm { padding: 5px 10px; font-size: 12px; }
 .admin-empty { padding: 16px 0; }
 .tag.admin-tag { background: #e0ecf8; color: #1e4a76; }
+@media (max-width: 1000px) {
+  .okr-pair { grid-template-columns: 1fr; }
+}
 @media (max-width: 760px) {
   .admin-page .settings-grid .card { padding: 14px 12px; }
   #admin-okrs { min-height: 0; }
+  .okr-pair { grid-template-columns: 1fr; flex: none; }
   .okr-card { flex: none; }
   .okr-card .card-header { flex-wrap: wrap; }
+  .okr-objective { flex-wrap: wrap; }
   .okr-charts { flex: none; grid-template-columns: 1fr; grid-template-rows: none; }
   .okr-chart-body { flex: none; height: 150px; }
   .meter-row { grid-template-columns: 1fr; gap: 3px; }

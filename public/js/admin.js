@@ -24,16 +24,23 @@ function main() {
       { target: ".page-header", title: "Admin", text: [
         "This page is for the people who run DueList: who has admin access, and how the app is doing against its goals.",
       ] },
-      { target: "#retention-tiles", title: "User retention", enter: go("okrs"), text: [
-        "The share of accounts that opened DueList in the past 30 days, and how many days a week those active users come back.",
+      { target: "#okr-objective-1", title: "Objectives and key results", enter: go("okrs"), text: [
+        "Two objectives, each with two key results. The cards show where DueList stands on each one.",
       ] },
-      { target: ".okr-charts", title: "Retention over time", enter: go("okrs"), text: [
-        "The same two numbers for every day in the range. Change the range in the corner of the card.",
-        "Hover a chart, or focus it and use the arrow keys, to read off a single day.",
-      ] },
-      { target: ".okr-card:nth-child(2)", title: "Quick start setup", enter: go("okrs"), text: [
-        "How many accounts finish the quick start, and how long it takes them from creating the account to clicking Finish.",
+      { target: "#kr-tutorial", title: "Time to activate", enter: go("okrs"), text: [
+        "How long new accounts take from signing up to finishing the navigation tutorial. The target is under 24 hours.",
         "The bars show how that time is spread out.",
+      ] },
+      { target: "#kr-sync", title: "First sync", enter: go("okrs"), text: [
+        "How long from sign-up to the first time an account's classes sync. The target is 15 minutes or less.",
+      ] },
+      { target: "#kr-churn", title: "First-month churn", enter: go("okrs"), text: [
+        "An account churns if it goes 7 days without a visit during its first month. The target is to keep this below 33%.",
+        "The chart shows the rate as of each day; pick the range above the cards.",
+      ] },
+      { target: "#kr-streaks", title: "5-day streaks", enter: go("okrs"), text: [
+        "Each time someone checks in five days in a row counts once. Weekends off don't break a run; a missed weekday does.",
+        "The chart is the running total.",
       ] },
       { target: ".user-tools", title: "Find a user", enter: go("users"), text: [
         "Search by name, username or email, and narrow the list to admins or non-admins.",
@@ -156,8 +163,7 @@ async function loadOkrs() {
   } finally {
     document.querySelectorAll(".okr-chart").forEach(f => f.classList.remove("loading"));
   }
-  renderRetention();
-  renderSetup();
+  renderOkrs();
 }
 
 function tile(label, value, foot) {
@@ -180,43 +186,64 @@ function fmtDuration(minutes) {
   return `${d >= 10 ? Math.round(d) : Math.round(d * 10) / 10} days`;
 }
 
-function renderRetention() {
-  const r = OKRS.retention;
-  document.getElementById("retention-tiles").innerHTML =
-    tile("Active in the past 30 days", pct(r.active_pct), `${r.active_users} of ${plural(r.total_users, "account")}`) +
-    tile("Days per week", r.avg_days_per_week.toFixed(1), "average among active users") +
-    tile("Accounts", String(r.total_users), "registered so far");
+function meters(id, buckets, unit = "user") {
+  const max = Math.max(1, ...buckets.map(b => b.count));
+  document.getElementById(id).innerHTML = buckets.map(b => `
+    <div class="meter-row">
+      <div class="meter-label">${esc(b.label)}</div>
+      <div class="meter-track" aria-hidden="true"><div class="meter-fill" style="width:${(b.count / max * 100).toFixed(1)}%"></div></div>
+      <div class="meter-value">${plural(b.count, unit)}</div>
+    </div>`).join("");
+}
+
+/* Two objectives, two key results each (see server/okrs.js for the maths) */
+function renderOkrs() {
+  const { tutorial, first_sync } = OKRS.activation;
+  const { churn, streaks } = OKRS.retention;
+
+  document.getElementById("kr-tutorial-tiles").innerHTML =
+    tile("Under 24 hours", pct(tutorial.under_24h_pct), `${tutorial.under_24h} of ${plural(tutorial.finished, "finisher")}`) +
+    tile("Median time", fmtDuration(tutorial.median_minutes), "sign-up to done") +
+    tile("Not finished", String(tutorial.total - tutorial.finished), `of ${plural(tutorial.total, "account")}`);
+  meters("kr-tutorial-buckets", tutorial.buckets);
+
+  document.getElementById("kr-sync-tiles").innerHTML =
+    tile("Within 15 min", pct(first_sync.within_15_pct), `${first_sync.within_15} of ${first_sync.synced} synced`) +
+    tile("Median time", fmtDuration(first_sync.median_minutes), "sign-up to sync") +
+    tile("No sync yet", String(first_sync.total - first_sync.synced), `of ${plural(first_sync.total, "account")}`);
+  meters("kr-sync-buckets", first_sync.buckets);
+
+  document.getElementById("kr-churn-tiles").innerHTML =
+    tile("Churn rate", pct(churn.churn_pct), `${churn.churned} of ${plural(churn.cohort, "account")}`) +
+    tile("Churned", String(churn.churned), "7 days no visit") +
+    tile("Still active", String(churn.active), "in first month");
+  const chip = document.getElementById("kr-churn-target");
+  chip.classList.toggle("met", churn.cohort > 0 && churn.churn_pct < 33);
+  chip.classList.toggle("missed", churn.cohort > 0 && churn.churn_pct >= 33);
+
+  document.getElementById("kr-streaks-tiles").innerHTML =
+    tile("5-day streaks", String(streaks.count), "runs reaching 5") +
+    tile("Users with one", String(streaks.users_with_one), `of ${streaks.users_total} active`) +
+    tile("Logins per user", streaks.avg_login_days.toFixed(1), "avg days so far");
+
   redrawCharts();
 }
 
 function redrawCharts() {
   if (!OKRS) return;
-  const s = OKRS.retention.series;
-  drawLineChart(document.querySelector("#chart-active .okr-chart-body"), s, {
-    value: p => p.active_pct, max: 100, ticks: [0, 25, 50, 75, 100],
+  const { churn, streaks } = OKRS.retention;
+  drawLineChart(document.querySelector("#chart-churn .okr-chart-body"), churn.series, {
+    value: p => p.churn_pct, max: 100, ticks: [0, 25, 50, 75, 100],
     fmt: v => `${Math.round(v)}%`,
-    detail: p => `${p.active_users} of ${plural(p.total_users, "account")}`,
+    detail: p => `${p.churned} of ${plural(p.cohort, "account")}`,
   });
-  drawLineChart(document.querySelector("#chart-days .okr-chart-body"), s, {
-    value: p => p.avg_days_per_week, max: 7, ticks: [0, 2, 4, 6],
-    fmt: v => v.toFixed(1),
-    detail: p => plural(p.active_users, "active user"),
+  const last = streaks.series.length ? streaks.series[streaks.series.length - 1].count : 0;
+  const top = Math.max(4, Math.ceil(last / 4) * 4);
+  drawLineChart(document.querySelector("#chart-streaks .okr-chart-body"), streaks.series, {
+    value: p => p.count, max: top, ticks: [0, top / 4, top / 2, top * 3 / 4, top],
+    fmt: v => String(Math.round(v)),
+    detail: p => plural(p.count, "streak") + " so far",
   });
-}
-
-function renderSetup() {
-  const s = OKRS.setup;
-  document.getElementById("setup-tiles").innerHTML =
-    tile("Finished the quick start", pct(s.completion_pct), `${s.completed_users} of ${plural(s.total_users, "account")}`) +
-    tile("Average time", fmtDuration(s.avg_minutes), "account created to Finish") +
-    tile("Median time", fmtDuration(s.median_minutes), "half finish faster than this");
-  const max = Math.max(1, ...s.buckets.map(b => b.count));
-  document.getElementById("setup-buckets").innerHTML = s.buckets.map(b => `
-    <div class="meter-row">
-      <div class="meter-label">${esc(b.label)}</div>
-      <div class="meter-track" aria-hidden="true"><div class="meter-fill" style="width:${(b.count / max * 100).toFixed(1)}%"></div></div>
-      <div class="meter-value">${plural(b.count, "user")}</div>
-    </div>`).join("");
 }
 
 /* ---------- Line chart ----------
