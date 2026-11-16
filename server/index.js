@@ -1,5 +1,6 @@
 import "dotenv/config";
 import path from "node:path";
+import os from "node:os";
 import { fileURLToPath } from "node:url";
 import express from "express";
 import session from "express-session";
@@ -96,5 +97,11 @@ app.use((err, req, res, next) => {
 
 app.listen(PORT, () => {
   console.log(`DueList running at http://localhost:${PORT}`);
+  /* Also reachable from a phone on the same Wi-Fi at these addresses
+     (Windows Firewall has to allow inbound TCP on the port). */
+  if (!isProd) {
+    const nets = Object.values(os.networkInterfaces()).flat().filter(n => n && n.family === "IPv4" && !n.internal);
+    for (const n of nets) console.log(`  on this network: http://${n.address}:${PORT}`);
+  }
   startReminderScheduler();
 });
