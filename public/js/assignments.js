@@ -13,6 +13,8 @@ function main() {
   const toggleAll = document.getElementById("toggle-all-classes");
   const storageKey = `duelist:collapsed-classes:${USER.user_id}`;
   const collapsed = new Set();
+  const classFilters = new Map();   // course_id -> { q, type }
+  const plural = (n, word) => `${n} ${word}${n === 1 ? "" : "s"}`;
   try {
     const saved = JSON.parse(localStorage.getItem(storageKey));
     if (Array.isArray(saved)) saved.filter(Number.isInteger).forEach(id => collapsed.add(id));
@@ -56,9 +58,19 @@ function main() {
     }
     grid.innerHTML = CLASSES.map(c => {
       const all = ASSIGNMENTS.filter(a => a.course_id === c.course_id);
-      const items = all
+      const visible = all
         .filter(a => showDone.checked || !isDone(a))
         .sort((a, b) => dueDate(a) - dueDate(b));
+      /* Per-class filters: a search box and the types present in this class */
+      const f = classFilters.get(c.course_id) || { q: "", type: "" };
+      const types = [...new Set(visible.map(typeLabel).filter(Boolean))].sort();
+      const q = f.q.trim().toLowerCase();
+      const items = visible.filter(a => (!f.type || typeLabel(a) === f.type) && (!q || `${a.title} ${typeLabel(a)} ${a.submission_type || ""} ${a.notes || ""}`.toLowerCase().includes(q)));
+      const filters = visible.length ? `<div class="class-filters">
+            <input class="input" type="search" data-class-search="${c.course_id}" value="${esc(f.q)}" placeholder="Search this class" aria-label="Search assignments in ${esc(c.course_code)}" autocomplete="off">
+            <select class="select" data-class-type="${c.course_id}" aria-label="Filter ${esc(c.course_code)} by type"><option value="">All types</option>${types.map(t => `<option value="${esc(t)}" ${f.type === t ? "selected" : ""}>${esc(t)}</option>`).join("")}</select>
+            <span class="class-filter-count">${items.length === visible.length ? plural(visible.length, "assignment") : `${items.length} of ${plural(visible.length, "assignment")}`}</span>
+          </div>` : "";
       const openCount = all.filter(a => !isDone(a)).length;
       return `
         <div class="card class-card ${collapsed.has(c.course_id) ? "is-collapsed" : ""}" id="class-${c.course_id}">
@@ -77,8 +89,9 @@ function main() {
               <button class="btn btn-ghost btn-sm" data-delete="${c.course_id}" title="Delete class" style="color:var(--danger)">${ICONS.trash} Delete</button>
             </div>
           </div>
-          <div class="class-collapse" id="class-body-${c.course_id}" ${collapsed.has(c.course_id) ? "inert" : ""}><div class="class-collapse-inner"><div class="class-body a-list">
-            ${items.length ? items.map(a => assignmentRow(a, { details: true })).join("") : `<div class="empty">${all.length ? "No open assignments." : "No assignments yet."}</div>`}
+          <div class="class-collapse" id="class-body-${c.course_id}" ${collapsed.has(c.course_id) ? "inert" : ""}><div class="class-collapse-inner"><div class="class-body">
+            ${filters}
+            <div class="compact-list class-list">${items.length ? items.map(a => compactAssignmentRow(a)).join("") : `<div class="empty">${all.length ? (visible.length ? "No assignments match." : "No open assignments.") : "No assignments yet."}</div>`}</div>
           </div></div></div>
         </div>`;
     }).join("");
@@ -89,6 +102,19 @@ function main() {
       updateToggleAll();
     }));
     bindChecks(grid, render);
+    grid.querySelectorAll("[data-class-search]").forEach(input => input.addEventListener("input", () => {
+      const id = Number(input.dataset.classSearch);
+      classFilters.set(id, { ...(classFilters.get(id) || { q: "", type: "" }), q: input.value });
+      const pos = input.selectionStart;
+      render();
+      const again = grid.querySelector(`[data-class-search="${id}"]`);
+      if (again) { again.focus(); try { again.setSelectionRange(pos, pos); } catch { /* search inputs may refuse */ } }
+    }));
+    grid.querySelectorAll("[data-class-type]").forEach(sel => sel.addEventListener("change", () => {
+      const id = Number(sel.dataset.classType);
+      classFilters.set(id, { ...(classFilters.get(id) || { q: "", type: "" }), type: sel.value });
+      render();
+    }));
     grid.querySelectorAll("[data-add]").forEach(b => b.addEventListener("click", () => openAssignmentModal({ course_id: Number(b.dataset.add) }, render)));
     grid.querySelectorAll("[data-edit]").forEach(b => b.addEventListener("click", () => openClassModal(Number(b.dataset.edit))));
     grid.querySelectorAll("[data-delete]").forEach(b => b.addEventListener("click", () => openDeleteConfirm(Number(b.dataset.delete))));
@@ -130,11 +156,16 @@ function main() {
         "Add Assignment adds one to this class by hand.",
         "Edit changes the class's details, or how its categories map to assignment types. Delete removes the class and its assignments.",
       ] },
-      { target: () => firstCard()?.querySelector(".a-list > *"), fallback: "#class-grid", title: "An assignment",
+      { target: () => firstCard()?.querySelector(".class-list > *"), fallback: "#class-grid", title: "An assignment",
         enter: open, exit: restore,
         text: [
+          "Click the title to see the details. Hover a row for the pencil (edit) and the link icon (open it on Canvas or Learning Suite).",
           "Check the box to mark it complete.",
-          "Click the title to see the details, or Edit to change the due date, type, notes and more. The source tag opens it on Canvas or Learning Suite.",
+        ] },
+      { target: () => firstCard()?.querySelector(".class-filters"), fallback: "#class-grid", title: "Filter within a class",
+        enter: open, exit: restore,
+        text: [
+          "Search inside a class, or show one assignment type at a time.",
         ] },
       { target: "#show-done", reveal: options, title: "Show completed", text: [
         "Completed assignments are hidden by default. Turn this on to see them inside each class.",

@@ -302,33 +302,6 @@ input, select, textarea { font-family: inherit; font-size: 14px; }
 .stat.danger .value { color: var(--danger); }
 
 
-/* Assignment list rows */
-.a-list { display: flex; flex-direction: column; gap: 8px; }
-.a-row {
-  display: grid; grid-template-columns: 20px 24px 6px minmax(180px, 1.4fr) minmax(150px, .8fr) 96px; gap: 14px; align-items: center;
-  padding: 12px 14px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface);
-  transition: background .12s, box-shadow .12s;
-}
-.a-row:hover { background: #fafbfd; border-color: var(--navy); }
-.a-row.dragging { opacity: .5; }
-.a-row .handle { color: #cbd5e1; cursor: grab; display: grid; place-items: center; }
-.a-row .handle:active { cursor: grabbing; }
-.a-row .handle svg { width: 18px; height: 18px; }
-.a-row .bar { width: 6px; height: 38px; border-radius: 4px; }
-.a-row .title { font-weight: 600; }
-.a-row .meta { font-size: 12.5px; color: var(--muted); margin-top: 2px; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
-.a-row .meta .sep { color: #cbd5e1; }
-.a-row .due { text-align: right; }
-.a-row .due .d { font-weight: 600; font-size: 13.5px; }
-.a-row .due .t { font-size: 12px; color: var(--muted); }
-.a-row .due.overdue .d { color: var(--danger); }
-.a-row.compact { grid-template-columns: 20px 6px minmax(180px, 1.4fr) minmax(150px, .8fr) 96px; }
-.a-row.done .title { text-decoration: line-through; color: var(--muted); }
-.a-row .check {
-  width: 20px; height: 20px; border-radius: 6px; border: 2px solid var(--control-border); cursor: pointer; display: grid; place-items: center;
-}
-.a-row .check.on { background: var(--ok); border-color: var(--ok); color: #fff; }
-.a-row .check svg { width: 13px; height: 13px; }
 
 .tag {
   display: inline-flex; align-items: center; padding: 3px 9px; border-radius: 999px;
@@ -343,34 +316,8 @@ button.tag { border: 0; font-family: inherit; line-height: 1.3; }
 .tag.link { gap: 4px; text-decoration: underline; text-decoration-style: dotted; text-underline-offset: 2px; cursor: pointer; }
 .tag.link:hover { text-decoration-style: solid; filter: brightness(.92); }
 .tag.link svg { width: 11px; height: 11px; }
-.a-row .body { cursor: pointer; min-width: 0; }
-.a-row .body:hover .title { color: var(--accent); }
-.a-row .submission { color: var(--muted); }
 
 /* Inline notes on each card */
-.a-row .notes {
-  display: flex; align-items: flex-start; gap: 8px; margin: 0; padding: 7px 10px; width: 100%; min-width: 0;
-  background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 8px; font-size: 13px; color: #1e3a8a;
-  cursor: default; max-width: 640px;
-}
-.a-row .notes .notes-text { flex: 1; min-width: 0; white-space: pre-wrap; line-height: 1.4; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; overflow: hidden; overflow-wrap: anywhere; }
-.a-row .notes.empty-note { background: transparent; border: 1px dashed var(--border); color: var(--muted); font-style: italic; }
-.a-row .notes-add { display: inline-flex; align-items: center; gap: 7px; border: 0; background: transparent; color: var(--muted); padding: 0; font: inherit; font-style: italic; }
-.a-row .notes-add:hover { color: var(--navy); }
-.a-row .notes-add svg { width: 13px; height: 13px; color: currentColor; }
-.a-row .notes-add.icon-only { width: 24px; height: 24px; justify-content: center; flex: none; }
-.a-row .notes .pencil {
-  flex: none; border: 0; background: transparent; color: #2563eb; width: 22px; height: 22px; border-radius: 6px;
-  display: grid; place-items: center; padding: 0; opacity: .7; transition: opacity .12s, background .12s;
-}
-.a-row .notes.empty-note .pencil { color: var(--muted); }
-.a-row .notes .pencil:hover { opacity: 1; background: rgba(0,0,0,.06); }
-.a-row:hover .notes .pencil { opacity: 1; }
-.a-row .notes .pencil svg { width: 13px; height: 13px; }
-.a-row .notes.editing { flex-direction: column; align-items: stretch; background: var(--surface); border: 1px solid var(--accent); font-style: normal; box-shadow: 0 0 0 3px rgba(37,99,235,.12); max-width: none; }
-.a-row .notes .notes-input { font-size: 13px; padding: 8px 10px; }
-.a-row .notes .notes-actions { display: flex; gap: 6px; align-items: center; margin-top: 6px; }
-.a-row.done .notes { border-style: dashed; }
 
 /* Detail modal */
 .modal.modal-wide { max-width: 700px; }
@@ -728,12 +675,6 @@ body.navigation-open .help-corner { visibility: hidden; }
   .nav { flex-direction: row; flex: 1; justify-content: center; }
   .nav a span { display: none; }
   .sidebar-bottom { display: none; }
-  .a-row.compact { grid-template-columns: 20px 6px minmax(0, 1fr) auto; gap: 10px; }
-  .a-row:not(.compact) { grid-template-columns: 20px 24px 6px minmax(0, 1fr) auto; gap: 10px; }
-  .a-row .notes { grid-column: 3 / -1; grid-row: 2; max-width: none; }
-  .a-row:not(.compact) .notes { grid-column: 4 / -1; grid-row: 2; }
-  .a-row:not(.compact) .due { grid-column: 4 / -1; grid-row: 3; }
-  .a-row.compact .due { grid-column: 4 / -1; grid-row: 1; }
   .main { padding: 20px 16px; }
 }
 
@@ -758,7 +699,6 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--navy); }
 .filter-chip.course { background: var(--navy); }
 .card-header, .toolbar, .class-actions { flex-wrap: wrap; }
 .stat .value, .progress-card .num, .streak-mini .num { font-variant-numeric: tabular-nums; letter-spacing: -.04em; }
-.a-row .bar { width: 3px; border-radius: 2px; }
 .class-card > .card-header { padding-bottom: 16px; border-bottom: 1px solid var(--border); }
 .class-card .swatch { width: 4px; border-radius: 2px; }
 .callout { background: #f2f5f8; color: var(--navy); border-left: 3px solid var(--navy); }
@@ -780,12 +720,6 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--navy); }
   .sidebar .brand-mark { width: 28px; height: 28px; }
   .nav a { padding: 9px; }
   .stat-grid { gap: 10px; }
-  .a-row { gap: 8px; padding: 12px 8px; grid-template-columns: 18px 3px minmax(0, 1fr) auto; }
-  .a-row.compact { grid-template-columns: 3px minmax(0, 1fr) auto; }
-  .a-row .due { grid-column: 3; grid-row: 2; text-align: left; }
-  .a-row.compact .due { grid-column: 2; }
-  .a-row .check { grid-column: -2 / -1; grid-row: 1; }
-  .a-row .title { overflow-wrap: anywhere; }
   .cal-grid { gap: 3px; }
   .cal-day { min-height: 64px; padding: 4px; }
   .cal-day .n { width: 22px; height: 22px; }
@@ -1005,13 +939,6 @@ mark.hl { background: #fef08a; color: inherit; border-radius: 3px; padding: 0 1p
 .agenda-empty { padding: 36px 10px; border: 0; border-top: 1px solid var(--border); border-radius: 0; }
 .empty-icon { display: inline-grid; place-items: center; width: 64px; height: 64px; color: #245b91; background: #dceaff; border-radius: 18px; margin-bottom: 18px; }
 .empty-icon svg { width: 30px; height: 30px; }
-.agenda-next { margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--border); }
-.agenda-jump { display: flex; align-items: center; justify-content: space-between; gap: 8px; background: transparent; color: var(--text); border: 0; padding: 8px 0 0; text-align: left; width: 100%; }
-.agenda-jump:hover { color: var(--accent); }
-.agenda-jump span { display: flex; flex-direction: column; gap: 4px; }
-.agenda-jump strong { font-size: 15px; font-weight: 600; }
-.agenda-jump small, .agenda-end { font-size: 13px; color: var(--muted); }
-.agenda-jump svg { width: 14px; height: 14px; flex: none; }
 
 @media (max-width: 1300px) {
   .overview-stats .stat-copy { grid-template-columns: minmax(0, 1fr); }
@@ -1217,22 +1144,21 @@ mark.hl { background: #fef08a; color: inherit; border-radius: 3px; padding: 0 1p
 .calendar-main .day-panel { padding: 16px; min-width: 0; }
 .calendar-main .day-nav { flex-wrap: wrap; gap: 10px; }
 .calendar-main .day-nav h2 { font-size: 21px; }
-.calendar-main .agenda-list { gap: 10px; }
-.calendar-main .agenda-list .compact-assignment { display: grid; grid-template-columns: 24px minmax(0, 1fr) auto; gap: 8px; min-height: 0; padding: 12px 8px; align-items: start; }
-.calendar-main .agenda-list .assignment-toggle { grid-column: 1; grid-row: 1; margin-top: 3px; }
-.calendar-main .agenda-list .assignment-open { grid-column: 2 / -1; grid-row: 1; width: 100%; gap: 6px; }
-.calendar-main .agenda-list .assignment-name { display: block; white-space: normal; overflow: visible; text-overflow: clip; -webkit-line-clamp: unset; line-clamp: unset; overflow-wrap: anywhere; font-size: 14px; line-height: 1.45; }
-.calendar-main .agenda-list .assignment-meta { display: block; white-space: normal; overflow: visible; text-overflow: clip; overflow-wrap: anywhere; line-height: 1.6; font-size: 12px; }
-.calendar-main .agenda-list .course-marker { display: inline-block; margin-right: 4px; }
-.calendar-main .agenda-list .assignment-notes { white-space: normal; overflow: visible; overflow-wrap: anywhere; }
-.calendar-main .agenda-list .assignment-deadline { grid-column: 2; grid-row: 2; text-align: left; white-space: normal; align-self: center; }
-.calendar-main .agenda-list .row-actions { display: flex; grid-column: 3; grid-row: 2; opacity: 1; }
-.calendar-main .agenda-list .row-action { width: 32px; height: 32px; }
+.calendar-main .agenda-list { gap: 6px; }
+/* Day list fills the panel and scrolls; rows are the dashboard's compact rows, slimmed for the narrow panel */
+.calendar-main .day-panel { display: flex; flex-direction: column; }
+.calendar-main #day-list { flex: 1 1 auto; min-height: 0; overflow-y: auto; }
+.calendar-main .agenda-list .compact-assignment { gap: 8px; padding: 7px 8px; min-height: 54px; }
+.calendar-main .agenda-list .assignment-name { font-size: 14px; }
+.calendar-main .agenda-list .row-action { width: 30px; height: 30px; }
+/* The panel is narrow, so the hover buttons float over the time instead of reserving a column */
+.calendar-main .agenda-list .compact-assignment { grid-template-columns: 20px minmax(0, 1fr) auto; }
+.calendar-main .agenda-list .row-actions { position: absolute; right: 6px; top: 50%; transform: translateY(-50%); padding: 2px; border-radius: 8px; background: var(--surface); box-shadow: 0 1px 6px rgba(15,23,42,.15); }
 .calendar-main .list-footer { flex-wrap: wrap; }
 .calendar-main :is(button, a):focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
 .calendar-main .calendar-skeleton-cell { background: #edf2f7; border: 4px solid #fff; min-width: 0; }
 .calendar-main.calendar-loading .month-panel .cal-grid { grid-template-rows: repeat(6, minmax(0, 1fr)); }
-.calendar-loading .day-summary, .calendar-loading .agenda-next { display: none; }
+.calendar-loading .day-summary { display: none; }
 .calendar-loading .day-list { min-height: 240px; border-radius: 8px; background: repeating-linear-gradient(to bottom, #edf2f7 0 68px, transparent 68px 80px); }
 @media (max-width: 1100px) {
   .calendar-main .cal-layout { grid-template-columns: minmax(0, 1fr) 260px; gap: 12px; }
@@ -1279,7 +1205,6 @@ mark.hl { background: #fef08a; color: inherit; border-radius: 3px; padding: 0 1p
 .calendar-main .calendar-key { padding: 8px 12px; font-size: 11px; }
 .calendar-main .day-summary { margin-bottom: 10px; font-size: 12px; }
 .calendar-main .day-nav { margin-bottom: 10px; }
-.calendar-main .agenda-next { margin-top: 10px; padding-top: 10px; }
 .calendar-main .agenda-empty { padding: 20px 8px; }
 .calendar-main .agenda-empty .empty-icon { width: 40px; height: 40px; margin-bottom: 10px; border-radius: 12px; }
 .calendar-main .agenda-list .compact-assignment:hover { background: #f3f7fc; }
@@ -1345,7 +1270,6 @@ mark.hl { background: #fef08a; color: inherit; border-radius: 3px; padding: 0 1p
   .calendar-main .list-footer { gap: 10px; font-size: 12px; }
   .calendar-main .pager { margin-left: auto; }
   .calendar-main .pager .btn { min-height: 44px; padding: 10px 12px; font-size: 12px; }
-  .calendar-main .agenda-jump { min-height: 48px; }
 }
 
 /* Settings category workspace */
@@ -1363,6 +1287,16 @@ mark.hl { background: #fef08a; color: inherit; border-radius: 3px; padding: 0 1p
 .settings-page .settings-grid { display: block; max-width: none; }
 .settings-category { display: grid; gap: 12px; }
 .settings-page [hidden], .inline-class-create[hidden] { display: none; }
+/* Assignments page: each class lists the dashboard's compact rows, with its own search and type filter */
+.class-list .compact-assignment { min-height: 54px; padding: 7px 10px; margin-bottom: 6px; }
+.class-filters { display: flex; align-items: center; gap: 8px; margin: 2px 0 10px; }
+.class-filters .input { flex: 1 1 200px; min-width: 0; padding: 7px 10px; font-size: 13px; }
+.class-filters .select { flex: none; width: auto; padding: 7px 28px 7px 10px; font-size: 13px; }
+.class-filter-count { flex: none; font-size: 12px; color: var(--muted); white-space: nowrap; }
+@media (max-width: 760px) {
+  .class-filters { flex-wrap: wrap; }
+  .class-filters .input { flex-basis: 100%; }
+}
 .settings-page .card { padding: 18px; border-color: #d4dfe9; box-shadow: none; border-radius: 10px; }
 .settings-page .card-header { margin-bottom: 12px; align-items: flex-start; }
 .settings-page .card-header h3 { font-size: 18px; }

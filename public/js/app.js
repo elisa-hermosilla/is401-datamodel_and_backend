@@ -250,6 +250,8 @@ function fmtMinutes(min) {
   return `${min} min`;
 }
 function cap(s) { return s ? s.charAt(0).toUpperCase() + s.slice(1) : ""; }
+/* "online_upload" -> "online upload" (Canvas submission types) */
+function humanize(s) { return String(s || "").replace(/_/g, " "); }
 /* "just now", "4 min ago", "2 hrs ago", "3 days ago", or "never" */
 function relTime(iso) {
   if (!iso) return "never";
@@ -375,48 +377,6 @@ function highlightText(text, tokens) {
 }
 
 /* ---------- Assignment row ---------- */
-function assignmentRow(a, opts = {}) {
-  const cls = getClassById(a.course_id);
-  const d = dueDate(a);
-  /* opts.handle: draggable with a grip. opts.gutter: no grip, but keep the
-     grip's column so rows line up the same in every sort mode (dashboard).
-     Neither: the compact layout used on the other pages. */
-  const gutter = opts.handle || opts.gutter;
-  const handle = opts.handle
-    ? `<div class="handle" title="Drag to reorder">${ICONS.grip}</div>`
-    : gutter ? `<div class="handle spacer" aria-hidden="true">${ICONS.grip}</div>` : "";
-  const check = `<button type="button" aria-label="${esc(a.title)}: ${isDone(a) ? "mark incomplete" : "mark complete"}" aria-pressed="${isDone(a)}" class="check ${isDone(a) ? "on" : ""}" title="${isDone(a) ? "Mark incomplete" : "Mark complete"}" data-check="${a.assignment_id}">${isDone(a) ? ICONS.check : ""}</button>`;
-  const hasNote = a.notes && a.notes.trim();
-  const type = typeLabel(a);
-  const noteAddControl = opts.noteIconOnly
-    ? `<button type="button" class="notes-add icon-only" data-edit-note="${a.assignment_id}" title="Add a note" aria-label="Add a note">${ICONS.pencil}</button>`
-    : `<button type="button" class="notes-add" data-edit-note="${a.assignment_id}" title="Add a note">Add a note ${ICONS.pencil}</button>`;
-  return `
-    <div class="a-row ${gutter ? "" : "compact"} ${isDone(a) ? "done" : ""}" data-id="${a.assignment_id}" ${opts.details ? `data-card-view="${a.assignment_id}"` : ""} ${opts.handle ? 'draggable="true"' : ""}>
-      ${check}
-      ${handle}
-      <div class="bar" style="background:${cls.color_hex}"></div>
-      <div class="body" ${opts.details ? "" : `data-open="${a.assignment_id}" title="Edit assignment"`}>
-        <div class="title">${opts.details ? `<button type="button" class="assignment-title-button" data-view="${a.assignment_id}">${esc(a.title)}</button>` : opts.highlight && opts.highlight.length ? highlightText(a.title, opts.highlight) : esc(a.title)}</div>
-        <div class="meta">
-          <button type="button" class="tag course clickable" data-filter-class="${esc(cls.course_code)}" style="--course-color:${cls.color_hex}" title="Filter by ${esc(cls.course_code)}">${esc(cls.course_code)}</button>
-          ${type ? `<button type="button" class="tag type clickable" data-filter-type="${esc(type)}" title="Filter by ${esc(type)}">${esc(type)}</button>` : ""}
-          ${a.estimated_minutes ? `<span class="tag type" title="Estimated effort">${fmtMinutes(a.estimated_minutes)}</span>` : ""}
-          ${a.submission_type ? `<span class="submission tag type">${esc(a.submission_type)}</span>` : ""}
-          ${sourceTag(cls, null, a.external_url, "gradebook")}
-        </div>
-      </div>
-      <div class="notes ${hasNote ? "" : "empty-note"}" data-notes="${a.assignment_id}">
-        ${hasNote ? `<span class="notes-text">${esc(a.notes)}</span><button type="button" class="pencil" data-edit-note="${a.assignment_id}" title="Edit note" aria-label="Edit note">${ICONS.pencil}</button>` : noteAddControl}
-      </div>
-      ${opts.details ? `<button type="button" class="btn btn-secondary btn-sm assignment-edit" data-edit-assignment="${a.assignment_id}">${ICONS.pencil} Edit</button>` : ""}
-      <div class="due ${dueClass(a)}">
-        <div class="d">${fmtDayLabel(d)}</div>
-        <div class="t">${a.due_time_known === false ? "Time Unknown" : fmtTime(d)}</div>
-      </div>
-    </div>`;
-}
-
 /* A compact, keyboard-accessible row for the dashboard and calendar agenda.
    Full notes and submission details remain in the assignment dialog.
    handle: draggable with a grip. gutter: no grip, but keep the grip's column
@@ -445,7 +405,7 @@ function compactAssignmentRow(a, { handle = false, gutter = false, agenda = fals
     <button type="button" class="assignment-toggle ${isDone(a) ? "on" : ""}" data-check="${a.assignment_id}" aria-label="${isDone(a) ? "Mark incomplete" : "Mark complete"}: ${esc(a.title)}" aria-pressed="${isDone(a)}">${isDone(a) ? ICONS.check : ""}</button>
     <button type="button" class="assignment-open" data-view="${a.assignment_id}" title="${esc(a.title)}">
       <span class="assignment-name">${name}</span>
-      <span class="assignment-meta"><span class="course-marker" style="--course-color:${cls.color_hex}"></span>${esc(a.course_code)}${typeLabel(a) ? ` · ${esc(typeLabel(a))}` : ""}${a.estimated_minutes ? ` · ${fmtMinutes(a.estimated_minutes)}` : ""}</span>
+      <span class="assignment-meta"><span class="course-marker" style="--course-color:${cls.color_hex}"></span>${esc(a.course_code)}${typeLabel(a) ? ` · ${esc(typeLabel(a))}` : ""}${a.estimated_minutes ? ` · ${fmtMinutes(a.estimated_minutes)}` : ""}${a.submission_type ? ` · ${esc(humanize(a.submission_type))}` : ""}</span>
       ${notes ? `<span class="assignment-notes" title="${esc(notes)}">${esc(notes)}</span>` : ""}
     </button>
     ${actions}
@@ -466,12 +426,10 @@ async function saveAssignment(id, fields, onChange, successMsg) {
   }
 }
 
-/* Wire up row interactions in a container.
-   onChange() re-renders after a data change.
-   opts.onFilterClass / opts.onFilterType receive the clicked tag value (dashboard);
-   elsewhere a tag click jumps to the dashboard pre-filtered. */
+/* Wire up row interactions in a container. onChange() re-renders after a
+   data change. */
 let _lastOnChange = null;
-function bindChecks(container, onChange, opts = {}) {
+function bindChecks(container, onChange) {
   _lastOnChange = onChange;
   container.querySelectorAll("[data-check]").forEach(el => {
     el.addEventListener("click", e => {
@@ -491,28 +449,8 @@ function bindChecks(container, onChange, opts = {}) {
   });
   /* Real external links open Canvas without also opening the edit modal */
   container.querySelectorAll("a.tag.link[target=_blank]").forEach(el => el.addEventListener("click", e => e.stopPropagation()));
-  container.querySelectorAll("[data-filter-class]").forEach(el => {
-    el.addEventListener("click", e => {
-      e.stopPropagation();
-      if (opts.onFilterClass) opts.onFilterClass(el.dataset.filterClass);
-      else window.location.href = `/dashboard?class=${encodeURIComponent(el.dataset.filterClass)}`;
-    });
-  });
-  container.querySelectorAll("[data-filter-type]").forEach(el => {
-    el.addEventListener("click", e => {
-      e.stopPropagation();
-      if (opts.onFilterType) opts.onFilterType(el.dataset.filterType);
-      else window.location.href = `/dashboard?type=${encodeURIComponent(el.dataset.filterType)}`;
-    });
-  });
   container.querySelectorAll("[data-open]").forEach(el => {
     el.addEventListener("click", () => openAssignmentModal({ assignment: getAssignment(Number(el.dataset.open)) }, onChange));
-  });
-  container.querySelectorAll("[data-card-view]").forEach(el => {
-    el.addEventListener("click", e => {
-      if (e.target.closest("button, a, input, textarea, select, [data-notes]")) return;
-      openAssignmentView(Number(el.dataset.cardView), onChange);
-    });
   });
   /* Compact rows: the row shows details; its hover buttons edit / open at the source */
   container.querySelectorAll("[data-view]").forEach(el => {
@@ -524,45 +462,6 @@ function bindChecks(container, onChange, opts = {}) {
   container.querySelectorAll("a.row-action[target=_blank]").forEach(el => {
     el.addEventListener("click", e => e.stopPropagation());
     el.addEventListener("dragstart", e => e.preventDefault());
-  });
-  /* Notes: clicks inside the notes block never open the edit modal */
-  container.querySelectorAll("[data-notes]").forEach(el => {
-    el.addEventListener("dragstart", e => e.stopPropagation());
-  });
-  if (!container.dataset.noteActionsBound) {
-    container.dataset.noteActionsBound = "true";
-    container.addEventListener("click", e => {
-      const btn = e.target.closest("[data-edit-note]");
-      if (!btn || !container.contains(btn)) return;
-      e.stopPropagation();
-      inlineNoteEditor(container.querySelector(`[data-notes="${btn.dataset.editNote}"]`), Number(btn.dataset.editNote), onChange);
-    });
-  }
-}
-
-/* Swap a row's notes line for an inline textarea with Save / Cancel */
-function inlineNoteEditor(notesEl, id, onChange) {
-  const a = getAssignment(id);
-  const original = notesEl.innerHTML;
-  notesEl.classList.add("editing");
-  notesEl.classList.remove("empty-note");
-  notesEl.innerHTML = `
-    <textarea class="input notes-input" rows="2" placeholder="Rubric details, group members, where to submit">${esc(a.notes || "")}</textarea>
-    <div class="notes-actions">
-      <button type="button" class="btn btn-primary btn-sm" data-save>Save</button>
-      <button type="button" class="btn btn-ghost btn-sm" data-cancel>Cancel</button>
-      ${a.notes && a.notes.trim() ? `<button type="button" class="btn btn-ghost btn-sm" data-clear style="margin-left:auto;color:var(--danger)">Delete Note</button>` : ""}
-    </div>`;
-  const ta = notesEl.querySelector("textarea");
-  ta.focus(); ta.setSelectionRange(ta.value.length, ta.value.length);
-
-  notesEl.querySelector("[data-save]").addEventListener("click", () => saveAssignment(id, { notes: ta.value.trim() }, onChange, "Note saved"));
-  notesEl.querySelector("[data-cancel]").addEventListener("click", () => { notesEl.classList.remove("editing"); if (!a.notes) notesEl.classList.add("empty-note"); notesEl.innerHTML = original; });
-  const clear = notesEl.querySelector("[data-clear]");
-  if (clear) clear.addEventListener("click", () => saveAssignment(id, { notes: null }, onChange, "Note deleted"));
-  ta.addEventListener("keydown", e => {
-    if (e.key === "Escape") notesEl.querySelector("[data-cancel]").click();
-    if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) notesEl.querySelector("[data-save]").click();
   });
 }
 

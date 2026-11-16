@@ -6,8 +6,6 @@ initApp("calendar").then(main).catch(() => {
 
 function main() {
   const $ = id => document.getElementById(id);
-  let pageSize = 4;
-  let page = 0;
   let selected = today();
   const dateParam = new URLSearchParams(location.search).get("date");
   if (/^\d{4}-\d{2}-\d{2}$/.test(dateParam || "")) {
@@ -32,7 +30,7 @@ function main() {
     return visibleAssignments().filter(a => sameDay(dueDate(a), date)).sort((a, b) => Number(isDone(a)) - Number(isDone(b)) || dueDate(a) - dueDate(b));
   }
   function selectDay(date, focus = false, reveal = false) {
-    selected = startOfDay(date); page = 0; pageSize = reveal ? Number.MAX_SAFE_INTEGER : 4;
+    selected = startOfDay(date);
     viewMonth = new Date(selected.getFullYear(), selected.getMonth(), 1);
     renderAll();
     if (reveal) { $("day-label").focus(); $("day-label").scrollIntoView({ block: "nearest" }); }
@@ -89,23 +87,13 @@ function main() {
     const estimated = open.filter(a => Number(a.estimated_minutes) > 0);
     const minutes = estimated.reduce((sum, a) => sum + Number(a.estimated_minutes), 0);
     $("day-summary").innerHTML = `<strong>${open.length} open</strong><span>${minutes ? `${fmtMinutes(minutes)} estimated${estimated.length < open.length ? ` (${estimated.length}/${open.length})` : ""}` : items.length ? `${items.length - open.length} completed` : "No deadlines"}</span>`;
-    const pages = Math.max(1, Math.ceil(items.length / pageSize));
-    page = Math.min(page, pages - 1);
-    const start = page * pageSize;
     const el = $("day-list");
-    el.innerHTML = items.length ? items.slice(start, start + pageSize).map(a => compactAssignmentRow(a, { agenda: true })).join("") : `<div class="empty agenda-empty"><span class="empty-icon" aria-hidden="true">${ICONS.calCheck}</span><strong>${CLASSES.length ? "Nothing due" : "No classes yet"}</strong><p>${CLASSES.length ? "A little room in your schedule." : "Add a class to see your deadlines."}</p>${CLASSES.length ? '<button type="button" class="text-button" id="add-on-day">Add an assignment</button>' : '<a class="subtle-link" href="/assignments">Add a class ↗</a>'}</div>`;
+    el.innerHTML = items.length ? items.map(a => compactAssignmentRow(a, { agenda: true })).join("") : `<div class="empty agenda-empty"><span class="empty-icon" aria-hidden="true">${ICONS.calCheck}</span><strong>${CLASSES.length ? "Nothing due" : "No classes yet"}</strong><p>${CLASSES.length ? "A little room in your schedule." : "Add a class to see your deadlines."}</p>${CLASSES.length ? '<button type="button" class="text-button" id="add-on-day">Add an assignment</button>' : '<a class="subtle-link" href="/assignments">Add a class ↗</a>'}</div>`;
     if (!items.length && $("calendar-search").value.trim()) {
       el.innerHTML = '<div class="empty agenda-empty"><strong>No matching assignments this day</strong><p>Choose a day with results, or clear your search.</p></div>';
     }
     bindChecks(el, renderAll);
     $("add-on-day")?.addEventListener("click", addAssignment);
-    $("day-pagination").hidden = items.length <= pageSize;
-    $("day-page").textContent = `${items.length ? start + 1 : 0}–${Math.min(start + pageSize, items.length)} of ${items.length}`;
-    $("day-prev-page").disabled = page === 0;
-    $("day-next-page").disabled = page >= pages - 1;
-    const next = visibleAssignments().filter(a => !isDone(a) && startOfDay(dueDate(a)) > selected).sort((a, b) => dueDate(a) - dueDate(b))[0];
-    $("agenda-next").innerHTML = next ? `<span class="eyebrow">Next day with deadlines</span><button type="button" class="agenda-jump" id="next-deadline"><span><strong>${fmtDayLabel(dueDate(next))}</strong><small>${assignmentsOn(dueDate(next)).filter(a => !isDone(a)).length} open · ${esc(next.course_code)}</small></span>${ICONS.right}</button>` : `<p class="agenda-end">No later deadlines${$("calendar-class").value ? " for this class" : ""}.</p>`;
-    $("next-deadline")?.addEventListener("click", () => selectDay(dueDate(next)));
   }
 
   function shiftMonth(n) {
@@ -128,7 +116,6 @@ function main() {
     renderAll();
   };
   function searchChanged() {
-    page = 0; pageSize = 4;
     if ($("calendar-search").value.trim() && !assignmentsOn(selected).length) {
       const matches = visibleAssignments().sort((a, b) => dueDate(a) - dueDate(b));
       const match = matches.find(a => dueDate(a).getFullYear() === viewMonth.getFullYear() && dueDate(a).getMonth() === viewMonth.getMonth()) || matches[0];
@@ -147,10 +134,8 @@ function main() {
   $("prev-day").addEventListener("click", () => selectDay(addDays(selected, -1)));
   $("next-day").addEventListener("click", () => selectDay(addDays(selected, 1)));
   $("jump-today").addEventListener("click", () => selectDay(today()));
-  $("calendar-class").addEventListener("change", () => { page = 0; renderAll(); });
-  $("calendar-completed").addEventListener("change", () => { page = 0; renderAll(); });
-  $("day-prev-page").addEventListener("click", () => { page--; renderDay(); });
-  $("day-next-page").addEventListener("click", () => { page++; renderDay(); });
+  $("calendar-class").addEventListener("change", renderAll);
+  $("calendar-completed").addEventListener("change", renderAll);
   $("add-assignment").addEventListener("click", addAssignment);
   $("cal-grid").addEventListener("keydown", e => {
     if (!e.target.matches("[data-date]")) return;
@@ -201,14 +186,11 @@ function main() {
           "Here the busiest day this month is selected, and its assignments are listed on the right.",
         ] },
       { target: ".day-panel", title: "Daily assignments", text: [
-        "Everything due on the selected day, with the time estimates added up at the top.",
-        "Check the box to mark one complete. The pencil edits it, and the link icon opens it on Canvas or Learning Suite.",
+        "Everything due on the selected day, with the time estimates added up at the top. The list scrolls when a day is busy.",
+        "Check the box to mark one complete. Hover a row for the pencil (edit) and the link icon (open it on Canvas or Learning Suite).",
       ] },
       { target: ".day-nav .cal-nav", title: "One day at a time", text: [
         "These arrows step to the previous or next day without touching the month view.",
-      ] },
-      { target: "#agenda-next", fallback: ".day-panel", title: "Next day with deadlines", text: [
-        "Nothing due on the selected day? This jumps straight to the next day that has something, so you never have to hunt for it.",
       ] },
       { target: ".calendar-search-box", title: "Search", reveal: filters, text: [
         "Type part of an assignment's title or class.",
