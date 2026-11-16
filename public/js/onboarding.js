@@ -14,6 +14,7 @@ async function startOnboarding(onboardingStatus) {
   const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
   let phase = "welcome";
   let source = "";
+  let sourceReturnAction = "back-setup";
   let learningSuiteStatus = { courses: [] };
   let canvasCourses = [];
   let setupCourses = [];
@@ -95,7 +96,7 @@ async function startOnboarding(onboardingStatus) {
     const canvasOptions = currentSource === "Canvas" && CANVAS.connected
       ? `<label for="onboarding-edit-canvas">Canvas class</label><select class="select" id="onboarding-edit-canvas"><option value="">Loading Canvas classes…</option></select><span class="hint">From your Canvas account. Picking one fills in the code and name below; assignments sync from it.</span>` : "";
     const sourceFields = currentSource === "Learning Suite"
-      ? `<label for="onboarding-edit-ics">iCalendar link</label><div class="onboarding-ics-row"><input class="input" id="onboarding-edit-ics" type="url" value="${esc(editDraft.ics_feed_url)}" placeholder="${configuring.course.has_ics_feed_url && configuring.source === "Learning Suite" ? "Saved securely. Paste a new link to replace it." : "Paste the class iCal link"}"><button type="button" class="btn btn-secondary btn-sm" id="onboarding-edit-check-ics">Check Link</button></div><span class="hint" id="onboarding-edit-ics-note">In Learning Suite, open the course Schedule and copy its iCal link.</span>`
+      ? `<label for="onboarding-edit-ics">iCalendar link</label><div class="onboarding-ics-row"><input class="input" id="onboarding-edit-ics" type="url" value="${esc(editDraft.ics_feed_url)}" placeholder="${configuring.course.has_ics_feed_url && configuring.source === "Learning Suite" ? "Saved securely. Paste a new link to replace it." : "Paste the class iCal link"}"><button type="button" class="btn btn-secondary btn-sm" id="onboarding-edit-check-ics">Check Link</button></div><span class="hint" id="onboarding-edit-ics-note">In <a href="https://learningsuite.byu.edu" target="_blank" rel="noopener">Learning Suite</a>, open the course Schedule and copy its iCal link.</span>`
       : canvasOptions;
     const sourceButtons = LMS_SOURCES.map(s => `<button type="button" class="chip ${s.name === currentSource ? "active" : ""}" data-edit-source="${s.lms_source_id}"><span class="dot" style="background:${s.name === "Canvas" ? "#f87171" : s.name === "Learning Suite" ? "#60a5fa" : "#9ca3af"}"></span>${esc(s.name)}</button>`).join("");
     const swatches = CLASS_COLORS.map(c => `<button type="button" class="color-swatch ${editDraft.color_hex.toLowerCase() === c.hex.toLowerCase() ? "active" : ""}" data-edit-color="${c.hex}" style="background:${c.hex}" title="${c.name}" aria-label="${c.name}">${ICONS.check}</button>`).join("");
@@ -265,7 +266,7 @@ async function startOnboarding(onboardingStatus) {
       const selected = item ? item.selected : c.already_added;
       return `<label class="onboarding-class-row onboarding-canvas-row"><span class="onboarding-class-pick"><input type="checkbox" data-canvas-pick="${i}" ${selected ? "checked" : ""}><span>${esc(c.course_code)} · ${esc(c.course_name)}${c.term ? ` <small>(${esc(c.term)})</small>` : ""}</span></span><span class="hint">${c.already_added ? "Already added" : ""}</span></label>`;
     }).join("");
-    show("Choose Canvas classes", `<p>Select the classes to add. You can configure their assignment categories before the first sync.</p><div class="onboarding-class-list">${list || `<div class="empty">No active Canvas classes found.</div>`}</div><div class="form-error onboarding-error" role="alert"></div>`, `${button("Back", "back-setup", "btn-secondary")}${button("Add selected classes", "add-canvas-selected")}`, { wide: true });
+    show("Choose Canvas classes", `<p>Select the classes to add. You can configure their assignment categories before the first sync.</p><div class="onboarding-class-list">${list || `<div class="empty">No active Canvas classes found.</div>`}</div><div class="form-error onboarding-error" role="alert"></div>`, `${button("Back", sourceReturnAction, "btn-secondary")}${button("Add selected classes", "add-canvas-selected")}`, { wide: true });
     content.querySelectorAll("[data-canvas-pick]").forEach(cb => cb.addEventListener("change", () => {
       const c = canvasCourses[Number(cb.dataset.canvasPick)];
       let item = setupCourses.find(x => x.canvas?.external_course_id === c.external_course_id || x.course?.external_course_id === c.external_course_id);
@@ -282,7 +283,7 @@ async function startOnboarding(onboardingStatus) {
   function learningSuiteForm() {
     source = "Learning Suite";
     phase = "ls-form";
-    show("Add a Learning Suite class", `<p>Paste the class iCalendar link. You can configure its schedule categories from the classes list after adding it.</p><form id="onboarding-ls-form" class="onboarding-form"><label for="onboarding-ics">iCalendar link</label><input class="input" id="onboarding-ics" type="url" placeholder="Paste the class iCal link" required><label for="onboarding-ls-code">Course code</label><input class="input" id="onboarding-ls-code" maxlength="30" placeholder="e.g. MKTG 201" required><label for="onboarding-ls-name">Course name</label><input class="input" id="onboarding-ls-name" maxlength="150" placeholder="e.g. Marketing Management"><label>Color</label><div class="color-swatches" id="onboarding-ls-colors">${CLASS_COLORS.map((c, i) => `<button type="button" class="color-swatch ${i === 0 ? "active" : ""}" data-color="${c.hex}" style="background:${c.hex}" aria-label="${c.name}" title="${c.name}">${ICONS.check}</button>`).join("")}</div><input type="hidden" id="onboarding-ls-color" value="${CLASS_COLORS[0].hex}"><div class="form-error onboarding-error" role="alert"></div><button class="btn btn-primary" type="submit">Add</button></form>`, button("Back", "back-setup", "btn-secondary"));
+    show("Add a Learning Suite class", `<p>Paste the class iCalendar link. You can configure its schedule categories from the classes list after adding it.</p><form id="onboarding-ls-form" class="onboarding-form"><label for="onboarding-ics">iCalendar link</label><input class="input" id="onboarding-ics" type="url" placeholder="Paste the class iCal link" required><span class="hint">Get the link from <a href="https://learningsuite.byu.edu" target="_blank" rel="noopener">Learning Suite</a>: open the course, go to Schedule, and copy its iCal link.</span><label for="onboarding-ls-code">Course code</label><input class="input" id="onboarding-ls-code" maxlength="30" placeholder="e.g. MKTG 201" required><label for="onboarding-ls-name">Course name</label><input class="input" id="onboarding-ls-name" maxlength="150" placeholder="e.g. Marketing Management"><label>Color</label><div class="color-swatches" id="onboarding-ls-colors">${CLASS_COLORS.map((c, i) => `<button type="button" class="color-swatch ${i === 0 ? "active" : ""}" data-color="${c.hex}" style="background:${c.hex}" aria-label="${c.name}" title="${c.name}">${ICONS.check}</button>`).join("")}</div><input type="hidden" id="onboarding-ls-color" value="${CLASS_COLORS[0].hex}"><div class="form-error onboarding-error" role="alert"></div><button class="btn btn-primary" type="submit">Add</button></form>`, button("Back", sourceReturnAction, "btn-secondary"));
     content.querySelectorAll(".color-swatch").forEach(b => b.addEventListener("click", () => { content.querySelectorAll(".color-swatch").forEach(x => x.classList.remove("active")); b.classList.add("active"); document.getElementById("onboarding-ls-color").value = b.dataset.color; }));
   }
 
@@ -381,9 +382,9 @@ async function startOnboarding(onboardingStatus) {
     try {
       if (act === "welcome-next") connectPrompt();
       else if (act === "connect-prompt") connectPrompt();
-      else if (act === "choose-canvas") { source = "Canvas"; if (CANVAS.connected) { canvasCourses = await API.canvas.courses(); initializeCanvasItems(); canvasPicker(); } else canvasConnect(); }
-      else if (act === "choose-canvas-connect") canvasConnect();
-      else if (act === "choose-ls") learningSuiteForm();
+      else if (act === "choose-canvas") { sourceReturnAction = phase === "choose" ? "connect-prompt" : "back-setup"; source = "Canvas"; if (CANVAS.connected) { canvasCourses = await API.canvas.courses(); initializeCanvasItems(); canvasPicker(); } else canvasConnect(); }
+      else if (act === "choose-canvas-connect") { sourceReturnAction = "back-setup"; canvasConnect(); }
+      else if (act === "choose-ls") { sourceReturnAction = phase === "choose" ? "connect-prompt" : "back-setup"; learningSuiteForm(); }
       else if (act === "add-manual-class") await addManualClass();
       else if (act === "add-canvas-selected") await addSelectedCanvas();
       else if (act === "back-setup") setupList();
@@ -435,7 +436,7 @@ async function startOnboarding(onboardingStatus) {
   }
   async function canvasConnect() {
     phase = "canvas-connect";
-    show("Connect Canvas", `<p>In Canvas, open <a href="${esc(CANVAS.base_url || "https://byu.instructure.com")}/profile/settings" target="_blank" rel="noopener">Account → Settings</a>, scroll to Approved Integrations, choose <strong>+ New Access Token</strong>, then paste it here. Canvas shows the token once.</p><form id="onboarding-canvas-form" class="onboarding-form"><label for="onboarding-token">Canvas access token</label><input class="input" id="onboarding-token" type="password" autocomplete="off" placeholder="Paste access token"><div class="form-error onboarding-error" role="alert"></div><button class="btn btn-primary" type="submit">Connect Canvas</button></form><p class="hint">The token is stored securely on the DueList server so sync can run. Revoke it any time from Canvas settings.</p>`, button("Back", "connect-prompt", "btn-secondary"));
+    show("Connect Canvas", `<p>In Canvas, open <a href="${esc(CANVAS.base_url || "https://byu.instructure.com")}/profile/settings" target="_blank" rel="noopener">Account → Settings</a>, scroll to Approved Integrations, choose <strong>+ New Access Token</strong>, then paste it here. Canvas shows the token once.</p><form id="onboarding-canvas-form" class="onboarding-form"><label for="onboarding-token">Canvas access token</label><input class="input" id="onboarding-token" type="password" autocomplete="off" placeholder="Paste access token"><div class="form-error onboarding-error" role="alert"></div><button class="btn btn-primary" type="submit">Connect Canvas</button></form><p class="hint">The token is stored securely on the DueList server so sync can run. Revoke it any time from Canvas settings.</p>`, button("Back", sourceReturnAction, "btn-secondary"));
   }
   function welcome() { phase = "welcome"; show(`Welcome to DueList, ${esc(USER.first_name)}!`, `<p>DueList keeps your classes and assignments together so you can see what’s due and plan what to work on next.</p>`, button("Get started", "welcome-next")); }
 
