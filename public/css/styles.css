@@ -1533,8 +1533,15 @@ mark.hl { background: #fef08a; color: inherit; border-radius: 3px; padding: 0 1p
   .main:not(.dashboard-main) .page-header .toolbar .btn { padding: 8px 12px; }
   /* Calendar: dates and counts first; full assignment titles are in the daily agenda. */
   .calendar-main .calendar-controls { margin: 0; }
-  .calendar-main #calendar-filters.is-open { padding: 4px 0; }
-  .calendar-main .calendar-status { gap: 4px; }
+  /* The open filters panel hangs off the disclosure button like the dashboard's */
+  .calendar-main #calendar-filters.is-open { padding: 12px 12px 4px; margin: -1px 0 12px; }
+  .calendar-main #calendar-filters.is-open .calendar-controls { gap: 10px; }
+  .calendar-main #calendar-filters.is-open .calendar-search-box { background: #fff; }
+  .calendar-main #calendar-filters.is-open .calendar-toolbar .toolbar { grid-template-columns: minmax(0, 1fr); gap: 6px; }
+  .calendar-main #calendar-filters.is-open .check-label { min-height: 40px; }
+  .calendar-main .mobile-disclosure { margin-bottom: 10px; }
+  .calendar-main .mobile-disclosure[aria-expanded="true"] { margin-bottom: 0; }
+  .calendar-main .calendar-status { gap: 4px; margin-bottom: 10px; }
   .calendar-main .calendar-status p:empty { display: none; }
   .calendar-main .month-panel { height: auto; }
   .calendar-main .month-panel .cal-grid { flex: none; grid-template-rows: 24px repeat(var(--calendar-weeks, 6), minmax(44px, auto)); gap: 2px; }
