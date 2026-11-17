@@ -4,16 +4,22 @@ import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
 import ejs from 'ejs';
 
-test('Settings template retains controls within six distinct categories', async () => {
+test('Settings template retains controls within five categories with notifications and reminders together', async () => {
   const html = await ejs.renderFile('views/settings.ejs', { user: { name: 'Student', email: 'student@example.com' } });
-  assert.equal((html.match(/data-settings-panel=/g) || []).length, 6);
-  assert.equal((html.match(/data-settings-category=/g) || []).length, 6);
+  assert.equal((html.match(/data-settings-panel=/g) || []).length, 5);
+  assert.equal((html.match(/data-settings-category=/g) || []).length, 5);
   for (const id of ['password-form', 'summary-on', 'hours-chips', 'dnd-start', 'push-test', 'canvas-row', 'ls-row', 'save', 'settings-back']) {
     assert.match(html, new RegExp(`id="${id}"`));
   }
   assert.doesNotMatch(html, /delivery-email|Enable email notifications|Text message|Add phone/);
-  assert.match(html, /<h3>Notifications<\/h3>/);
-  assert.match(html, /data-settings-category="delivery"[^>]*>[\s\S]*?Notifications/);
+  assert.match(html, /<h3>Browser notifications<\/h3>/);
+  assert.match(html, /data-settings-category="notifications"[^>]*>[\s\S]*?Notifications/);
+  assert.doesNotMatch(html, /data-settings-(?:category|panel)="delivery"|>Reminders</);
+  const notifications = html.match(/<section[^>]*data-settings-panel="notifications"[\s\S]*?<\/section>/)[0];
+  for (const id of ['push-on', 'push-test', 'summary-on', 'summary-time', 'summary-range', 'reminders-on', 'hours-chips', 'custom-amount', 'dnd-on', 'dnd-start', 'dnd-end']) {
+    assert.equal((html.match(new RegExp(`id="${id}"`, 'g')) || []).length, 1);
+    assert.match(notifications, new RegExp(`id="${id}"`));
+  }
   assert.match(html, /assignments\?add_class=1/);
 });
 
@@ -64,7 +70,7 @@ test('duplicate course codes reuse the existing class', async () => {
 });
 
 test('category switching preserves form values and supports connected-account deep links and mobile back', () => {
-  const keys = ['account', 'password', 'notifications', 'delivery', 'connected-accounts', 'classes'];
+  const keys = ['account', 'password', 'notifications', 'connected-accounts', 'classes'];
   function el() {
     const classes = new Set();
     return { handlers: {}, dataset: {}, classList: { add: k => classes.add(k), remove: k => classes.delete(k), contains: k => classes.has(k), toggle: (k, on) => on ? classes.add(k) : classes.delete(k) }, addEventListener(type, fn) { this.handlers[type] = fn; }, setAttribute() {}, removeAttribute() {}, focus() {} };
@@ -77,11 +83,17 @@ test('category switching preserves form values and supports connected-account de
     location: { hash: '#connected-accounts' }, window: { addEventListener() {} }, history: { replaceState() {} },
     USER: { first_name: 'Test', last_name: 'Student', username: 'test', email: 'test@example.com' }, CLASSES: [],
   });
+  const shell = elements.get('settings-shell');
+  shell.querySelectorAll = selector => selector === '[data-settings-category]' ? links : panels;
+  shell.querySelector = selector => selector === '#settings-back' ? elements.get('settings-back') : null;
+  context.document.addEventListener = () => {};
+  vm.runInContext(readFileSync('public/js/app.js', 'utf8'), context);
+  vm.runInContext(`USER = { first_name: 'Test', last_name: 'Student', username: 'test', email: 'test@example.com' }; CLASSES = [];`, context);
   const source = readFileSync('public/js/settings.js', 'utf8');
   vm.runInContext(source.slice(source.indexOf('  const shell'), source.indexOf('  /* ---------- Account')), context);
-  assert.equal(panels[4].hidden, false);
+  assert.equal(panels[3].hidden, false);
   links[2].handlers.click({ preventDefault() {} });
-  assert.equal(panels[4].hidden, true);
+  assert.equal(panels[3].hidden, true);
   assert.equal(panels[2].hidden, false);
   assert.equal(elements.get('settings-save-actions').hidden, false);
   elements.get('settings-back').handlers.click();
@@ -89,4 +101,11 @@ test('category switching preserves form values and supports connected-account de
   links[1].handlers.click({ preventDefault() {} });
   assert.equal(panels[1].hidden, false);
   assert.equal(elements.get('settings-save-actions').hidden, true);
+  // Old links to the former delivery tab open the merged Notifications panel.
+  context.location.hash = '#delivery';
+  context.history.replaceState = (state, title, hash) => { context.location.hash = hash; };
+  vm.runInContext('normalizeNotificationHash(); selectCategory(location.hash.slice(1));', context);
+  assert.equal(context.location.hash, '#notifications');
+  assert.equal(panels[2].hidden, false);
+  assert.equal(elements.get('settings-save-actions').hidden, false);
 });

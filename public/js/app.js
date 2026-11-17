@@ -394,6 +394,7 @@ function assignmentRow(a, opts = {}) {
   return `
     <div class="a-row ${gutter ? "" : "compact"} ${isDone(a) ? "done" : ""}" data-id="${a.assignment_id}" ${opts.details ? `data-card-view="${a.assignment_id}"` : ""} ${opts.handle ? 'draggable="true"' : ""}>
       ${check}
+      ${opts.selectable ? `<label class="estimate-select"><input type="checkbox" data-estimate-select="${a.assignment_id}" ${opts.selected ? "checked" : ""} aria-label="${esc(a.title)}: select for time estimation"><span>Select</span></label>` : ""}
       ${handle}
       <div class="bar" style="background:${cls.color_hex}"></div>
       <div class="body" ${opts.details ? "" : `data-open="${a.assignment_id}" title="Edit assignment"`}>
@@ -510,7 +511,7 @@ function bindChecks(container, onChange, opts = {}) {
   });
   container.querySelectorAll("[data-card-view]").forEach(el => {
     el.addEventListener("click", e => {
-      if (e.target.closest("button, a, input, textarea, select, [data-notes]")) return;
+      if (e.target.closest("button, a, input, label, textarea, select, [data-notes]")) return;
       openAssignmentView(Number(el.dataset.cardView), onChange);
     });
   });
@@ -1247,7 +1248,7 @@ function openModal(id) {
 function closeModal(id) {
   const modal = document.getElementById(id);
   modal.classList.remove("open");
-  if (id === "assignment-view" && modal._returnFocus?.isConnected) modal._returnFocus.focus();
+  if ((id === "assignment-view" || id === "estimate-modal") && modal._returnFocus?.isConnected) modal._returnFocus.focus();
 }
 document.addEventListener("keydown", e => {
   const wrap = document.getElementById("assignment-view");

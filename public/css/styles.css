@@ -319,8 +319,8 @@ input, select, textarea { font-family: inherit; font-size: 14px; }
 .a-row .meta { font-size: 12.5px; color: var(--muted); margin-top: 2px; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 .a-row .meta .sep { color: #cbd5e1; }
 .a-row .due { text-align: right; }
-.a-row .due .d { font-weight: 600; font-size: 13.5px; }
-.a-row .due .t { font-size: 12px; color: var(--muted); }
+.a-row .due .d { font-weight: 800; font-size: 13.5px; }
+.a-row .due .t { font-weight: 600; font-size: 12px; color: var(--muted); }
 .a-row .due.overdue .d { color: var(--danger); }
 .a-row.compact { grid-template-columns: 20px 6px minmax(180px, 1.4fr) minmax(150px, .8fr) 96px; }
 .a-row.done .title { text-decoration: line-through; color: var(--muted); }
@@ -882,8 +882,8 @@ mark.hl { background: #fef08a; color: inherit; border-radius: 3px; padding: 0 1p
 .assignment-name { font-size: 15px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; }
 .assignment-meta { display: flex; align-items: center; gap: 5px; font-size: 13px; color: var(--muted); max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .course-marker { width: 9px; height: 9px; border-radius: 2px; background: var(--course-color); flex: none; }
-.assignment-deadline { display: flex; flex-direction: column; gap: 4px; text-align: right; font-size: 13px; font-weight: 600; white-space: nowrap; }
-.assignment-deadline small { font-size: 12px; font-weight: 400; color: var(--muted); }
+.assignment-deadline { display: flex; flex-direction: column; gap: 4px; text-align: right; font-size: 13px; font-weight: 800; white-space: nowrap; }
+.assignment-deadline small { font-size: 12px; font-weight: 600; color: var(--muted); }
 .assignment-deadline.overdue, .assignment-deadline.overdue small { color: var(--danger); }
 .assignment-deadline.today > span { color: var(--warn); }
 .compact-assignment.done .assignment-name { text-decoration: line-through; color: var(--muted); }
@@ -1437,9 +1437,6 @@ mark.hl { background: #fef08a; color: inherit; border-radius: 3px; padding: 0 1p
 .settings-password-form > button { grid-column: 1 / -1; justify-self: start; margin-top: 8px; background: var(--navy); color: white; border-color: var(--navy); }
 .settings-page .settings-actions { padding: 14px 18px; background: #eaf1fa; border: 1px solid #d1deed; border-radius: 10px; }
 .settings-page #settings-class-list .setting-row { align-items: center; }
-@media (min-width: 1250px) {
-  .settings-page #settings-notifications { grid-template-columns: minmax(0, .9fr) minmax(0, 1.1fr); align-items: start; }
-}
 @media (max-width: 1000px) {
   .settings-page .settings-shell { grid-template-columns: 200px minmax(0, 1fr); gap: 16px; }
   .settings-page .card { padding: 20px; }
@@ -1748,4 +1745,46 @@ mark.hl { background: #fef08a; color: inherit; border-radius: 3px; padding: 0 1p
 @media (max-width: 600px) {
   .okr-tiles { grid-template-columns: 1fr 1fr; }
   .okr-tiles .stat:first-child { grid-column: 1 / -1; }
+}
+
+/* Bulk assignment time estimates */
+.estimate-toolbar { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; margin-bottom: 16px; }
+.estimate-toolbar[hidden] { display: none; }
+.assignments-page .a-row:has(.estimate-select) { position: relative; padding-top: 52px; }
+.estimate-select { position: absolute; top: 8px; right: 12px; display: flex; align-items: center; gap: 8px; padding: 5px 10px; border: 2px solid var(--control-border); border-radius: 6px; background: var(--navy-100); font-size: 13px; font-weight: 700; color: var(--navy); cursor: pointer; justify-self: start; }
+.estimate-select input { accent-color: var(--navy); width: 20px; height: 20px; margin: 0; cursor: pointer; }
+.estimate-select:hover { border-color: var(--navy); box-shadow: 0 0 0 2px var(--navy-100); }
+.estimate-select:focus-within { outline: 2px solid var(--navy); outline-offset: 3px; }
+.estimate-select:has(input:checked) { background: var(--navy); border-color: var(--navy); color: #fff; }
+.estimate-item { min-width: 0; border: 1px solid var(--border); border-radius: 8px; padding: 12px; margin: 16px 0; }
+.estimate-item legend { max-width: 100%; overflow-wrap: anywhere; font-size: 14px; font-weight: 600; padding: 0 4px; }
+.estimate-options { display: flex; flex-wrap: wrap; gap: 6px; }
+.estimate-options [aria-pressed="true"] { background: var(--navy); border-color: var(--navy); color: #fff; }
+.estimate-custom { display: flex; align-items: center; gap: 10px; margin-top: 10px; font-size: 13px; color: var(--muted); }
+.estimate-custom .input { width: 140px; max-width: 50%; }
+.estimate-total { margin: 16px 0; }
+
+/* Notifications read as one ordered settings panel at every desktop width. */
+.settings-page #settings-notifications { grid-template-columns: minmax(0, 1fr); gap: 16px; max-width: 900px; }
+.settings-page #settings-notifications > .card { min-width: 0; padding: 20px 24px; }
+.settings-page #settings-notifications .card-header { flex-wrap: nowrap; align-items: flex-start; gap: 20px; padding-bottom: 14px; margin-bottom: 0; }
+.settings-page #settings-notifications .card-header > div { min-width: 0; }
+.settings-page #settings-notifications .card-header h3 { font-size: 18px; line-height: 1.4; }
+.settings-page #settings-notifications .card-header .sub { margin-top: 4px; font-size: 13px; line-height: 1.5; }
+.settings-page #settings-notifications .card-header > .switch { margin-top: 2px; }
+.settings-page #settings-notifications .setting-row { padding: 14px 0; align-items: center; gap: 16px; }
+.settings-page #settings-notifications .card-header + .setting-row,
+.settings-page #settings-notifications .card-header + div > .setting-row:first-child { border-top: 0; }
+.settings-page #settings-notifications .setting-row .t { font-size: 14px; }
+.settings-page #settings-notifications .setting-row .d { font-size: 13px; line-height: 1.5; }
+.settings-page #settings-notifications .chips { gap: 8px; margin-bottom: 12px; }
+.settings-page #settings-notifications .callout { padding: 12px 14px; margin-top: 14px; line-height: 1.6; }
+.settings-page #settings-save-actions { max-width: 900px; box-sizing: border-box; }
+@media (max-width: 760px) {
+  .settings-page #settings-notifications > .card { padding: 16px; }
+  .settings-page #settings-notifications .card-header { gap: 12px; }
+  .settings-page #settings-notifications .setting-row { gap: 10px; }
+  .settings-page #settings-notifications .setting-row .control { width: 100%; justify-content: flex-start; }
+  .settings-page #settings-notifications .setting-row .control .input,
+  .settings-page #settings-notifications .setting-row .control .select { max-width: 100%; }
 }

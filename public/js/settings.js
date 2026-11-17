@@ -4,9 +4,15 @@ initApp("settings").then(main);
 
 function main() {
   const shell = document.getElementById("settings-shell");
+  // Keep links to the former Notifications category working after the merge.
+  function normalizeNotificationHash() {
+    if (location.hash === "#delivery") history.replaceState(null, "", "#notifications");
+  }
+  normalizeNotificationHash();
+  window.addEventListener("hashchange", normalizeNotificationHash);
   const selectCategory = bindCategoryNav(shell, {
     defaultKey: "account",
-    onSelect: key => { document.getElementById("settings-save-actions").hidden = !["notifications", "delivery"].includes(key); },
+    onSelect: key => { document.getElementById("settings-save-actions").hidden = key !== "notifications"; },
   });
 
   /* The Settings tour (lightbulb -> "Settings page"). Steps switch to the
@@ -33,18 +39,18 @@ function main() {
       { target: "#settings-password .card", title: "Password", enter: go("password"), text: [
         "Change your password here. You stay signed in afterwards.",
       ] },
-      { target: "#settings-notifications .card:first-child", title: "Summary notifications", enter: go("notifications"), text: [
+      { target: "#notification-summary", title: "Summary notifications", enter: go("notifications"), text: [
         "A daily digest of what's due, sent as a browser notification on the days and time you choose.",
         "Pick whether it covers today, today and tomorrow, or the whole week.",
       ] },
-      { target: "#settings-notifications .card:nth-child(2)", title: "Assignment reminders", enter: go("notifications"), text: [
+      { target: "#notification-reminders", title: "Assignment reminders", enter: go("notifications"), text: [
         "A reminder before each assignment is due, at whichever lead times you choose.",
         "Quiet hours pause notifications overnight. The countdown skips that time, so a reminder still arrives before quiet hours begin.",
       ] },
       { target: "#settings-save-actions", title: "Save your changes", enter: go("notifications"), text: [
         "Reminder settings only take effect once you press Save notification settings.",
       ] },
-      { target: "#settings-delivery .card", title: "Notifications", enter: go("delivery"), text: [
+      { target: "#notification-delivery", title: "Browser notifications", enter: go("notifications"), text: [
         "Turn on browser push notifications on each device you want reminders on.",
         "Send a test to make sure they're coming through.",
       ] },
