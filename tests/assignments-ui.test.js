@@ -55,7 +55,7 @@ test('Assignments template renders skeleton placeholders and page controls', asy
 test('class collapse persists through re-render and removes hidden content from keyboard navigation', () => {
   const context = app();
   const source = readFileSync('public/js/assignments.js', 'utf8');
-  const renderSection = source.slice(source.indexOf('  const showDone'), source.indexOf('  /* ---------- Add / edit class ---------- */'));
+  const renderSection = source.slice(source.indexOf('  const showDone'), source.indexOf('  /* Bulk estimation'));
   vm.runInContext(`
     USER = { user_id: 42 };
     var savedState = null;
@@ -105,4 +105,53 @@ test('class collapse persists through re-render and removes hidden content from 
   // A new page visit reads the previous state for this signed-in user.
   vm.runInContext(`savedState = '[1]'; (function () { ${renderSection} render(); })()`, context);
   assert.match(context.grid.innerHTML, /aria-expanded="false"/);
+});
+
+
+test('bulk selection is separate from completion and estimates remain visible on cards', () => {
+  const context = app();
+  vm.runInContext('ASSIGNMENTS[0].estimated_minutes = 90', context);
+  const html = vm.runInContext('assignmentRow(ASSIGNMENTS[0], { details: true, selectable: true, selected: true })', context);
+  assert.match(html, /data-estimate-select="7" checked/);
+  assert.match(html, /&lt;Essay&gt;: select for time estimation/);
+  assert.match(html, /data-check="7"/);
+  assert.match(html, /1h 30m/);
+});
+
+test('bulk estimator totals custom values and retries only failed saves', async () => {
+  const context = app();
+  const source = readFileSync('public/js/assignments.js', 'utf8');
+  const section = source.slice(source.indexOf('  /* Bulk estimation'), source.indexOf('  /* ---------- Add / edit class ---------- */'));
+  vm.runInContext(`
+    var handlers = {}, elements = {};
+    var inputs = [
+      { dataset: { estimateInput: '7' }, value: '90', validity: { valid: true }, closest: () => ({ querySelectorAll: () => [] }) },
+      { dataset: { estimateInput: '8' }, value: '35', validity: { valid: true }, closest: () => ({ querySelectorAll: () => [] }) }
+    ];
+    ASSIGNMENTS.push({ assignment_id: 8, estimated_minutes: null });
+    var calls = [], fail = true;
+    var API = { assignments: { update: async (id, fields) => {
+      calls.push(id);
+      if (id === 8 && fail) throw new Error('Offline');
+      return { assignment_id: id, ...fields };
+    } } };
+    document.getElementById = id => elements[id] ||= {
+      addEventListener: (type, fn) => handlers[id + ':' + type] = fn,
+      querySelectorAll: selector => selector === '[data-estimate-input]' ? inputs : [],
+      reportValidity: () => true
+    };
+    var selectedEstimates = new Set([7, 8]);
+    var render = () => {}, closeModal = () => {}, toast = () => {};
+    var clearFormError = () => {}, showFormError = (el, msg) => el.textContent = msg;
+    ${section}
+    updateEstimateTotal();
+  `, context);
+  assert.equal(context.elements['estimate-total'].textContent, '2h 5m');
+  await vm.runInContext("handlers['estimate-form:submit']({ preventDefault() {} })", context);
+  assert.equal(vm.runInContext('getAssignment(7).estimated_minutes', context), 90);
+  assert.match(context.elements['estimate-error'].textContent, /1 estimate\(s\) could not be saved/);
+  vm.runInContext('fail = false', context);
+  await vm.runInContext("handlers['estimate-form:submit']({ preventDefault() {} })", context);
+  assert.equal(JSON.stringify(context.calls), '[7,8,8]');
+  assert.equal(vm.runInContext('getAssignment(8).estimated_minutes', context), 35);
 });
