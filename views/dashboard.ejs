@@ -17,7 +17,7 @@
           <div class="card-header">
             <div class="queue-heading"><h2 id="queue-heading">Assignments</h2><button class="text-button" id="all-open" aria-pressed="true">All open</button></div>
             <label class="check-label dashboard-completed"><input type="checkbox" id="show-done"> Include completed</label>
-            <button type="button" class="btn btn-secondary btn-sm mobile-dashboard-control" id="toggle-dashboard-filters" aria-expanded="false" aria-controls="dashboard-filters">Search &amp; filters</button>
+            <button type="button" class="btn btn-secondary btn-sm mobile-dashboard-control disclosure-toggle" id="toggle-dashboard-filters" aria-expanded="false" aria-controls="dashboard-filters"><span class="label">Search &amp; filters</span> <svg class="chev" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg></button>
           </div>
           <div id="dashboard-filters" class="dashboard-filters">
           <div class="queue-controls">
@@ -38,7 +38,6 @@
           </div>
         </section>
 
-        <button type="button" class="btn btn-secondary mobile-dashboard-control" id="toggle-dashboard-overview" aria-expanded="false" aria-controls="dashboard-overview">Weekly overview &amp; streaks</button>
         <aside id="dashboard-overview" class="dashboard-rail" aria-label="Planning overview">
           <section class="card focus-card" id="next-grid" aria-label="Next deadline"></section>
           <section class="card week-card" aria-labelledby="week-heading">

@@ -25,7 +25,8 @@ function main() {
   }
   function updateToggleAll() {
     toggleAll.disabled = CLASSES.length === 0;
-    toggleAll.textContent = CLASSES.some(c => collapsed.has(c.course_id)) ? "Expand All" : "Collapse All";
+    /* Collapse All whenever anything is open; Expand All only once everything is closed */
+    toggleAll.textContent = CLASSES.some(c => !collapsed.has(c.course_id)) ? "Collapse All" : "Expand All";
   }
   function setClassCollapsed(button, closed) {
     const id = Number(button.dataset.toggle);
@@ -35,7 +36,7 @@ function main() {
     document.getElementById(button.getAttribute("aria-controls")).inert = closed;
   }
   toggleAll.addEventListener("click", () => {
-    const closed = !CLASSES.some(c => collapsed.has(c.course_id));
+    const closed = CLASSES.some(c => !collapsed.has(c.course_id));
     document.querySelectorAll("#class-grid [data-toggle]").forEach(button => setClassCollapsed(button, closed));
     saveExpandedState();
     updateToggleAll();
@@ -126,7 +127,6 @@ function main() {
   /* The Assignments tour (lightbulb -> "Assignments page"). The first class
      card is opened for the steps that look inside it and put back after. */
   function assignmentsTourSteps() {
-    const options = '[data-mobile-disclosure="class-list-options"]';
     const firstCard = () => document.querySelector("#class-grid .class-card");
     let wasCollapsed = false;
     const open = () => {
@@ -167,10 +167,10 @@ function main() {
         text: [
           "Search inside a class, or show one assignment type at a time.",
         ] },
-      { target: "#show-done", reveal: options, title: "Show completed", text: [
+      { target: "#show-done", title: "Show completed", text: [
         "Completed assignments are hidden by default. Turn this on to see them inside each class.",
       ] },
-      { target: "#toggle-all-classes", reveal: options, title: "Collapse or expand all", text: [
+      { target: "#toggle-all-classes", title: "Collapse or expand all", text: [
         "Collapse or expand every class at once. DueList remembers which cards you left open.",
       ] },
     ];
