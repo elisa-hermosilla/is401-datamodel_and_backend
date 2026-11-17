@@ -19,12 +19,6 @@ function main(onboardingStatus) {
     filterToggle.setAttribute("aria-expanded", String(open));
   }
   filterToggle.addEventListener("click", () => showFilters(filterToggle.getAttribute("aria-expanded") !== "true"));
-  $("toggle-dashboard-overview").addEventListener("click", () => {
-    const button = $("toggle-dashboard-overview");
-    const open = button.getAttribute("aria-expanded") !== "true";
-    button.setAttribute("aria-expanded", String(open));
-    $("dashboard-overview").classList.toggle("is-open", open);
-  });
   $("dashboard-show-more").addEventListener("click", () => { mobileVisible += 5; renderList(); });
   mobileDashboard.addEventListener("change", () => { mobileVisible = 5; renderList(); });
   let scope = "all";
@@ -68,10 +62,13 @@ function main(onboardingStatus) {
     return true;
   }
   const scopeName = () => ({ all: showDone.checked ? "All assignments" : "All open assignments", past: "Past due", today: "Still due today", tomorrow: "Due tomorrow", week: "Due in the next 7 days", date: selectedDate ? `Due ${fmtDayLabel(selectedDate).toLowerCase()}` : "" })[scope];
-  function setScope(value, date = null) {
+  /* reveal: on phones the list sits below the counts and above the week strip,
+     so a tap on either filter scrolls the list into view to show its effect. */
+  function setScope(value, date = null, { reveal = false } = {}) {
     mobileVisible = 5;
     scope = value; selectedDate = date;
     renderStats(); renderWeek(); renderList();
+    if (reveal && mobileDashboard.matches) document.querySelector(".queue-panel").scrollIntoView({ behavior: "smooth", block: "start" });
   }
 
   function renderStats() {
@@ -84,7 +81,7 @@ function main(onboardingStatus) {
       { key: "week", label: "Next 7 days", cls: "ok", icon: ICONS.week, items: open.filter(a => inWeek(a) && dueDate(a) >= now), foot: "Including today" },
     ];
     $("stat-grid").innerHTML = stats.map(s => `<button type="button" class="card stat ${s.cls} ${scope === s.key ? "is-selected" : ""}" data-scope="${s.key}" aria-pressed="${scope === s.key}"><span class="stat-copy"><span class="stat-icon" aria-hidden="true">${s.icon}</span><span class="label">${s.label}</span><span class="foot">${s.items.length ? s.foot : "Nothing due"}</span></span><span class="value">${s.items.length}</span></button>`).join("");
-    $("stat-grid").querySelectorAll("[data-scope]").forEach(btn => btn.addEventListener("click", () => setScope(scope === btn.dataset.scope ? "all" : btn.dataset.scope)));
+    $("stat-grid").querySelectorAll("[data-scope]").forEach(btn => btn.addEventListener("click", () => setScope(scope === btn.dataset.scope ? "all" : btn.dataset.scope, null, { reveal: true })));
   }
 
   function renderNext() {
@@ -111,7 +108,7 @@ function main(onboardingStatus) {
       return { date, items: open.filter(a => sameDay(dueDate(a), date)) };
     });
     $("week-strip").innerHTML = days.map(({ date, items }, i) => `<button type="button" class="week-day ${i === 0 ? "is-today" : ""}" data-day="${i}" aria-pressed="${scope === "date" && sameDay(date, selectedDate)}" aria-label="${fmtLongDate(date)}: ${items.length} open assignments"><span>${DOW[date.getDay()]}</span><strong>${date.getDate()}</strong><span class="week-count ${items.length ? "has-work" : ""}">${items.length || "–"}</span></button>`).join("");
-    $("week-strip").querySelectorAll("[data-day]").forEach(btn => btn.addEventListener("click", () => setScope("date", addDays(today(), Number(btn.dataset.day)))));
+    $("week-strip").querySelectorAll("[data-day]").forEach(btn => btn.addEventListener("click", () => setScope("date", addDays(today(), Number(btn.dataset.day)), { reveal: true })));
     const work = open.filter(inWeek);
     const estimated = work.filter(a => Number(a.estimated_minutes) > 0);
     const minutes = estimated.reduce((sum, a) => sum + Number(a.estimated_minutes), 0);
@@ -273,7 +270,7 @@ function main(onboardingStatus) {
       ? `Showing ${visibleList.length} of ${list.length}`
       : `${list.length} assignment${list.length === 1 ? "" : "s"}`;
     $("dashboard-show-more").hidden = !mobileDashboard.matches || visibleList.length >= list.length;
-    filterToggle.textContent = `Search & filters${filters.classes.size + filters.types.size + Number(showDone.checked) + Number(Boolean(searchTokens.length)) ? " · Active" : ""}`;
+    filterToggle.querySelector(".label").textContent = `Search & filters${filters.classes.size + filters.types.size + Number(showDone.checked) + Number(Boolean(searchTokens.length)) ? " · Active" : ""}`;
     $("queue-scope").textContent = scopeName();
     $("all-open").setAttribute("aria-pressed", scope === "all");
     sortSel.title = custom ? "Drag rows to reorder. Your order is saved automatically." : "Choose Custom order to drag rows into your own order.";
@@ -492,24 +489,24 @@ function main(onboardingStatus) {
           "The pencil edits it, and the link icon opens it on Canvas or Learning Suite. These appear when you hover over an assignment.",
           "Check the box on the left to mark it complete.",
         ] },
-      { target: "#next-grid", title: "Next deadline", reveal: "#toggle-dashboard-overview", text: [
+      { target: "#next-grid", title: "Next deadline", text: [
         "See the assignment due the soonest. This can give you a good idea of what to work on next.",
       ] },
-      { target: ".week-card", title: "Next 7 days", reveal: "#toggle-dashboard-overview", text: [
+      { target: ".week-card", title: "Next 7 days", text: [
         "See how many assignments are due on each of the next seven days.",
         "The bar underneath tracks how much of this week's work you've already finished.",
       ] },
-      { target: () => document.querySelector(`#week-strip [data-day="${demoDay}"]`), fallback: "#week-strip", title: "Filter by day", reveal: "#toggle-dashboard-overview",
+      { target: () => document.querySelector(`#week-strip [data-day="${demoDay}"]`), fallback: "#week-strip", title: "Filter by day",
         enter: () => { demoDay = busiestDay(); setScope("date", addDays(today(), demoDay)); }, exit: () => setScope("all"),
         text: [
           "Click a day to filter your assignments list to just that day.",
           "Here the list is showing what's due on the selected day. Click the day again to clear the filter.",
         ] },
-      { target: () => document.querySelectorAll("#streak-row .streak-mini")[0], fallback: "#streak-row", title: "Check-in streak", reveal: "#toggle-dashboard-overview", text: [
+      { target: () => document.querySelectorAll("#streak-row .streak-mini")[0], fallback: "#streak-row", title: "Check-in streak", text: [
         "Your check-in streak counts the days in a row you've opened DueList.",
         "Missing a Saturday or Sunday doesn't break it; missing a weekday does.",
       ] },
-      { target: () => document.querySelectorAll("#streak-row .streak-mini")[1], fallback: "#streak-row", title: "No late turn-ins", reveal: "#toggle-dashboard-overview", text: [
+      { target: () => document.querySelectorAll("#streak-row .streak-mini")[1], fallback: "#streak-row", title: "No late turn-ins", text: [
         "Your no-late streak is how many days it's been since you completed an assignment after its due date.",
         "If you've never been late, it counts from the day you joined.",
       ] },

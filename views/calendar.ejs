@@ -6,7 +6,7 @@
         <div><h1>Calendar</h1><p class="sub">Your deadlines, at a glance.</p></div>
         <div class="toolbar"><button class="btn btn-secondary btn-sm" id="jump-today">Today</button><button class="btn btn-primary btn-sm" id="add-assignment">Add assignment</button></div>
       </header>
-      <button type="button" class="btn btn-secondary btn-sm mobile-disclosure" data-mobile-disclosure="calendar-filters" aria-expanded="false" aria-controls="calendar-filters">Search &amp; filters</button>
+      <button type="button" class="btn btn-secondary btn-sm mobile-disclosure disclosure-toggle" data-mobile-disclosure="calendar-filters" aria-expanded="false" aria-controls="calendar-filters">Search &amp; filters <svg class="chev" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg></button>
       <div class="mobile-filter-panel" id="calendar-filters">
       <div class="calendar-controls">
       <div class="calendar-search-wrap">
@@ -41,8 +41,6 @@
           </div>
           <div class="day-summary" id="day-summary"></div>
           <div class="compact-list agenda-list" id="day-list"></div>
-          <div class="list-footer" id="day-pagination" hidden><span id="day-page" role="status"></span><div class="pager"><button class="btn btn-secondary btn-sm" id="day-prev-page" aria-label="Previous assignments">Previous</button><button class="btn btn-secondary btn-sm" id="day-next-page" aria-label="Next assignments">Next</button></div></div>
-          <div class="agenda-next" id="agenda-next"></div>
         </section>
       </div>
     </main>

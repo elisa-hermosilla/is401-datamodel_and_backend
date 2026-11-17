@@ -38,13 +38,11 @@ function calendar(date = '2026-11-12', gridHeight) {
   return { element, context };
 }
 
-test('month shows three previews plus overflow and daily pagination', () => {
+test('month shows three previews plus overflow and the day list shows every assignment', () => {
   const { element } = calendar();
   assert.equal((element('cal-grid').innerHTML.match(/class="cal-preview /g) || []).length, 3);
   assert.match(element('cal-grid').innerHTML, /\+3 more/);
-  assert.equal(element('day-page').textContent, '1–4 of 6');
-  element('day-next-page').handlers.click();
-  assert.equal(element('day-page').textContent, '5–6 of 6');
+  for (let i = 1; i <= 6; i++) assert.match(element('day-list').innerHTML, new RegExp(`Project ${i}`));
   assert.equal(element('cal-grid')['aria-busy'], 'false');
 });
 
@@ -69,7 +67,6 @@ test('search filters month and agenda by title and class and clears cleanly', ()
 test('overflow selection exposes every assignment for the day', () => {
   const { element } = calendar();
   element('date-2026-11-12').handlers.click({ target: { closest: () => ({}) } });
-  assert.equal(element('day-pagination').hidden, true);
   assert.match(element('day-list').innerHTML, /Project 6/);
   // Arrow navigation still advances a day and updates its agenda.
   element('next-day').handlers.click();

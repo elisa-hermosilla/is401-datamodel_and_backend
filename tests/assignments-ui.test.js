@@ -15,32 +15,34 @@ function app() {
   return context;
 }
 
-test('assignment cards escape content and separate details, edit, notes, completion', () => {
+test('compact rows escape content and separate details, edit, source link, completion', () => {
   const context = app();
-  const html = vm.runInContext('assignmentRow(ASSIGNMENTS[0], { details: true })', context);
+  const html = vm.runInContext('compactAssignmentRow(ASSIGNMENTS[0])', context);
   assert.match(html, /&lt;Essay&gt;/);
-  assert.match(html, /data-card-view="7"/);
   assert.match(html, /data-view="7"/);
   assert.match(html, /data-edit-assignment="7"/);
-  assert.match(html, /data-edit-note="7"/);
+  assert.match(html, /data-check="7"/);
   assert.match(html, /aria-pressed="false"/);
-  assert.doesNotMatch(html, /data-open=/);
-  assert.match(vm.runInContext('assignmentRow(ASSIGNMENTS[0])', context), /data-open="7"/);
+  assert.match(html, /class="assignment-notes"[^>]*>My notes/);
+  assert.doesNotMatch(html, /data-open=|data-estimate-select=/);
 });
 
-test('card background opens details while interactive children stay independent', () => {
+test('row title opens details while the edit button stays independent', () => {
   const context = app();
   vm.runInContext(`
-    var calls = [];
+    var calls = [], edits = [];
     openAssignmentView = id => calls.push(id);
-    var handler;
-    var card = { dataset: { cardView: '7' }, addEventListener: (type, fn) => handler = fn };
-    var container = { dataset: { noteActionsBound: 'true' }, querySelectorAll: selector => selector === '[data-card-view]' ? [card] : [] };
+    openAssignmentModal = opts => edits.push(opts.assignment.assignment_id);
+    var handlers = {};
+    var title = { dataset: { view: '7' }, addEventListener: (type, fn) => handlers.view = fn };
+    var edit = { dataset: { editAssignment: '7' }, addEventListener: (type, fn) => handlers.edit = fn };
+    var container = { dataset: {}, querySelectorAll: selector => selector === '[data-view]' ? [title] : selector === '[data-edit-assignment]' ? [edit] : [] };
     bindChecks(container, () => {});
-    handler({ target: { closest: () => null } });
-    handler({ target: { closest: () => ({}) } });
+    handlers.view();
+    handlers.edit({ stopPropagation() {} });
   `, context);
   assert.equal(JSON.stringify(context.calls), '[7]');
+  assert.equal(JSON.stringify(context.edits), '[7]');
 });
 
 test('Assignments template renders skeleton placeholders and page controls', async () => {
@@ -111,7 +113,7 @@ test('class collapse persists through re-render and removes hidden content from 
 test('bulk selection is separate from completion and estimates remain visible on cards', () => {
   const context = app();
   vm.runInContext('ASSIGNMENTS[0].estimated_minutes = 90', context);
-  const html = vm.runInContext('assignmentRow(ASSIGNMENTS[0], { details: true, selectable: true, selected: true })', context);
+  const html = vm.runInContext('compactAssignmentRow(ASSIGNMENTS[0], { selectable: true, selected: true })', context);
   assert.match(html, /data-estimate-select="7" checked/);
   assert.match(html, /&lt;Essay&gt;: select for time estimation/);
   assert.match(html, /data-check="7"/);
