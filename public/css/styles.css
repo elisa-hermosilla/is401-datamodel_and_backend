@@ -1534,7 +1534,8 @@ mark.hl { background: #fef08a; color: inherit; border-radius: 3px; padding: 0 1p
   /* Calendar: dates and counts first; full assignment titles are in the daily agenda. */
   .calendar-main .calendar-controls { margin: 0; }
   /* The open filters panel hangs off the disclosure button like the dashboard's */
-  .calendar-main #calendar-filters.is-open { padding: 12px 12px 4px; margin: -1px 0 12px; }
+  /* The page is a flex column with a 12px gap; pull the open panel up over it so it touches the button */
+  .calendar-main #calendar-filters.is-open { padding: 12px 12px 4px; margin: -13px 0 0; }
   .calendar-main #calendar-filters.is-open .calendar-controls { gap: 10px; }
   .calendar-main #calendar-filters.is-open .calendar-search-box { background: #fff; }
   .calendar-main #calendar-filters.is-open .calendar-toolbar .toolbar { grid-template-columns: minmax(0, 1fr); gap: 6px; }
