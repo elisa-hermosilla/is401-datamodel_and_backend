@@ -48,11 +48,20 @@ function main() {
     render();
   };
 
+  const selectedEstimates = new Set();
+  function updateEstimateSelection() {
+    const available = new Set(ASSIGNMENTS.filter(a => showDone.checked || !isDone(a)).map(a => a.assignment_id));
+    selectedEstimates.forEach(id => { if (!available.has(id)) selectedEstimates.delete(id); });
+    document.getElementById("estimate-toolbar").hidden = selectedEstimates.size === 0;
+    document.getElementById("estimate-count").textContent = `${selectedEstimates.size} selected`;
+  }
+
   /* ---------- Render class cards ---------- */
   function render() {
     const grid = document.getElementById("class-grid");
     grid.setAttribute("aria-busy", "false");
     updateToggleAll();
+    updateEstimateSelection();
     if (CLASSES.length === 0) {
       grid.innerHTML = `<div class="empty">No classes yet. Add a class to get started.</div>`;
       return;
@@ -92,7 +101,7 @@ function main() {
           </div>
           <div class="class-collapse" id="class-body-${c.course_id}" ${collapsed.has(c.course_id) ? "inert" : ""}><div class="class-collapse-inner"><div class="class-body">
             ${filters}
-            <div class="compact-list class-list">${items.length ? items.map(a => compactAssignmentRow(a)).join("") : `<div class="empty">${all.length ? (visible.length ? "No assignments match." : "No open assignments.") : "No assignments yet."}</div>`}</div>
+            <div class="compact-list class-list">${items.length ? items.map(a => compactAssignmentRow(a, { selectable: true, selected: selectedEstimates.has(a.assignment_id) })).join("") : `<div class="empty">${all.length ? (visible.length ? "No assignments match." : "No open assignments.") : "No assignments yet."}</div>`}</div>
           </div></div></div>
         </div>`;
     }).join("");
@@ -101,6 +110,11 @@ function main() {
       setClassCollapsed(button, !collapsed.has(Number(button.dataset.toggle)));
       saveExpandedState();
       updateToggleAll();
+    }));
+    grid.querySelectorAll("[data-estimate-select]").forEach(input => input.addEventListener("change", () => {
+      const id = Number(input.dataset.estimateSelect);
+      if (input.checked) selectedEstimates.add(id); else selectedEstimates.delete(id);
+      updateEstimateSelection();
     }));
     bindChecks(grid, render);
     grid.querySelectorAll("[data-class-search]").forEach(input => input.addEventListener("input", () => {
@@ -175,6 +189,81 @@ function main() {
       ] },
     ];
   }
+
+  /* Bulk estimation uses the same persisted field and update API as individual edits. */
+  const estimateWrap = document.getElementById("estimate-modal");
+  const estimateForm = document.getElementById("estimate-form");
+  const estimateRows = document.getElementById("estimate-rows");
+  const estimateError = document.getElementById("estimate-error");
+  const estimateSave = document.getElementById("estimate-save");
+  const estimateOptions = [[15, "15 min"], [30, "30 min"], [45, "45 min"], [60, "1 hr"], [90, "1.5 hrs"], [120, "2 hrs"], [180, "3 hrs"], [240, "4+ hrs"]];
+  function updateEstimateTotal() {
+    let total = 0;
+    estimateRows.querySelectorAll("[data-estimate-input]").forEach(input => {
+      if (input.validity.valid && input.value !== "") total += Number(input.value);
+      input.closest(".estimate-item").querySelectorAll("[data-minutes]").forEach(button => {
+        button.setAttribute("aria-pressed", String(Number(input.value) === Number(button.dataset.minutes)));
+      });
+    });
+    document.getElementById("estimate-total").textContent = total ? fmtMinutes(total) : "0 min";
+  }
+  document.getElementById("estimate-clear").addEventListener("click", () => { selectedEstimates.clear(); render(); });
+  document.getElementById("estimate-time-btn").addEventListener("click", () => {
+    clearFormError(estimateError);
+    estimateRows.innerHTML = ASSIGNMENTS.filter(a => selectedEstimates.has(a.assignment_id)).map(a => `
+      <fieldset class="estimate-item">
+        <legend>${esc(a.title)} <span class="hint">· ${esc(a.course_code || getClassById(a.course_id).course_code)}</span></legend>
+        <div class="estimate-options">${estimateOptions.map(([minutes, label]) => `<button type="button" class="btn btn-secondary btn-sm" data-minutes="${minutes}" aria-pressed="false">${label}</button>`).join("")}</div>
+        <label class="estimate-custom" for="estimate-${a.assignment_id}">Custom minutes
+          <input class="input" id="estimate-${a.assignment_id}" data-estimate-input="${a.assignment_id}" type="number" min="1" max="2147483647" step="1" placeholder="Not estimated" value="${a.estimated_minutes || ""}">
+        </label>
+      </fieldset>`).join("");
+    updateEstimateTotal();
+    openModal("estimate-modal");
+    estimateWrap.querySelector('[role="dialog"]').focus();
+  });
+  estimateRows.addEventListener("click", e => {
+    const button = e.target.closest("[data-minutes]");
+    if (!button) return;
+    button.closest(".estimate-item").querySelector("input").value = button.dataset.minutes;
+    updateEstimateTotal();
+  });
+  estimateRows.addEventListener("input", updateEstimateTotal);
+  estimateWrap.addEventListener("keydown", e => {
+    if (e.key === "Escape") { e.preventDefault(); closeModal("estimate-modal"); }
+    if (e.key !== "Tab") return;
+    const controls = [...estimateWrap.querySelectorAll("button, input")].filter(control => !control.disabled);
+    const first = controls[0], last = controls[controls.length - 1];
+    if (e.shiftKey && (document.activeElement === first || document.activeElement === estimateWrap.querySelector('[role="dialog"]'))) { e.preventDefault(); last?.focus(); }
+    else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first?.focus(); }
+  });
+  estimateForm.addEventListener("submit", async e => {
+    e.preventDefault();
+    if (estimateSave.disabled || !estimateForm.reportValidity()) return;
+    clearFormError(estimateError);
+    const entries = [...estimateRows.querySelectorAll("[data-estimate-input]")].map(input => ({
+      id: Number(input.dataset.estimateInput), minutes: input.value === "" ? null : Number(input.value),
+    })).filter(entry => entry.minutes !== (getAssignment(entry.id)?.estimated_minutes ?? null));
+    estimateSave.disabled = true;
+    estimateRows.querySelectorAll("button, input").forEach(control => { control.disabled = true; });
+    estimateSave.textContent = "Saving…";
+    try {
+      const results = await Promise.allSettled(entries.map(entry => API.assignments.update(entry.id, { estimated_minutes: entry.minutes })));
+      const failures = [];
+      results.forEach((result, i) => {
+        if (result.status === "fulfilled") {
+          ASSIGNMENTS = ASSIGNMENTS.map(a => a.assignment_id === entries[i].id ? result.value : a);
+        } else failures.push(result.reason?.message || "Unable to save estimate");
+      });
+      render();
+      if (failures.length) showFormError(estimateError, `${failures.length} estimate(s) could not be saved. Your entries are kept; try Save All Estimates again. ${failures[0]}`);
+      else { closeModal("estimate-modal"); toast("Time estimates saved", "success"); }
+    } finally {
+      estimateSave.disabled = false;
+      estimateRows.querySelectorAll("button, input").forEach(control => { control.disabled = false; });
+      estimateSave.textContent = "Save All Estimates";
+    }
+  });
 
   /* ---------- Add / edit class ---------- */
   const classForm = document.getElementById("class-form");

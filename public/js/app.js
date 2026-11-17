@@ -382,7 +382,7 @@ function highlightText(text, tokens) {
    handle: draggable with a grip. gutter: no grip, but keep the grip's column
    so rows line up the same in every sort mode. highlight: search tokens to
    mark in the title. */
-function compactAssignmentRow(a, { handle = false, gutter = false, agenda = false, highlight = [] } = {}) {
+function compactAssignmentRow(a, { handle = false, gutter = false, agenda = false, highlight = [], selectable = false, selected = false } = {}) {
   const cls = getClassById(a.course_id);
   const due = dueDate(a);
   const status = dueClass(a);
@@ -400,8 +400,12 @@ function compactAssignmentRow(a, { handle = false, gutter = false, agenda = fals
       ${url ? `<a class="row-action" href="${esc(url)}" target="_blank" rel="noopener" data-tip="Open this assignment on ${esc(cls.source)}" aria-label="Open this assignment on ${esc(cls.source)}">${ICONS.link}</a>` : ""}
       <button type="button" class="row-action" data-edit-assignment="${a.assignment_id}" data-tip="Edit this assignment" aria-label="Edit this assignment">${ICONS.pencil}</button>
     </span>`;
-  return `<div style="--course-color:${cls.color_hex}" class="compact-assignment ${isDone(a) ? "done" : ""} ${sortable ? "sortable" : ""}" data-id="${a.assignment_id}" ${handle ? 'draggable="true"' : ""}>
-    ${grip}
+  /* selectable: a checkbox for the Assignments page's bulk time estimates, separate from completion */
+  const select = selectable
+    ? `<label class="estimate-select"><input type="checkbox" data-estimate-select="${a.assignment_id}" ${selected ? "checked" : ""} aria-label="${esc(a.title)}: select for time estimation"><span>Select</span></label>`
+    : "";
+  return `<div style="--course-color:${cls.color_hex}" class="compact-assignment ${isDone(a) ? "done" : ""} ${sortable ? "sortable" : ""} ${selectable ? "selectable" : ""}" data-id="${a.assignment_id}" ${handle ? 'draggable="true"' : ""}>
+    ${select}${grip}
     <button type="button" class="assignment-toggle ${isDone(a) ? "on" : ""}" data-check="${a.assignment_id}" aria-label="${isDone(a) ? "Mark incomplete" : "Mark complete"}: ${esc(a.title)}" aria-pressed="${isDone(a)}">${isDone(a) ? ICONS.check : ""}</button>
     <button type="button" class="assignment-open" data-view="${a.assignment_id}" title="${esc(a.title)}">
       <span class="assignment-name">${name}</span>
@@ -1146,7 +1150,7 @@ function openModal(id) {
 function closeModal(id) {
   const modal = document.getElementById(id);
   modal.classList.remove("open");
-  if (id === "assignment-view" && modal._returnFocus?.isConnected) modal._returnFocus.focus();
+  if ((id === "assignment-view" || id === "estimate-modal") && modal._returnFocus?.isConnected) modal._returnFocus.focus();
 }
 document.addEventListener("keydown", e => {
   const wrap = document.getElementById("assignment-view");

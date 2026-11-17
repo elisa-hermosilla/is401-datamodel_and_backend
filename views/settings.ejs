@@ -15,11 +15,10 @@
             account: '<circle cx="12" cy="8" r="4"/><path d="M4 21v-2a8 8 0 0 1 16 0v2"/>',
             password: '<rect x="4" y="10" width="16" height="11" rx="2"/><path d="M8 10V6a4 4 0 0 1 8 0v4m-4 5v2"/>',
             notifications: '<path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9m-9 12a3 3 0 0 0 6 0"/>',
-            delivery: '<path d="m22 2-7 20-4-9L2 9 22 2ZM22 2 11 13"/>',
             'connected-accounts': '<path d="m10 13 4-4m-5 7-2 2a4 4 0 0 1-6-6l4-4a4 4 0 0 1 6 0m2 0 2-2a4 4 0 0 1 6 6l-4 4a4 4 0 0 1-6 0"/>',
             classes: '<path d="M12 5C9 3 5 3 2 4v16c3-1 7-1 10 1 3-2 7-2 10-1V4c-3-1-7-1-10 1Zm0 0v16"/>'
           }; %>
-          <% for (const [key, label] of [['account','Account'],['password','Password'],['notifications','Reminders'],['delivery','Notifications'],['connected-accounts','Connected Accounts'],['classes','Classes']]) { %>
+          <% for (const [key, label] of [['account','Account'],['password','Password'],['notifications','Notifications'],['connected-accounts','Connected Accounts'],['classes','Classes']]) { %>
             <a href="#<%= key %>" data-settings-category="<%= key %>"><span class="settings-category-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><%- settingsIcons[key] %></svg></span><%= label %><span class="settings-category-arrow" aria-hidden="true">›</span></a>
           <% } %>
         </nav>
@@ -65,8 +64,26 @@
 
         </section>
         <section class="settings-category" data-settings-panel="notifications" id="settings-notifications" hidden>
+        <!-- Browser delivery -->
+        <div class="card" id="notification-delivery">
+          <div class="card-header">
+            <div>
+              <h3>Browser notifications</h3>
+              <p class="sub">Manage browser push notifications.</p>
+            </div>
+          </div>
+          <div class="setting-row">
+            <div class="info"><div class="t">Push notifications</div><div class="d">Assignment reminders on this account's subscribed browsers.</div><div class="d" id="push-status" aria-live="polite">Checking push support…</div></div>
+            <div class="control">
+              <label class="switch"><input type="checkbox" id="push-on" aria-label="Enable push notifications"><span class="slider"></span></label>
+              <button class="btn btn-secondary btn-sm" id="push-test" type="button" disabled>Send test</button>
+            </div>
+          </div>
+        </div>
+
+
         <!-- Summary notifications -->
-        <div class="card">
+        <div class="card" id="notification-summary">
           <div class="card-header">
             <div>
               <h3>Summary notifications</h3>
@@ -111,7 +128,7 @@
         </div>
 
         <!-- Assignment reminders -->
-        <div class="card">
+        <div class="card" id="notification-reminders">
           <div class="card-header">
             <div>
               <h3>Assignment reminders</h3>
@@ -162,25 +179,6 @@
             <!-- Live example -->
             <div class="callout" id="dnd-example"></div>
             <div id="dnd-timeline"></div>
-          </div>
-        </div>
-
-        </section>
-        <section class="settings-category" data-settings-panel="delivery" id="settings-delivery" hidden>
-        <!-- Notifications -->
-        <div class="card">
-          <div class="card-header">
-            <div>
-              <h3>Notifications</h3>
-              <p class="sub">Manage browser push notifications.</p>
-            </div>
-          </div>
-          <div class="setting-row">
-            <div class="info"><div class="t">Push notifications</div><div class="d">Assignment reminders on this account's subscribed browsers.</div><div class="d" id="push-status" aria-live="polite">Checking push support…</div></div>
-            <div class="control">
-              <label class="switch"><input type="checkbox" id="push-on" aria-label="Enable push notifications"><span class="slider"></span></label>
-              <button class="btn btn-secondary btn-sm" id="push-test" type="button" disabled>Send test</button>
-            </div>
           </div>
         </div>
 
