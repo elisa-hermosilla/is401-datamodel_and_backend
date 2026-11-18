@@ -31,7 +31,7 @@ This approach fits our team and project because, between the four core classes, 
   <li>Install dependencies (they are not stored in the repo) <br> <code>npm install</code></li>
   <li>Create your <code>.env</code> file by copying the <code>.env.example</code> file an renaming it <code>.env</code> in the project root file, then open the <code>.env</code> file and change the SESSION_SECRET to a long random string of your choice</li>
   <p>Note: If you are trying to run this on VS code, make sure the <code>.env</code> is next to the <code>package.json</code>.</p>
-  <p>Also, if it can't find the correct "DATABASE_URL", please contact Devin Fisher (dfishy03@byu.edu) for the updated "DATABASE_URL".</p>
+  <p>NOTE, please contact Devin Fisher (dfishy03@byu.edu or 2.dfisher@gmail.com) for the following inputs in the <code>.env</code> file: DATABASE_URL, APP_ENCRYPTION_KEY, VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY, VAPID_SUBJECT, ANTHROPIC_API_KEY, .</p>
 </ol>
 <br>
 Note: We know that having the credentials in the <code>.env.example</code> file isn't the greatest idea. We currently have them there for the sake of easy testing, but they will be removed later on
