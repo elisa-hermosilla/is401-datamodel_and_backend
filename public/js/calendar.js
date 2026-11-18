@@ -92,7 +92,7 @@ function main() {
     if (!items.length && $("calendar-search").value.trim()) {
       el.innerHTML = '<div class="empty agenda-empty"><strong>No matching assignments this day</strong><p>Choose a day with results, or clear your search.</p></div>';
     }
-    bindChecks(el, renderAll);
+    bindChecks(el, renderAll, () => $("calendar-completed").checked);
     $("add-on-day")?.addEventListener("click", addAssignment);
   }
 

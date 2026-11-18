@@ -14,5 +14,10 @@
   <meta name="theme-color" content="#002e5d">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <link rel="stylesheet" href="/css/styles.css">
+  <script>
+    window.addEventListener("pagereveal", event => {
+      document.documentElement.classList.toggle("animated-navigation", Boolean(event.viewTransition));
+    });
+  </script>
 </head>
 <body data-page-label="<%= locals.pageLabel || title %>">

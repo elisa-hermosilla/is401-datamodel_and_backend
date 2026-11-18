@@ -413,30 +413,49 @@ function compactAssignmentRow(a, { handle = false, gutter = false, agenda = fals
   </div>`;
 }
 
-/* Save a partial update for one assignment, swap in the fresh row, re-render. */
-async function saveAssignment(id, fields, onChange, successMsg) {
-  try {
-    const row = await API.assignments.update(id, fields);
-    replaceAssignment(row);
-    if (successMsg) toast(successMsg, "success");
-    if (onChange) onChange();
-  } catch (err) {
-    toast(err.message, "error");
-    if (onChange) onChange();
-  }
-}
-
 /* Wire up row interactions in a container. onChange() re-renders after a
    data change. */
 let _lastOnChange = null;
-function bindChecks(container, onChange) {
+const pendingAssignmentChecks = new Set();
+
+function bindChecks(container, onChange, keepCompleted = () => false) {
   _lastOnChange = onChange;
   container.querySelectorAll("[data-check]").forEach(el => {
-    el.addEventListener("click", e => {
+    el.addEventListener("click", async e => {
       e.stopPropagation();
-      const a = getAssignment(Number(el.dataset.check));
+      const id = Number(el.dataset.check);
+      const a = getAssignment(id);
+      if (!a || pendingAssignmentChecks.has(id)) return;
       const done = !isDone(a);
-      saveAssignment(a.assignment_id, { completed: done }, onChange, done ? "Marked complete" : "Marked incomplete");
+      pendingAssignmentChecks.add(id);
+      const row = el.closest(".compact-assignment, .focus-card");
+      if (done && el.classList.contains("assignment-toggle")) {
+        el.classList.add("on");
+        el.innerHTML = ICONS.check;
+        el.setAttribute("aria-pressed", "true");
+      }
+      try {
+        const updated = await API.assignments.update(id, { completed: done });
+        if (done && row && window.matchMedia("(prefers-reduced-motion: no-preference)").matches) {
+          const burst = document.createElement("span");
+          burst.className = "assignment-completion-burst";
+          burst.setAttribute("aria-hidden", "true");
+          burst.innerHTML = ICONS.check;
+          row.appendChild(burst);
+          if (!keepCompleted()) row.classList.add("assignment-completing");
+        }
+        const animations = row?.getAnimations?.({ subtree: true }).filter(animation =>
+          animation.animationName === "completion-burst" || animation.animationName === "assignment-exit"
+        ) || [];
+        await Promise.allSettled(animations.map(animation => animation.finished));
+        replaceAssignment(updated);
+        toast(done ? "Marked complete" : "Marked incomplete", "success");
+      } catch (err) {
+        toast(err.message, "error");
+      } finally {
+        pendingAssignmentChecks.delete(id);
+        onChange?.();
+      }
     });
   });
   container.querySelectorAll("[data-source]").forEach(el => {
@@ -893,7 +912,7 @@ function bindSidebar() {
    of the page is dimmed and locked. */
 
 function openTourChooser() {
-  if (document.querySelector(".walk-callout, .tour-chooser-backdrop, #onboarding-modal.open")) return;
+  if (document.querySelector(".walk-callout, .tour-chooser-backdrop.open, #onboarding-modal.open")) return;
   const label = document.body.dataset.pageLabel || document.title.split(" · ")[0];
   const bd = document.createElement("div");
   bd.className = "modal-backdrop open tour-chooser-backdrop";
@@ -907,11 +926,17 @@ function openTourChooser() {
       <div class="tour-chooser-foot"><button type="button" class="btn btn-ghost btn-sm" data-tour="cancel">Cancel</button></div>
     </section>`;
   document.body.appendChild(bd);
-  const close = () => { bd.remove(); document.removeEventListener("keydown", onKey, true); };
+  const close = () => {
+    document.removeEventListener("keydown", onKey, true);
+    bd.classList.remove("open");
+    const transitions = bd.getAnimations?.() || [];
+    if (transitions.length) Promise.allSettled(transitions.map(animation => animation.finished)).then(() => bd.remove());
+    else bd.remove();
+  };
   const onKey = e => { if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); close(); } };
   document.addEventListener("keydown", onKey, true);
   bd.addEventListener("click", e => {
-    if (e.target === bd) return close();
+    if (e.target === bd) { e.stopPropagation(); return close(); }
     const b = e.target.closest("[data-tour]");
     if (!b) return;
     if (b.dataset.tour === "cancel") return close();

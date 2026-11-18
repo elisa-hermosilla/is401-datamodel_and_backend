@@ -114,7 +114,7 @@ function main() {
       const c = CLASSES.find(x => x.course_id === Number(b.dataset.estimateClass));
       if (c) openEstimateModal(visibleItems(c).items);
     }));
-    bindChecks(grid, render);
+    bindChecks(grid, render, () => showDone.checked);
     grid.querySelectorAll("[data-class-search]").forEach(input => input.addEventListener("input", () => {
       const id = Number(input.dataset.classSearch);
       classFilters.set(id, { ...(classFilters.get(id) || { q: "", type: "" }), q: input.value });

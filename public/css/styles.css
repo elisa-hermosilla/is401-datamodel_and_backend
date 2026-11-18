@@ -44,9 +44,8 @@ input, select, textarea { font-family: inherit; font-size: 14px; }
   display: inline-flex; align-items: center; gap: 8px;
   min-height: 40px; justify-content: center; padding: 10px 16px; border-radius: 6px; border: 1px solid transparent;
   font-weight: 600; font-size: 14px; line-height: 1;
-  transition: background .15s, box-shadow .15s, transform .05s;
+  transition: background .15s, box-shadow .15s, transform .15s ease-out;
 }
-.btn:active { transform: translateY(1px); }
 .btn-primary { background: var(--navy); color: #fff; }
 .btn-primary:hover { background: var(--navy-600); }
 .btn-secondary { background: var(--surface); color: var(--text); border-color: var(--control-border); }
@@ -250,15 +249,8 @@ input, select, textarea { font-family: inherit; font-size: 14px; }
 .sync-note a { text-decoration: underline; }
 
 .main { padding: 40px 40px 64px; max-width: 1400px; width: 100%; min-width: 0; margin-inline: auto; }
-/* Pages that load data first: keep the static parts hidden until everything is
-   ready, then reveal the sections in page order (top to bottom). */
+/* The dashboard reveals its content after the initial data load. */
 .main.is-loading > * { visibility: hidden; }
-.main.reveal > * { animation: fade-up .28s ease-out both; }
-.main.reveal > :nth-child(2) { animation-delay: 60ms; }
-.main.reveal > :nth-child(3) { animation-delay: 120ms; }
-.main.reveal > :nth-child(n+4) { animation-delay: 180ms; }
-@keyframes fade-up { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
-@media (prefers-reduced-motion: reduce) { .main.reveal > * { animation: none; } }
 .page-header { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; margin-bottom: 28px; }
 .page-header h1 { font-size: 30px; letter-spacing: -.035em; line-height: 1.2; }
 .page-header .sub { color: var(--muted); margin-top: 4px; }
@@ -410,7 +402,8 @@ textarea.input { resize: vertical; line-height: 1.5; }
 .modal-backdrop {
   position: fixed; inset: 0; background: rgba(15,23,42,.45); display: none; align-items: center; justify-content: center; z-index: 50;
 }
-.modal-backdrop.open { display: flex; padding: 20px; }
+.modal-backdrop { padding: 20px; }
+.modal-backdrop.open { display: flex; }
 .modal { width: 100%; max-width: 460px; max-height: calc(100dvh - 40px); overflow-y: auto; background: var(--surface); border-radius: 16px; padding: 24px; box-shadow: 0 20px 60px rgba(0,0,0,.25); }
 .modal h3 { font-size: 18px; margin-bottom: 18px; }
 .modal-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 8px; }
@@ -749,7 +742,7 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--navy); }
   .auth-panel { padding: 40px 24px; min-height: 100dvh; }
 }
 @media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; scroll-behavior: auto !important; }
+  *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; transition-delay: 0s !important; scroll-behavior: auto !important; }
 }
 
 /* ---------- Dashboard and calendar workspace ---------- */
@@ -1508,12 +1501,12 @@ mark.hl { background: #fef08a; color: inherit; border-radius: 3px; padding: 0 1p
   .dashboard-main .queue-heading { gap: 8px; }
   .dashboard-main .queue-heading h2 { font-size: 19px; }
   .dashboard-main #toggle-dashboard-filters { flex-basis: 100%; order: 2; justify-content: space-between; padding: 10px 12px; font-size: 13px; }
-  .dashboard-main .dashboard-filters { display: none; }
-  .dashboard-main .dashboard-filters.is-open { display: block; padding: 12px 10px; margin: -9px 0 10px; border: 1px solid var(--navy); border-top: 0; border-radius: 0 0 10px 10px; background: #f6f9fd; }
+  .dashboard-main .dashboard-filters { display: none; padding: 12px 10px; margin: -9px 0 10px; border: 1px solid var(--navy); border-top: 0; border-radius: 0 0 10px 10px; background: #f6f9fd; }
+  .dashboard-main .dashboard-filters.is-open { display: block; }
   .dashboard-main .dashboard-completed { display: none; }
   .dashboard-main .queue-panel:has(.dashboard-filters.is-open) .dashboard-completed { display: flex; flex-basis: 100%; order: 3; min-height: 44px; margin: -8px 0 0; padding: 8px 12px 0; border: 1px solid var(--navy); border-top: 0; border-bottom: 0; background: #f6f9fd; }
   .dashboard-main .queue-panel:has(.dashboard-filters.is-open) > .card-header { margin-bottom: 0; }
-  .dashboard-main .dashboard-filters.is-open { margin-top: 0; }
+  .dashboard-main .dashboard-filters { margin-top: 0; }
   .dashboard-main .queue-controls { margin: 0; }
   .dashboard-main .queue-context { font-size: 12px; margin-bottom: 10px; }
   .dashboard-main .compact-assignment, .dashboard-main .compact-assignment.sortable { grid-template-columns: 32px minmax(0, 1fr); gap: 4px 10px; padding: 12px 8px; min-height: 0; }
@@ -1543,8 +1536,8 @@ mark.hl { background: #fef08a; color: inherit; border-radius: 3px; padding: 0 1p
 .mobile-filter-panel, .class-list-options { display: contents; }
 @media (max-width: 760px) {
   .mobile-disclosure { display: inline-flex; width: 100%; justify-content: space-between; padding: 10px 12px; font-size: 13px; }
-  .mobile-filter-panel { display: none; }
-  .mobile-filter-panel.is-open { display: block; padding: 12px 10px; margin-top: -1px; border: 1px solid var(--navy); border-top: 0; border-radius: 0 0 10px 10px; background: #f6f9fd; }
+  .mobile-filter-panel { display: none; padding: 12px 10px; margin-top: -1px; border: 1px solid var(--navy); border-top: 0; border-radius: 0 0 10px 10px; background: #f6f9fd; }
+  .mobile-filter-panel.is-open { display: block; }
   .main:not(.dashboard-main) { padding-top: 16px; }
   .main:not(.dashboard-main) .page-header { gap: 10px; margin-bottom: 14px; }
   .main:not(.dashboard-main) .page-header h1 { font-size: 24px; }
@@ -1555,11 +1548,11 @@ mark.hl { background: #fef08a; color: inherit; border-radius: 3px; padding: 0 1p
   .calendar-main .calendar-controls { margin: 0; }
   /* The open filters panel hangs off the disclosure button like the dashboard's */
   /* The page is a flex column with a 12px gap; pull the open panel up over it so it touches the button */
-  .calendar-main #calendar-filters.is-open { padding: 12px 12px 4px; margin: -13px 0 0; }
-  .calendar-main #calendar-filters.is-open .calendar-controls { gap: 10px; }
-  .calendar-main #calendar-filters.is-open .calendar-search-box { background: #fff; }
-  .calendar-main #calendar-filters.is-open .calendar-toolbar .toolbar { grid-template-columns: minmax(0, 1fr); gap: 6px; }
-  .calendar-main #calendar-filters.is-open .check-label { min-height: 40px; }
+  .calendar-main #calendar-filters { padding: 12px 12px 4px; margin: -13px 0 0; }
+  .calendar-main #calendar-filters .calendar-controls { gap: 10px; }
+  .calendar-main #calendar-filters .calendar-search-box { background: #fff; }
+  .calendar-main #calendar-filters .calendar-toolbar .toolbar { grid-template-columns: minmax(0, 1fr); gap: 6px; }
+  .calendar-main #calendar-filters .check-label { min-height: 40px; }
   .calendar-main .mobile-disclosure { margin-bottom: 10px; }
   .calendar-main .mobile-disclosure[aria-expanded="true"] { margin-bottom: 0; }
   .calendar-main .calendar-status { gap: 4px; margin-bottom: 10px; }
@@ -1753,4 +1746,177 @@ mark.hl { background: #fef08a; color: inherit; border-radius: 3px; padding: 0 1p
   .settings-page #settings-notifications .setting-row .control { width: 100%; justify-content: flex-start; }
   .settings-page #settings-notifications .setting-row .control .input,
   .settings-page #settings-notifications .setting-row .control .select { max-width: 100%; }
+}
+
+
+/* Cross-document transitions preserve normal links and browser history. */
+@media (prefers-reduced-motion: no-preference) {
+  @view-transition { navigation: auto; }
+
+  ::view-transition-old(root) {
+    animation: page-leave 1050ms cubic-bezier(.2,.65,.3,1) both;
+  }
+  ::view-transition-new(root) {
+    animation: navigation-enter 1150ms cubic-bezier(.2,.65,.3,1) both;
+  }
+  ::view-transition { pointer-events: none; }
+}
+
+/* Page entrances and control feedback. */
+.assignment-completion-burst { display: none; }
+@media (prefers-reduced-motion: no-preference) {
+  /* The incoming snapshot supplies the entrance on animated navigation. */
+  html:not(.animated-navigation) .main:not(.dashboard-main) > .page-header,
+  html:not(.animated-navigation) .main > :is(.class-grid, .cal-layout, .settings-shell),
+  html:not(.animated-navigation) .main.reveal > *,
+  html:not(.animated-navigation) :is(.auth-login, .auth-wrap) {
+    animation: page-enter 1150ms cubic-bezier(.2,.65,.3,1);
+  }
+
+  .btn {
+    transition: background 1050ms ease-out, box-shadow 1050ms ease-out, transform 1050ms ease-out;
+  }
+
+  @media (hover: hover) and (pointer: fine) {
+    .btn:hover:not(:disabled) { transform: translateY(-5px); }
+  }
+
+  .btn:active:not(:disabled), .tour-option:active, .help-tip:active {
+    transform: translateY(3px) scale(.92);
+  }
+
+  .tour-option, .help-tip {
+    transition: background-color 1050ms ease-out, border-color 1050ms ease-out, opacity 1050ms ease-out, transform 1050ms ease-out;
+  }
+
+  .btn:active:not(:disabled) { transition-duration: 1050ms, 1050ms, 0s; }
+  .assignment-completion-burst {
+    position: absolute;
+    inset: 0;
+    z-index: 5;
+    display: grid;
+    place-items: center;
+    border-radius: inherit;
+    overflow: hidden;
+    color: white;
+    pointer-events: none;
+    animation: completion-burst 320ms linear both;
+  }
+  .assignment-completion-burst::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(110deg, var(--ok), #299957);
+    transform-origin: left center;
+    animation: completion-expand 155ms cubic-bezier(.18,.8,.28,1) both;
+  }
+  .assignment-completion-burst svg {
+    position: relative;
+    width: 30px;
+    height: 30px;
+    animation: check-pop 280ms ease-out both;
+  }
+  .assignment-completing .assignment-completion-burst { animation: none; }
+  .assignment-completing { animation: assignment-exit 320ms ease-out both; }
+  .onboarding-body, #onboarding-content > h3, #onboarding-actions > .btn, .walk-callout > h3,
+  .walk-callout > p:not(.walk-kicker) {
+    animation: page-enter 1050ms ease-out;
+  }
+
+  @supports not ((transition-behavior: allow-discrete) and (interactivity: inert)) {
+    .modal-backdrop.open { animation: surface-enter 1050ms ease-out; }
+    .modal-backdrop.open > .modal { animation: page-enter 1050ms ease-out; }
+
+    @media (max-width: 760px) {
+      .dashboard-main .dashboard-filters.is-open, .mobile-filter-panel.is-open {
+        animation: panel-enter 1050ms ease-out;
+      }
+    }
+  }
+
+  /* Discrete display transitions preserve the closed layout. Closing
+     surfaces release pointer and keyboard interaction immediately. */
+  @supports (transition-behavior: allow-discrete) and (interactivity: inert) {
+    .modal-backdrop {
+      opacity: 0;
+      interactivity: inert;
+      pointer-events: none;
+      transition: opacity 1050ms ease-out, display 1050ms allow-discrete;
+    }
+    .modal-backdrop.open {
+      opacity: 1;
+      interactivity: auto;
+      pointer-events: auto;
+    }
+    .modal-backdrop > .modal {
+      transform: translateY(32px) scale(.93);
+      transition: transform 1050ms ease-out;
+    }
+    .modal-backdrop.open > .modal { transform: none; }
+
+    @starting-style {
+      .modal-backdrop.open { opacity: 0; }
+      .modal-backdrop.open > .modal { transform: translateY(32px) scale(.93); }
+    }
+
+    @media (max-width: 760px) {
+      .dashboard-main .dashboard-filters, .mobile-filter-panel {
+        opacity: 0;
+        interactivity: inert;
+        pointer-events: none;
+        transform: translateY(-20px);
+        transition: opacity 1050ms ease-out, transform 1050ms ease-out, display 1050ms allow-discrete;
+      }
+      .dashboard-main .dashboard-filters.is-open, .mobile-filter-panel.is-open {
+        opacity: 1;
+        transform: none;
+        interactivity: auto;
+        pointer-events: auto;
+      }
+
+      @starting-style {
+        .dashboard-main .dashboard-filters.is-open, .mobile-filter-panel.is-open {
+          opacity: 0;
+          transform: translateY(-20px);
+        }
+      }
+    }
+  }
+}
+
+@keyframes page-enter {
+  from { opacity: 0; transform: translateY(32px); }
+  60% { opacity: 1; }
+  to { opacity: 1; transform: none; }
+}
+@keyframes surface-enter { from { opacity: 0; } to { opacity: 1; } }
+@keyframes panel-enter {
+  from { opacity: 0; transform: translateY(-20px); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes completion-expand {
+  from { transform: scale(.06,.35); }
+  to { transform: none; }
+}
+@keyframes completion-burst {
+  50% { opacity: 1; }
+  to { opacity: 0; }
+}
+@keyframes check-pop {
+  from, 16% { opacity: 0; transform: scale(.25) rotate(-15deg); }
+  55% { opacity: 1; transform: scale(1.4) rotate(4deg); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes assignment-exit {
+  52% { opacity: 1; transform: none; animation-timing-function: ease-in-out; }
+  to { opacity: 0; transform: translateY(-6px) scale(.99); }
+}
+@keyframes page-leave {
+  from { opacity: 1; transform: none; }
+  45%, to { opacity: 0; transform: translateY(-18px) scale(.99); }
+}
+@keyframes navigation-enter {
+  from { opacity: 0; transform: translateY(30px) scale(.98); }
+  72% { opacity: 1; }
+  to { opacity: 1; transform: none; }
 }
