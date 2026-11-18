@@ -152,7 +152,7 @@ function main() {
       if (button && wasCollapsed) setClassCollapsed(button, true);
     };
     return [
-      { target: ".page-header", title: "Your classes and assignments", text: [
+      { center: true, title: "Your classes and assignments", text: [
         "This is where you manage your classes and everything in them.",
         "Each class is a card. The assignments in it are listed inside, soonest first.",
       ] },
@@ -180,7 +180,7 @@ function main() {
           "Search inside a class, or show one assignment type at a time.",
           "Estimate time opens a time picker for the assignments shown, so you can set estimates for several at once.",
         ] },
-      { target: "#show-done", title: "Show completed", text: [
+      { target: () => document.getElementById("show-done").closest("label"), fallback: "#show-done", title: "Show completed", text: [
         "Completed assignments are hidden by default. Turn this on to see them inside each class.",
       ] },
       { target: "#toggle-all-classes", title: "Collapse or expand all", text: [

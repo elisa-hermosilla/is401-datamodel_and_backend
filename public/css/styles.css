@@ -564,6 +564,8 @@ body.navigation-open .help-corner { visibility: hidden; }
 .walk-callout.side-right::before { right: -10px; top: var(--arrow-y, 50%); transform: translateY(-50%) rotate(225deg); }
 .walk-callout.side-top::before { top: -10px; left: var(--arrow-x, 32px); transform: translateX(-50%) rotate(135deg); }
 .walk-callout.side-bottom::before { bottom: -10px; left: var(--arrow-x, 32px); transform: translateX(-50%) rotate(-45deg); }
+.walk-callout.centered { max-width: 440px; }
+.walk-callout.centered::before { display: none; }
 .walk-callout .walk-kicker { color: var(--navy); font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; margin: 0 0 4px; }
 .walk-callout h3 { font-size: 16px; margin: 0 0 4px; color: var(--navy); }
 .walk-callout p { margin: 0; color: var(--muted); }
@@ -573,7 +575,7 @@ body.navigation-open .help-corner { visibility: hidden; }
 .walk-callout .callout-close { position: absolute; top: 8px; right: 8px; width: 26px; height: 26px; border: 0; background: transparent; color: var(--muted); font-size: 18px; line-height: 1; cursor: pointer; border-radius: 6px; }
 .walk-callout .callout-close:hover { background: var(--navy-100); color: var(--navy); }
 @media (max-width: 760px) {
-  .help-corner, .help-corner[data-tip] { top: calc(max(12px, env(safe-area-inset-top)) + 7px); right: 16px; width: 36px; height: 36px; }
+  .help-corner, .help-corner[data-tip] { position: absolute; top: calc(max(12px, env(safe-area-inset-top)) + 7px); right: 16px; width: 36px; height: 36px; }
   .dashboard-main .page-header .toolbar, .calendar-main .page-header .toolbar { padding-right: 0; }
   .walk-callout { width: calc(100vw - 32px); }
 }

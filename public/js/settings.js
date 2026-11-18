@@ -27,38 +27,38 @@ function main() {
   function settingsTourSteps() {
     const go = key => () => selectCategory(key);
     return [
-      { target: ".page-header", title: "Settings", text: [
+      { center: true, title: "Settings", text: [
         "This is where you manage your account, decide how DueList reminds you, and connect the services it pulls assignments from.",
       ] },
       { target: ".settings-nav", title: "Categories", enter: () => shell.classList.remove("show-detail"), text: [
         "Five categories: your account, your password, notifications, the accounts DueList syncs from, and your classes. Pick one and its settings open beside it.",
       ] },
-      { target: "#settings-account .card", title: "Account", enter: go("account"), text: [
+      { target: "#settings-account .card", title: "Account", kicker: "Settings · Account", enter: go("account"), text: [
         "Your name, username and email as DueList knows them.",
       ] },
-      { target: "#settings-password .card", title: "Password", enter: go("password"), text: [
+      { target: "#settings-password .card", title: "Password", kicker: "Settings · Password", enter: go("password"), text: [
         "Change your password here. You stay signed in afterwards.",
       ] },
-      { target: "#notification-delivery", title: "Browser notifications", enter: go("notifications"), text: [
+      { target: "#notification-delivery", title: "Browser notifications", kicker: "Settings · Notifications", enter: go("notifications"), text: [
         "Everything in Notifications arrives as a browser notification, so turn these on first, on each device you want reminders on.",
         "Send a test to make sure they're coming through.",
       ] },
-      { target: "#notification-summary", title: "Summary notifications", enter: go("notifications"), text: [
+      { target: "#notification-summary", title: "Summary notifications", kicker: "Settings · Notifications", enter: go("notifications"), text: [
         "A daily digest of what's due, sent on the days and at the time you choose.",
         "Pick whether it covers today, today and tomorrow, or the whole week.",
       ] },
-      { target: "#notification-reminders", title: "Assignment reminders", enter: go("notifications"), text: [
+      { target: "#notification-reminders", title: "Assignment reminders", kicker: "Settings · Notifications", enter: go("notifications"), text: [
         "A reminder before each assignment is due, at whichever lead times you choose.",
         "Quiet hours pause notifications overnight. The countdown skips that time, so a reminder still arrives before quiet hours begin.",
       ] },
-      { target: "#settings-save-actions", title: "Save your changes", enter: go("notifications"), text: [
+      { target: "#settings-save-actions", title: "Save your changes", kicker: "Settings · Notifications", enter: go("notifications"), text: [
         "Summary and reminder settings only take effect once you press Save notification settings.",
       ] },
-      { target: "#connected-accounts", title: "Connected accounts", enter: go("connected-accounts"), text: [
+      { target: "#connected-accounts", title: "Connected accounts", kicker: "Settings · Connected accounts", enter: go("connected-accounts"), text: [
         "Canvas and Learning Suite, the sources DueList imports from.",
         "Connect or disconnect them here, see when each last synced, and sync one on its own.",
       ] },
-      { target: "#settings-classes .card", title: "Classes", enter: go("classes"), text: [
+      { target: "#settings-classes .card", title: "Classes", kicker: "Settings · Classes", enter: go("classes"), text: [
         "A quick list of your classes. Manage opens one on the Assignments page, where you can edit or delete it.",
       ] },
     ];

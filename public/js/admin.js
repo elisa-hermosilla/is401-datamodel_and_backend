@@ -21,7 +21,7 @@ function main() {
   function adminTourSteps() {
     const go = key => () => selectCategory(key);
     return [
-      { target: ".page-header", title: "Admin", text: [
+      { center: true, title: "Admin", text: [
         "This page is for the people who run DueList: who has admin access, and how the app is doing against its goals.",
       ] },
       { target: "#okr-objective-1", title: "Objectives and key results", enter: go("okrs"), text: [

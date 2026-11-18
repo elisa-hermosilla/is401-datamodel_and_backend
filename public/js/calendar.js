@@ -153,6 +153,11 @@ function main() {
   function calendarTourSteps() {
     const filters = '[data-mobile-disclosure="calendar-filters"]';
     let before = selected;
+    /* The next day with an open assignment, from today on; null when there is none */
+    const nextDayWithWork = () => {
+      const next = visibleAssignments().filter(a => !isDone(a) && startOfDay(dueDate(a)) >= today()).sort((a, b) => dueDate(a) - dueDate(b))[0];
+      return next ? dueDate(next) : null;
+    };
     const busiestDay = () => {
       const counts = new Map();
       for (const a of visibleAssignments()) {
@@ -167,13 +172,17 @@ function main() {
       return best ? new Date(best.key) : selected;
     };
     return [
-      { target: ".page-header", title: "Your calendar", text: [
+      { center: true, title: "Your calendar", text: [
         "This is where you see your deadlines laid out by month and plan your weeks around them.",
         "Pick a day on the left and everything due that day shows on the right.",
       ] },
       { target: ".month-panel", title: "Month view", text: [
         "Each day shows how many open assignments are due and a preview of the first few.",
         "Today is marked with a filled dot, and the day you've selected is outlined.",
+      ] },
+      { target: ".calendar-controls", title: "Search & filters", reveal: filters, text: [
+        "Type part of a title or class and the calendar jumps to the first matching day.",
+        "Show one class at a time, or include completed work. The month counts and the daily list both follow what you set here.",
       ] },
       { target: ".cal-head .cal-nav", title: "Moving between months", text: [
         "Use these arrows to look ahead or back a month.",
@@ -185,23 +194,15 @@ function main() {
           "Click any day to see what's due on it.",
           "Here the busiest day this month is selected, and its assignments are listed on the right.",
         ] },
-      { target: ".day-panel", title: "Daily assignments", text: [
+      { target: ".day-panel", title: "Daily assignments",
+        enter: () => { before = selected; if (!assignmentsOn(selected).length) { const next = nextDayWithWork(); if (next) selectDay(next); } },
+        exit: () => selectDay(before),
+        text: [
         "Everything due on the selected day, with the time estimates added up at the top. The list scrolls when a day is busy.",
         "Check the box to mark one complete. Hover a row for the pencil (edit) and the link icon (open it on Canvas or Learning Suite).",
       ] },
       { target: ".day-nav .cal-nav", title: "One day at a time", text: [
         "These arrows step to the previous or next day without touching the month view.",
-      ] },
-      { target: ".calendar-search-box", title: "Search", reveal: filters, text: [
-        "Type part of an assignment's title or class.",
-        "The calendar jumps to the first day with a match, and the counts update to show only matching assignments.",
-      ] },
-      { target: ".calendar-toolbar", title: "Filters", reveal: filters, text: [
-        "Show one class at a time, or include completed assignments to look back at what you've finished.",
-        "The month counts and the daily list both follow these filters.",
-      ] },
-      { target: "#add-assignment", title: "Add an assignment", text: [
-        "Adds an assignment due on the selected day, for any of your classes.",
       ] },
     ];
   }
