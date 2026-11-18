@@ -663,7 +663,11 @@ body.navigation-open .help-corner { visibility: hidden; }
   .cat-table td.inc { display: flex; align-items: center; gap: 10px; width: auto; text-align: left; padding-top: 10px; }
   .cat-table td.inc::before { content: "Include this category"; margin: 0; order: 2; text-transform: none; font-size: 13px; font-weight: 500; color: var(--text); }
   .cat-table td.inc input { width: 20px; height: 20px; order: 1; }
-  .cat-table .select, .cat-table .input, .cat-table td.kw .input { width: 100%; min-width: 0; box-sizing: border-box; font-size: 16px; }
+  .cat-table .select, .cat-table .input, .cat-table td.kw .input { width: 100%; max-width: 100%; min-width: 0; box-sizing: border-box; font-size: 16px; }
+  /* iOS sizes time inputs to their content and ignores width unless the native look is turned off */
+  .cat-table td { min-width: 0; overflow: hidden; }
+  .cat-table td.time .input { display: block; width: 100%; max-width: 100%; -webkit-appearance: none; appearance: none; }
+  .cat-table td.time .input::-webkit-date-and-time-value { text-align: left; }
   .cat-table tr.excluded { background: #f8fafc; }
   .cat-tools { justify-content: flex-start; }
 }
