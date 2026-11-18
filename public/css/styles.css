@@ -1283,6 +1283,7 @@ mark.hl { background: #fef08a; color: inherit; border-radius: 3px; padding: 0 1p
 .class-filters { display: flex; align-items: center; gap: 8px; margin: 2px 0 10px; }
 .class-filters .input { flex: 1 1 200px; min-width: 0; padding: 7px 10px; font-size: 13px; }
 .class-filters .select { flex: none; width: auto; padding: 7px 28px 7px 10px; font-size: 13px; }
+.class-filters .btn { flex: none; white-space: nowrap; }
 .class-filter-count { flex: none; font-size: 12px; color: var(--muted); white-space: nowrap; }
 @media (max-width: 760px) {
   .class-filters { flex-wrap: wrap; }
@@ -1690,14 +1691,6 @@ mark.hl { background: #fef08a; color: inherit; border-radius: 3px; padding: 0 1p
 }
 
 /* Bulk assignment time estimates */
-.estimate-toolbar { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; margin-bottom: 16px; }
-.estimate-toolbar[hidden] { display: none; }
-.class-list .compact-assignment.selectable { grid-template-columns: auto 24px minmax(0, 1fr) auto auto; }
-.estimate-select { display: inline-flex; align-items: center; gap: 6px; padding: 4px 8px; border: 2px solid var(--control-border); border-radius: 6px; background: var(--navy-100); font-size: 12px; font-weight: 700; color: var(--navy); cursor: pointer; white-space: nowrap; }
-.estimate-select input { accent-color: var(--navy); width: 18px; height: 18px; margin: 0; cursor: pointer; }
-.estimate-select:hover { border-color: var(--navy); box-shadow: 0 0 0 2px var(--navy-100); }
-.estimate-select:focus-within { outline: 2px solid var(--navy); outline-offset: 3px; }
-.estimate-select:has(input:checked) { background: var(--navy); border-color: var(--navy); color: #fff; }
 .estimate-item { min-width: 0; border: 1px solid var(--border); border-radius: 8px; padding: 12px; margin: 16px 0; }
 .estimate-item legend { max-width: 100%; overflow-wrap: anywhere; font-size: 14px; font-weight: 600; padding: 0 4px; }
 .estimate-options { display: flex; flex-wrap: wrap; gap: 6px; }
@@ -1705,11 +1698,7 @@ mark.hl { background: #fef08a; color: inherit; border-radius: 3px; padding: 0 1p
 .estimate-custom { display: flex; align-items: center; gap: 10px; margin-top: 10px; font-size: 13px; color: var(--muted); }
 .estimate-custom .input { width: 140px; max-width: 50%; }
 .estimate-total { margin: 16px 0; }
-@media (max-width: 760px) {
-  .class-list .compact-assignment.selectable { grid-template-columns: auto 20px minmax(0, 1fr) auto; }
-  .estimate-select { padding: 4px; border-width: 1px; }
-  .estimate-select span { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
-}
+
 
 /* Notifications read as one ordered settings panel at every desktop width. */
 .settings-page #settings-notifications { grid-template-columns: minmax(0, 1fr); gap: 16px; max-width: 900px; }

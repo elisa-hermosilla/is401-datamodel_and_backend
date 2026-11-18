@@ -48,12 +48,16 @@ function main() {
     render();
   };
 
-  const selectedEstimates = new Set();
-  function updateEstimateSelection() {
-    const available = new Set(ASSIGNMENTS.filter(a => showDone.checked || !isDone(a)).map(a => a.assignment_id));
-    selectedEstimates.forEach(id => { if (!available.has(id)) selectedEstimates.delete(id); });
-    document.getElementById("estimate-toolbar").hidden = selectedEstimates.size === 0;
-    document.getElementById("estimate-count").textContent = `${selectedEstimates.size} selected`;
+  /* The assignments a class card shows after its filters (Show completed,
+     the search box and the type dropdown). Estimate time works on this list. */
+  function visibleItems(c) {
+    const visible = ASSIGNMENTS.filter(a => a.course_id === c.course_id)
+      .filter(a => showDone.checked || !isDone(a))
+      .sort((a, b) => dueDate(a) - dueDate(b));
+    const f = classFilters.get(c.course_id) || { q: "", type: "" };
+    const q = f.q.trim().toLowerCase();
+    const items = visible.filter(a => (!f.type || typeLabel(a) === f.type) && (!q || `${a.title} ${typeLabel(a)} ${a.submission_type || ""} ${a.notes || ""}`.toLowerCase().includes(q)));
+    return { visible, items, f };
   }
 
   /* ---------- Render class cards ---------- */
@@ -61,24 +65,19 @@ function main() {
     const grid = document.getElementById("class-grid");
     grid.setAttribute("aria-busy", "false");
     updateToggleAll();
-    updateEstimateSelection();
     if (CLASSES.length === 0) {
       grid.innerHTML = `<div class="empty">No classes yet. Add a class to get started.</div>`;
       return;
     }
     grid.innerHTML = CLASSES.map(c => {
       const all = ASSIGNMENTS.filter(a => a.course_id === c.course_id);
-      const visible = all
-        .filter(a => showDone.checked || !isDone(a))
-        .sort((a, b) => dueDate(a) - dueDate(b));
-      /* Per-class filters: a search box and the types present in this class */
-      const f = classFilters.get(c.course_id) || { q: "", type: "" };
+      /* Per-class filters: a search box, the types present in this class, and Estimate time for whatever is shown */
+      const { visible, items, f } = visibleItems(c);
       const types = [...new Set(visible.map(typeLabel).filter(Boolean))].sort();
-      const q = f.q.trim().toLowerCase();
-      const items = visible.filter(a => (!f.type || typeLabel(a) === f.type) && (!q || `${a.title} ${typeLabel(a)} ${a.submission_type || ""} ${a.notes || ""}`.toLowerCase().includes(q)));
       const filters = visible.length ? `<div class="class-filters">
             <input class="input" type="search" data-class-search="${c.course_id}" value="${esc(f.q)}" placeholder="Search this class" aria-label="Search assignments in ${esc(c.course_code)}" autocomplete="off">
             <select class="select" data-class-type="${c.course_id}" aria-label="Filter ${esc(c.course_code)} by type"><option value="">All types</option>${types.map(t => `<option value="${esc(t)}" ${f.type === t ? "selected" : ""}>${esc(t)}</option>`).join("")}</select>
+            <button type="button" class="btn btn-secondary btn-sm" data-estimate-class="${c.course_id}" ${items.length ? "" : "disabled"} title="Set time estimates for the assignments shown">Estimate time</button>
             <span class="class-filter-count">${items.length === visible.length ? plural(visible.length, "assignment") : `${items.length} of ${plural(visible.length, "assignment")}`}</span>
           </div>` : "";
       const openCount = all.filter(a => !isDone(a)).length;
@@ -101,7 +100,7 @@ function main() {
           </div>
           <div class="class-collapse" id="class-body-${c.course_id}" ${collapsed.has(c.course_id) ? "inert" : ""}><div class="class-collapse-inner"><div class="class-body">
             ${filters}
-            <div class="compact-list class-list">${items.length ? items.map(a => compactAssignmentRow(a, { selectable: true, selected: selectedEstimates.has(a.assignment_id) })).join("") : `<div class="empty">${all.length ? (visible.length ? "No assignments match." : "No open assignments.") : "No assignments yet."}</div>`}</div>
+            <div class="compact-list class-list">${items.length ? items.map(a => compactAssignmentRow(a)).join("") : `<div class="empty">${all.length ? (visible.length ? "No assignments match." : "No open assignments.") : "No assignments yet."}</div>`}</div>
           </div></div></div>
         </div>`;
     }).join("");
@@ -111,10 +110,9 @@ function main() {
       saveExpandedState();
       updateToggleAll();
     }));
-    grid.querySelectorAll("[data-estimate-select]").forEach(input => input.addEventListener("change", () => {
-      const id = Number(input.dataset.estimateSelect);
-      if (input.checked) selectedEstimates.add(id); else selectedEstimates.delete(id);
-      updateEstimateSelection();
+    grid.querySelectorAll("[data-estimate-class]").forEach(b => b.addEventListener("click", () => {
+      const c = CLASSES.find(x => x.course_id === Number(b.dataset.estimateClass));
+      if (c) openEstimateModal(visibleItems(c).items);
     }));
     bindChecks(grid, render);
     grid.querySelectorAll("[data-class-search]").forEach(input => input.addEventListener("input", () => {
@@ -180,6 +178,7 @@ function main() {
         enter: open, exit: restore,
         text: [
           "Search inside a class, or show one assignment type at a time.",
+          "Estimate time opens a time picker for the assignments shown, so you can set estimates for several at once.",
         ] },
       { target: "#show-done", title: "Show completed", text: [
         "Completed assignments are hidden by default. Turn this on to see them inside each class.",
@@ -207,10 +206,11 @@ function main() {
     });
     document.getElementById("estimate-total").textContent = total ? fmtMinutes(total) : "0 min";
   }
-  document.getElementById("estimate-clear").addEventListener("click", () => { selectedEstimates.clear(); render(); });
-  document.getElementById("estimate-time-btn").addEventListener("click", () => {
+  /* Open the time picker for a list of assignments (a class card's filtered rows) */
+  function openEstimateModal(list) {
+    if (!list.length) return;
     clearFormError(estimateError);
-    estimateRows.innerHTML = ASSIGNMENTS.filter(a => selectedEstimates.has(a.assignment_id)).map(a => `
+    estimateRows.innerHTML = list.map(a => `
       <fieldset class="estimate-item">
         <legend>${esc(a.title)} <span class="hint">· ${esc(a.course_code || getClassById(a.course_id).course_code)}</span></legend>
         <div class="estimate-options">${estimateOptions.map(([minutes, label]) => `<button type="button" class="btn btn-secondary btn-sm" data-minutes="${minutes}" aria-pressed="false">${label}</button>`).join("")}</div>
@@ -221,7 +221,7 @@ function main() {
     updateEstimateTotal();
     openModal("estimate-modal");
     estimateWrap.querySelector('[role="dialog"]').focus();
-  });
+  }
   estimateRows.addEventListener("click", e => {
     const button = e.target.closest("[data-minutes]");
     if (!button) return;

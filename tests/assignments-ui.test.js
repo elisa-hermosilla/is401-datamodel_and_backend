@@ -110,14 +110,20 @@ test('class collapse persists through re-render and removes hidden content from 
 });
 
 
-test('bulk selection is separate from completion and estimates remain visible on cards', () => {
+test('each class filter row offers Estimate time for the assignments it shows', () => {
   const context = app();
-  vm.runInContext('ASSIGNMENTS[0].estimated_minutes = 90', context);
-  const html = vm.runInContext('compactAssignmentRow(ASSIGNMENTS[0], { selectable: true, selected: true })', context);
-  assert.match(html, /data-estimate-select="7" checked/);
-  assert.match(html, /&lt;Essay&gt;: select for time estimation/);
-  assert.match(html, /data-check="7"/);
-  assert.match(html, /1h 30m/);
+  const source = readFileSync('public/js/assignments.js', 'utf8');
+  const renderSection = source.slice(source.indexOf('  const showDone'), source.indexOf('  /* Bulk estimation'));
+  vm.runInContext(`
+    USER = { user_id: 42 };
+    var localStorage = { getItem: () => null, setItem() {} };
+    var grid = { innerHTML: '', setAttribute() {}, querySelectorAll: () => [], querySelector: () => null };
+    var openEstimateModal = () => {};
+    document.getElementById = id => id === 'class-grid' ? grid : { checked: false, disabled: false, textContent: '', addEventListener() {} };
+    (function () { ${renderSection} render(); })();
+  `, context);
+  assert.match(context.grid.innerHTML, /data-estimate-class="1"/);
+  assert.doesNotMatch(context.grid.innerHTML, /data-estimate-select=/);
 });
 
 test('bulk estimator totals custom values and retries only failed saves', async () => {
@@ -142,7 +148,6 @@ test('bulk estimator totals custom values and retries only failed saves', async 
       querySelectorAll: selector => selector === '[data-estimate-input]' ? inputs : [],
       reportValidity: () => true
     };
-    var selectedEstimates = new Set([7, 8]);
     var render = () => {}, closeModal = () => {}, toast = () => {};
     var clearFormError = () => {}, showFormError = (el, msg) => el.textContent = msg;
     ${section}
