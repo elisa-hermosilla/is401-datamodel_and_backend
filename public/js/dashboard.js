@@ -464,7 +464,7 @@ function main(onboardingStatus) {
     };
     let demoDay = 0;
     return [
-      { target: ".page-header", title: "Your dashboard", text: [
+      { center: true, title: "Your dashboard", text: [
         "This is where you check what's due and decide what to work on next.",
         "Everything on it comes from the classes you've connected or added, and it updates whenever you sync.",
       ] },

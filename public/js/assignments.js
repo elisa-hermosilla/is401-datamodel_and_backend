@@ -152,7 +152,7 @@ function main() {
       if (button && wasCollapsed) setClassCollapsed(button, true);
     };
     return [
-      { target: ".page-header", title: "Your classes and assignments", text: [
+      { center: true, title: "Your classes and assignments", text: [
         "This is where you manage your classes and everything in them.",
         "Each class is a card. The assignments in it are listed inside, soonest first.",
       ] },
@@ -172,7 +172,7 @@ function main() {
         enter: open, exit: restore,
         text: [
           "Click the title to see the details. Hover a row for the pencil (edit) and the link icon (open it on Canvas or Learning Suite).",
-          "Check the box to mark it complete.",
+          "Check the box to mark it complete. The line under the title shows the class, type, your time estimate, and how it's submitted.",
         ] },
       { target: () => firstCard()?.querySelector(".class-filters"), fallback: "#class-grid", title: "Filter within a class",
         enter: open, exit: restore,
@@ -180,11 +180,11 @@ function main() {
           "Search inside a class, or show one assignment type at a time.",
           "Estimate time opens a time picker for the assignments shown, so you can set estimates for several at once.",
         ] },
-      { target: "#show-done", title: "Show completed", text: [
+      { target: () => document.getElementById("show-done").closest("label"), fallback: "#show-done", title: "Show completed", text: [
         "Completed assignments are hidden by default. Turn this on to see them inside each class.",
       ] },
       { target: "#toggle-all-classes", title: "Collapse or expand all", text: [
-        "Collapse or expand every class at once. DueList remembers which cards you left open.",
+        "Collapses every class at once while any are open, and expands them all once they're closed. DueList remembers which cards you left open.",
       ] },
     ];
   }
@@ -454,6 +454,8 @@ function main() {
 
     const id = document.getElementById("c-id").value;
     const source = currentSourceName();
+    /* The class being edited (null when adding); set by openClassModal */
+    const cls = wizard.course;
     const originalSource = LMS_SOURCES.find(s => s.lms_source_id === cls?.lms_source_id)?.name;
     const icsValue = document.getElementById("c-ics").value.trim();
     const fields = {
@@ -541,7 +543,7 @@ function main() {
     const ai = cats && cats.some(c => String(c.external_category_id || "").startsWith("ai:"));
     document.getElementById("cat-intro").textContent = course.source !== "Learning Suite"
       ? `${course.course_code}'s Canvas assignment groups. Pick the type each one should show as and whether to include it.`
-      : !cats ? `How should items on the ${course.course_code} schedule be grouped?`
+      : !cats ? `Learning Suite's iCal feed does not sync categories or due times. DueList can organize your assignments by type (paper, quiz, etc.) using keywords in the assignment names. Choose how to set that up for ${course.course_code}:`
       : ai ? `Groups Claude suggested for ${course.course_code}. Items are routed by the keywords, so edit them to change what lands where; then pick a type and due time for each group.`
       : `Items on the ${course.course_code} schedule are grouped by keyword. Pick the type each group should show as, a due time for its all-day items, and whether to include it.`;
   }

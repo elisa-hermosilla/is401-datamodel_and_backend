@@ -952,8 +952,10 @@ function sidebarTourSteps() {
    fallback is a selector used when target is missing; enter() runs before
    the step shows (e.g. to apply a filter as a demo) and exit() when it is
    left, including when the tour ends.
-   Resolves { completed } when the student finishes, closes it, or presses
-   Escape. */
+   A step with center: true has no target: the callout sits in the middle
+   of the screen with nothing highlighted. A step may also give its own
+   kicker. Resolves { completed } when the student finishes, closes it, or
+   presses Escape. */
 function startWalkthrough(steps, { kicker = "Quick tour" } = {}) {
   return new Promise(resolve => {
     if (!steps.length) return resolve({ completed: true });
@@ -988,8 +990,15 @@ function startWalkthrough(steps, { kicker = "Quick tour" } = {}) {
     };
     const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
     const place = () => {
+      const h = box.offsetHeight, w = box.offsetWidth;
+      if (box.classList.contains("centered")) {
+        box.style.top = `${Math.max(12, (window.innerHeight - h) / 2)}px`;
+        box.style.left = `${Math.max(12, (window.innerWidth - w) / 2)}px`;
+        box.classList.remove("side-left", "side-right", "side-top", "side-bottom");
+        return;
+      }
       if (!target) return;
-      const r = target.getBoundingClientRect(), h = box.offsetHeight, w = box.offsetWidth;
+      const r = target.getBoundingClientRect();
       const pad = 4;
       mask.style.top = `${r.top - pad}px`; mask.style.left = `${r.left - pad}px`;
       mask.style.width = `${r.width + pad * 2}px`; mask.style.height = `${r.height + pad * 2}px`;
@@ -1025,7 +1034,8 @@ function startWalkthrough(steps, { kicker = "Quick tour" } = {}) {
       const st = steps[index], last = index === steps.length - 1;
       if (st.enter) { try { st.enter(); } catch { /* demo only */ } }
       shown = st;
-      target = resolveTarget(st);
+      target = st.center ? null : resolveTarget(st);
+      box.classList.toggle("centered", !!st.center);
       /* On phones, sidebar targets need the drawer open and page targets need it closed */
       if (phone.matches && target) {
         const inSidebar = sidebar.contains(target);
@@ -1039,13 +1049,15 @@ function startWalkthrough(steps, { kicker = "Quick tour" } = {}) {
         if (r.top < 0 || r.bottom > window.innerHeight) target.scrollIntoView({ block: r.height > window.innerHeight * 0.75 ? "start" : "center" });
       }
       box.innerHTML = `<button type="button" class="callout-close" aria-label="Close tour">×</button>
-        <p class="walk-kicker">${esc(kicker)}</p>
+        <p class="walk-kicker">${esc(st.kicker || kicker)}</p>
         <h3>${esc(st.title)}</h3>
         ${(Array.isArray(st.text) ? st.text : [st.text]).map(t => `<p>${esc(t)}</p>`).join("")}
         <div class="walk-foot"><span class="step-tag">Step ${index + 1} of ${steps.length}</span>
           ${index ? '<button type="button" class="btn btn-secondary btn-sm" data-walk="back">Back</button>' : ""}
           <button type="button" class="btn btn-primary btn-sm" data-walk="next">${last ? "Finish" : "Next"}</button></div>`;
-      mask.hidden = !target;
+      /* Centred steps keep the mask so its shadow still dims the page, just with no cut-out */
+      mask.hidden = !target && !st.center;
+      mask.classList.toggle("full", !!st.center);
       place();
       box.querySelector("[data-walk=next]").focus();
     };

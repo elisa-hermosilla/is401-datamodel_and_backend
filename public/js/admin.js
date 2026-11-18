@@ -21,7 +21,7 @@ function main() {
   function adminTourSteps() {
     const go = key => () => selectCategory(key);
     return [
-      { target: ".page-header", title: "Admin", text: [
+      { center: true, title: "Admin", text: [
         "This page is for the people who run DueList: who has admin access, and how the app is doing against its goals.",
       ] },
       { target: "#okr-objective-1", title: "Objectives and key results", enter: go("okrs"), text: [
@@ -36,7 +36,7 @@ function main() {
       ] },
       { target: "#kr-churn", title: "First-month churn", enter: go("okrs"), text: [
         "An account churns if it goes 7 days without a visit during its first month. The target is to keep this below 33%.",
-        "The chart shows the rate as of each day; pick the range above the cards.",
+        "The chart shows the rate as of each day; the range picker on the Objective 2 row sets how far back both charts go.",
       ] },
       { target: "#kr-streaks", title: "5-day streaks", enter: go("okrs"), text: [
         "Each time someone checks in five days in a row counts once. Weekends off don't break a run; a missed weekday does.",
