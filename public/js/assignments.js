@@ -543,7 +543,7 @@ function main() {
     const ai = cats && cats.some(c => String(c.external_category_id || "").startsWith("ai:"));
     document.getElementById("cat-intro").textContent = course.source !== "Learning Suite"
       ? `${course.course_code}'s Canvas assignment groups. Pick the type each one should show as and whether to include it.`
-      : !cats ? `How should items on the ${course.course_code} schedule be grouped?`
+      : !cats ? `Learning Suite's iCal feed does not sync categories or due times. DueList can organize your assignments by type (paper, quiz, etc.) using keywords in the assignment names. Choose how to set that up for ${course.course_code}:`
       : ai ? `Groups Claude suggested for ${course.course_code}. Items are routed by the keywords, so edit them to change what lands where; then pick a type and due time for each group.`
       : `Items on the ${course.course_code} schedule are grouped by keyword. Pick the type each group should show as, a due time for its all-day items, and whether to include it.`;
   }

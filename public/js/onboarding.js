@@ -183,7 +183,7 @@ async function startOnboarding(onboardingStatus) {
   async function openCategoryEditor(item) {
     const isLS = item.source === "Learning Suite";
     phase = "categories";
-    show(`Edit class <span class="step-tag">Step 2 of 2</span>`, `<p class="onboarding-config-intro">${isLS ? "Choose how schedule items are grouped, then edit the category settings." : "Choose how Canvas assignment groups map to your assignment types."}</p><div id="onboarding-category-body"><div class="empty">Loading categories…</div></div><div class="form-error onboarding-error" role="alert"></div>`, `${button("Back", "category-back", "btn-secondary")}${button("Finish", "category-finish")}`, { wide: true, classEditor: true, skipAllowed: false });
+    show(`Edit class <span class="step-tag">Step 2 of 2</span>`, `<p class="onboarding-config-intro">${isLS ? "Learning Suite's iCal feed does not sync categories or due times. DueList can organize your assignments by type (paper, quiz, etc.) using keywords in the assignment names. Choose how to set that up:" : "Choose how Canvas assignment groups map to your assignment types."}</p><div id="onboarding-category-body"><div class="empty">Loading categories…</div></div><div class="form-error onboarding-error" role="alert"></div>`, `${button("Back", "category-back", "btn-secondary")}${button("Finish", "category-finish")}`, { wide: true, classEditor: true, skipAllowed: false });
     document.querySelector('[data-onboarding="category-finish"]').disabled = true;
     if (isLS && !item.categoryMode) { renderModeChoice(item); return; }
     await loadCategories(item, item.categoryMode || null);
