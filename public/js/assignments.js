@@ -454,6 +454,8 @@ function main() {
 
     const id = document.getElementById("c-id").value;
     const source = currentSourceName();
+    /* The class being edited (null when adding); set by openClassModal */
+    const cls = wizard.course;
     const originalSource = LMS_SOURCES.find(s => s.lms_source_id === cls?.lms_source_id)?.name;
     const icsValue = document.getElementById("c-ics").value.trim();
     const fields = {
