@@ -274,7 +274,7 @@ function main(onboardingStatus) {
     $("queue-scope").textContent = scopeName();
     $("all-open").setAttribute("aria-pressed", scope === "all");
     sortSel.title = custom ? "Drag rows to reorder. Your order is saved automatically." : "Choose Custom order to drag rows into your own order.";
-    bindChecks(el, renderAll);
+    bindChecks(el, renderAll, () => showDone.checked);
     if (custom) bindDrag(el);
     $("reset-queue")?.addEventListener("click", resetQueue);
   }
@@ -440,7 +440,7 @@ function main(onboardingStatus) {
   fitRail();
   fitQueue();
 
-  /* Everything is rendered: show the page, sections fading in top to bottom */
+  /* Reveal the page once its initial data is rendered. */
   const mainEl = document.querySelector("main.main");
   mainEl.classList.remove("is-loading");
   mainEl.classList.add("reveal");
