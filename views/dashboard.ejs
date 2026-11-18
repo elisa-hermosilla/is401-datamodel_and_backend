@@ -3,7 +3,7 @@
 <%- include("partials/sidebar", { active: "dashboard", user }) %>
     <main id="main-content" tabindex="-1" class="main overview-main dashboard-main is-loading">
       <header class="page-header">
-        <div><h1 id="greeting">Dashboard</h1><p class="sub" id="today-line"></p></div>
+        <div class="dashboard-heading-copy"><h1 id="greeting">Dashboard</h1><p class="sub" id="today-line"></p><img class="dashboard-header-art" src="/images/dashboard.png" alt="Illustration of the DueList dashboard with assignment deadlines, a weekly calendar, and progress" width="100" height="67"></div>
         <div class="toolbar">
           <a class="btn btn-secondary btn-sm" href="/calendar">View calendar</a>
           <button class="btn btn-primary btn-sm" id="add-assignment">Add assignment</button>

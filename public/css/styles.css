@@ -751,6 +751,8 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--navy); }
 .sidebar .nav a.active { background: var(--navy); color: #fff; box-shadow: none; }
 .overview-main { max-width: none; padding: 28px 32px 32px; }
 .overview-main .page-header { margin-bottom: 20px; align-items: center; }
+.dashboard-heading-copy { position: relative; }
+.dashboard-header-art { position: absolute; top: 50%; left: calc(100% + 14px); display: block; width: 100px; height: 67px; object-fit: contain; transform: translateY(-50%); }
 .overview-main .page-header h1 { font-size: 32px; }
 .overview-main .page-header .sub { font-size: 15px; }
 .overview-main h2 { font-size: 19px; letter-spacing: -.015em; }
@@ -1482,6 +1484,7 @@ mark.hl { background: #fef08a; color: inherit; border-radius: 3px; padding: 0 1p
 .mobile-dashboard-control { display: none; }
 .dashboard-filters { display: contents; }
 @media (max-width: 760px) {
+  .dashboard-header-art { display: none; }
   .dashboard-main .mobile-dashboard-control { display: inline-flex; }
   .dashboard-main .mobile-dashboard-control[hidden] { display: none; }
   .dashboard-main .page-header { gap: 10px; margin-bottom: 14px; }
