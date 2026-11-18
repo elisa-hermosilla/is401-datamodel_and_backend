@@ -644,6 +644,29 @@ body.navigation-open .help-corner { visibility: hidden; }
 .cat-option .d { display: block; font-size: 12.5px; color: var(--muted); line-height: 1.4; }
 .cat-table td.inc { text-align: center; width: 70px; }
 .cat-table td.inc input { width: 18px; height: 18px; accent-color: var(--navy); }
+/* Phones: each category becomes a stacked card, labelled from the cell classes, so
+   the mapping step (Category / Show as / Keywords / Due time / Include) never scrolls sideways */
+@media (max-width: 760px) {
+  .cat-table, .cat-table tbody, .cat-table tr, .cat-table td { display: block; width: auto; }
+  .cat-table thead { display: none; }
+  .onboarding-modal .cat-table { min-width: 0; }
+  .cat-table tr { border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px 12px; margin-bottom: 10px; background: var(--surface); }
+  .cat-table td { border-top: 0; padding: 6px 0 0; }
+  .cat-table td.name { padding-top: 0; font-size: 15px; }
+  .cat-table td .n { display: inline; margin-left: 6px; }
+  .cat-table td.type::before, .cat-table td.kw::before, .cat-table td.time::before, .cat-table td.inc::before {
+    display: block; margin: 4px 0 4px; font-size: 11px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--muted);
+  }
+  .cat-table td.type::before { content: "Show as"; }
+  .cat-table td.kw::before { content: "Keywords"; }
+  .cat-table td.time::before { content: "Due time"; }
+  .cat-table td.inc { display: flex; align-items: center; gap: 10px; width: auto; text-align: left; padding-top: 10px; }
+  .cat-table td.inc::before { content: "Include this category"; margin: 0; order: 2; text-transform: none; font-size: 13px; font-weight: 500; color: var(--text); }
+  .cat-table td.inc input { width: 20px; height: 20px; order: 1; }
+  .cat-table .select, .cat-table .input, .cat-table td.kw .input { width: 100%; min-width: 0; box-sizing: border-box; font-size: 16px; }
+  .cat-table tr.excluded { background: #f8fafc; }
+  .cat-tools { justify-content: flex-start; }
+}
 
 /* ---------- Auth page errors ---------- */
 .auth-card .form-error { margin-bottom: 16px; }
