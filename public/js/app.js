@@ -1055,7 +1055,9 @@ function startWalkthrough(steps, { kicker = "Quick tour" } = {}) {
         <div class="walk-foot"><span class="step-tag">Step ${index + 1} of ${steps.length}</span>
           ${index ? '<button type="button" class="btn btn-secondary btn-sm" data-walk="back">Back</button>' : ""}
           <button type="button" class="btn btn-primary btn-sm" data-walk="next">${last ? "Finish" : "Next"}</button></div>`;
-      mask.hidden = !target;
+      /* Centred steps keep the mask so its shadow still dims the page, just with no cut-out */
+      mask.hidden = !target && !st.center;
+      mask.classList.toggle("full", !!st.center);
       place();
       box.querySelector("[data-walk=next]").focus();
     };
