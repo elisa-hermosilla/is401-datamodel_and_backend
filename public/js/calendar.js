@@ -198,6 +198,7 @@ function main() {
       ] },
       { target: ".calendar-toolbar", title: "Filters", reveal: filters, text: [
         "Show one class at a time, or include completed assignments to look back at what you've finished.",
+        "The month counts and the daily list both follow these filters.",
       ] },
       { target: "#add-assignment", title: "Add an assignment", text: [
         "Adds an assignment due on the selected day, for any of your classes.",

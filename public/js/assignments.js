@@ -172,7 +172,7 @@ function main() {
         enter: open, exit: restore,
         text: [
           "Click the title to see the details. Hover a row for the pencil (edit) and the link icon (open it on Canvas or Learning Suite).",
-          "Check the box to mark it complete.",
+          "Check the box to mark it complete. The line under the title shows the class, type, your time estimate, and how it's submitted.",
         ] },
       { target: () => firstCard()?.querySelector(".class-filters"), fallback: "#class-grid", title: "Filter within a class",
         enter: open, exit: restore,
@@ -184,7 +184,7 @@ function main() {
         "Completed assignments are hidden by default. Turn this on to see them inside each class.",
       ] },
       { target: "#toggle-all-classes", title: "Collapse or expand all", text: [
-        "Collapse or expand every class at once. DueList remembers which cards you left open.",
+        "Collapses every class at once while any are open, and expands them all once they're closed. DueList remembers which cards you left open.",
       ] },
     ];
   }

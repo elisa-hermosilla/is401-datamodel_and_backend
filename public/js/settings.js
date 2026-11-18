@@ -31,7 +31,7 @@ function main() {
         "This is where you manage your account, decide how DueList reminds you, and connect the services it pulls assignments from.",
       ] },
       { target: ".settings-nav", title: "Categories", enter: () => shell.classList.remove("show-detail"), text: [
-        "Pick a category here and its settings open beside it.",
+        "Five categories: your account, your password, notifications, the accounts DueList syncs from, and your classes. Pick one and its settings open beside it.",
       ] },
       { target: "#settings-account .card", title: "Account", enter: go("account"), text: [
         "Your name, username and email as DueList knows them.",
@@ -39,8 +39,12 @@ function main() {
       { target: "#settings-password .card", title: "Password", enter: go("password"), text: [
         "Change your password here. You stay signed in afterwards.",
       ] },
+      { target: "#notification-delivery", title: "Browser notifications", enter: go("notifications"), text: [
+        "Everything in Notifications arrives as a browser notification, so turn these on first, on each device you want reminders on.",
+        "Send a test to make sure they're coming through.",
+      ] },
       { target: "#notification-summary", title: "Summary notifications", enter: go("notifications"), text: [
-        "A daily digest of what's due, sent as a browser notification on the days and time you choose.",
+        "A daily digest of what's due, sent on the days and at the time you choose.",
         "Pick whether it covers today, today and tomorrow, or the whole week.",
       ] },
       { target: "#notification-reminders", title: "Assignment reminders", enter: go("notifications"), text: [
@@ -48,11 +52,7 @@ function main() {
         "Quiet hours pause notifications overnight. The countdown skips that time, so a reminder still arrives before quiet hours begin.",
       ] },
       { target: "#settings-save-actions", title: "Save your changes", enter: go("notifications"), text: [
-        "Reminder settings only take effect once you press Save notification settings.",
-      ] },
-      { target: "#notification-delivery", title: "Browser notifications", enter: go("notifications"), text: [
-        "Turn on browser push notifications on each device you want reminders on.",
-        "Send a test to make sure they're coming through.",
+        "Summary and reminder settings only take effect once you press Save notification settings.",
       ] },
       { target: "#connected-accounts", title: "Connected accounts", enter: go("connected-accounts"), text: [
         "Canvas and Learning Suite, the sources DueList imports from.",
