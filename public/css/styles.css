@@ -148,7 +148,7 @@ input, select, textarea { font-family: inherit; font-size: 14px; }
 .login-intro-copy { margin: 36px 0 28px; }
 /* The dashboard illustration sits under the intro copy; it fades in after
    the rest of the page (see the page-enter rules near the end). */
-.login-art { display: block; width: 100%; max-width: 560px; height: auto; flex: none; filter: drop-shadow(0 22px 28px rgba(0, 0, 0, .45)); }
+.login-art { display: block; width: 100%; max-width: 560px; height: auto; margin: 0 auto; flex: none; filter: drop-shadow(0 22px 28px rgba(0, 0, 0, .45)); }
 .login-intro h1 { margin: 14px 0 20px; font-size: clamp(30px, 3vw, 40px); line-height: 1.15; letter-spacing: -.04em; }
 .login-description { color: #d5e3ef; font-size: 15px; line-height: 1.75; }
 .canvas-dot { background: #ff9994; }
@@ -181,11 +181,26 @@ input, select, textarea { font-family: inherit; font-size: 14px; }
     max-width: none; height: 100vh; height: 100dvh; grid-template-rows: minmax(0, 1fr);
     grid-template-columns: 1.05fr 1fr; border: 0; border-radius: 0; box-shadow: none;
   }
-  .login-intro { padding: clamp(32px, 4.5vw, 80px); min-height: 0; }
-  .login-art { flex: 0 1 auto; min-height: 0; object-fit: contain; object-position: left top; }
+  .login-intro { --intro-pad: clamp(32px, 4.5vw, 80px); padding: var(--intro-pad); min-height: 0; }
+  /* Centred in the space under the copy, and allowed to bleed half the
+     column padding on each side so it reads larger than the text block. */
+  .login-art {
+    flex: 1 1 auto; min-height: 0; align-self: center;
+    width: calc(100% + var(--intro-pad)); max-width: 760px;
+    margin: 0 calc(var(--intro-pad) * -0.5) calc(var(--intro-pad) * -0.5);
+    object-fit: contain; object-position: center;
+  }
+  /* Short laptop screens: a tighter heading and paddings leave room for the illustration */
+  @media (max-height: 840px) {
+    .login-intro { --intro-pad: clamp(28px, 3vw, 48px); }
+    .login-intro-copy { padding: 14px 0 10px; }
+    .login-intro h1 { margin: 10px 0 14px; font-size: clamp(28px, 2.8vw, 42px); }
+    .login-description { font-size: 15px; line-height: 1.6; }
+    .login-supports { margin-top: 14px; }
+  }
   .login-intro .brand { font-size: 26px; }
   .login-intro .brand-mark { width: 44px; height: 44px; }
-  .login-intro-copy { margin: 0; padding: 40px 0 32px; max-width: 600px; }
+  .login-intro-copy { margin: 0; padding: 28px 0 20px; max-width: 600px; }
   .login-intro h1 { font-size: clamp(32px, 3.6vw, 60px); }
   .login-description { max-width: 500px; font-size: clamp(15px, 1.2vw, 18px); }
   .auth-login .auth-panel { padding: 48px clamp(32px, 5vw, 96px); }
