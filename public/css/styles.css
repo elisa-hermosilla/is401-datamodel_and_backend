@@ -179,7 +179,9 @@ input, select, textarea { font-family: inherit; font-size: 14px; }
      has to scroll. */
   .login-shell {
     max-width: none; height: 100vh; height: 100dvh; grid-template-rows: minmax(0, 1fr);
-    grid-template-columns: 1.05fr 1fr; border: 0; border-radius: 0; box-shadow: none;
+    /* minmax(0, …) keeps the split fixed: the illustration's intrinsic width
+       must not widen the blue column once it appears */
+    grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr); border: 0; border-radius: 0; box-shadow: none;
   }
   .login-intro { --intro-pad: clamp(32px, 4.5vw, 80px); padding: var(--intro-pad); min-height: 0; }
   /* Centred in the space under the copy, and allowed to bleed half the
@@ -203,8 +205,13 @@ input, select, textarea { font-family: inherit; font-size: 14px; }
   .login-intro-copy { margin: 0; padding: 28px 0 20px; max-width: 600px; }
   .login-intro h1 { font-size: clamp(32px, 3.6vw, 60px); }
   .login-description { max-width: 500px; font-size: clamp(15px, 1.2vw, 18px); }
-  .auth-login .auth-panel { padding: 48px clamp(32px, 5vw, 96px); }
-  .auth-login .auth-card { max-width: 440px; }
+  /* The page itself never scrolls: the entrance animations slide the page
+     and the illustration down 32px, which would flash a scrollbar and nudge
+     the column divider. A viewport too short for the form scrolls the form
+     panel instead. */
+  body:has(.auth-login) { overflow: hidden; }
+  .auth-login .auth-panel { padding: 48px clamp(32px, 5vw, 96px); min-height: 0; overflow-y: auto; }
+  .auth-login .auth-card { max-width: 440px; margin: auto; }
   .auth-login .auth-card h2 { font-size: 34px; }
 }
 @media (max-width: 760px) {
