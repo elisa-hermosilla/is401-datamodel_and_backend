@@ -145,7 +145,10 @@ input, select, textarea { font-family: inherit; font-size: 14px; }
 }
 .login-intro .brand { font-size: 23px; gap: 12px; }
 .login-intro .brand-mark { width: 40px; height: 40px; border-radius: 11px; font-size: 22px; }
-.login-intro-copy { margin: 64px 0; }
+.login-intro-copy { margin: 36px 0 28px; }
+/* The dashboard illustration sits under the intro copy; it fades in after
+   the rest of the page (see the page-enter rules near the end). */
+.login-art { display: block; width: 100%; max-width: 560px; height: auto; margin: 0 auto; flex: none; filter: drop-shadow(0 22px 28px rgba(0, 0, 0, .45)); }
 .login-intro h1 { margin: 14px 0 20px; font-size: clamp(30px, 3vw, 40px); line-height: 1.15; letter-spacing: -.04em; }
 .login-description { color: #d5e3ef; font-size: 15px; line-height: 1.75; }
 .canvas-dot { background: #ff9994; }
@@ -171,18 +174,44 @@ input, select, textarea { font-family: inherit; font-size: 14px; }
 .auth-login .auth-footer { font-size: 12px; margin-top: 24px; }
 @media (min-width: 761px) {
   .auth-login { padding: 0; background: #fff; align-items: stretch; }
+  /* The shell is exactly one screen tall, and the illustration shrinks to
+     whatever is left under the intro copy, so a short laptop screen never
+     has to scroll. */
   .login-shell {
-    max-width: none; min-height: 100vh; min-height: 100dvh;
-    grid-template-columns: 1.05fr 1fr; border: 0; border-radius: 0; box-shadow: none;
+    max-width: none; height: 100vh; height: 100dvh; grid-template-rows: minmax(0, 1fr);
+    /* minmax(0, …) keeps the split fixed: the illustration's intrinsic width
+       must not widen the blue column once it appears */
+    grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr); border: 0; border-radius: 0; box-shadow: none;
   }
-  .login-intro { padding: clamp(32px, 4.5vw, 80px); }
+  .login-intro { --intro-pad: clamp(32px, 4.5vw, 80px); padding: var(--intro-pad); min-height: 0; }
+  /* Centred in the space under the copy, and allowed to bleed half the
+     column padding on each side so it reads larger than the text block. */
+  .login-art {
+    flex: 1 1 auto; min-height: 0; align-self: center;
+    width: calc(100% + var(--intro-pad)); max-width: 760px;
+    margin: 0 calc(var(--intro-pad) * -0.5) calc(var(--intro-pad) * -0.5);
+    object-fit: contain; object-position: center;
+  }
+  /* Short laptop screens: a tighter heading and paddings leave room for the illustration */
+  @media (max-height: 840px) {
+    .login-intro { --intro-pad: clamp(28px, 3vw, 48px); }
+    .login-intro-copy { padding: 14px 0 10px; }
+    .login-intro h1 { margin: 10px 0 14px; font-size: clamp(28px, 2.8vw, 42px); }
+    .login-description { font-size: 15px; line-height: 1.6; }
+    .login-supports { margin-top: 14px; }
+  }
   .login-intro .brand { font-size: 26px; }
   .login-intro .brand-mark { width: 44px; height: 44px; }
-  .login-intro-copy { margin: auto 0; padding: 64px 0; max-width: 600px; }
+  .login-intro-copy { margin: 0; padding: 28px 0 20px; max-width: 600px; }
   .login-intro h1 { font-size: clamp(32px, 3.6vw, 60px); }
   .login-description { max-width: 500px; font-size: clamp(15px, 1.2vw, 18px); }
-  .auth-login .auth-panel { padding: 48px clamp(32px, 5vw, 96px); }
-  .auth-login .auth-card { max-width: 440px; }
+  /* The page itself never scrolls: the entrance animations slide the page
+     and the illustration down 32px, which would flash a scrollbar and nudge
+     the column divider. A viewport too short for the form scrolls the form
+     panel instead. */
+  body:has(.auth-login) { overflow: hidden; }
+  .auth-login .auth-panel { padding: 48px clamp(32px, 5vw, 96px); min-height: 0; overflow-y: auto; }
+  .auth-login .auth-card { max-width: 440px; margin: auto; }
   .auth-login .auth-card h2 { font-size: 34px; }
 }
 @media (max-width: 760px) {
@@ -204,6 +233,7 @@ input, select, textarea { font-family: inherit; font-size: 14px; }
 }
 @media (max-width: 480px) {
   .auth-login { padding: 0; display: block; background: #fff; }
+  .login-art { display: none; }
   .login-shell { max-width: none; border: 0; border-radius: 0; box-shadow: none; }
   .login-intro { padding: 16px max(20px, env(safe-area-inset-right)) 16px max(20px, env(safe-area-inset-left)); }
   .login-intro .brand { font-size: 20px; }
@@ -751,8 +781,6 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--navy); }
 .sidebar .nav a.active { background: var(--navy); color: #fff; box-shadow: none; }
 .overview-main { max-width: none; padding: 28px 32px 32px; }
 .overview-main .page-header { margin-bottom: 20px; align-items: center; }
-.dashboard-heading-copy { position: relative; }
-.dashboard-header-art { position: absolute; top: 50%; left: calc(100% + 14px); display: block; width: 100px; height: 67px; object-fit: contain; transform: translateY(-50%); }
 .overview-main .page-header h1 { font-size: 32px; }
 .overview-main .page-header .sub { font-size: 15px; }
 .overview-main h2 { font-size: 19px; letter-spacing: -.015em; }
@@ -1484,7 +1512,6 @@ mark.hl { background: #fef08a; color: inherit; border-radius: 3px; padding: 0 1p
 .mobile-dashboard-control { display: none; }
 .dashboard-filters { display: contents; }
 @media (max-width: 760px) {
-  .dashboard-header-art { display: none; }
   .dashboard-main .mobile-dashboard-control { display: inline-flex; }
   .dashboard-main .mobile-dashboard-control[hidden] { display: none; }
   .dashboard-main .page-header { gap: 10px; margin-bottom: 14px; }
@@ -1692,6 +1719,24 @@ mark.hl { background: #fef08a; color: inherit; border-radius: 3px; padding: 0 1p
 .admin-user-row .btn-sm { padding: 5px 10px; font-size: 12px; }
 .admin-empty { padding: 16px 0; }
 .tag.admin-tag { background: #e0ecf8; color: #1e4a76; }
+.users-card .card-header, .types-card .card-header { align-items: flex-start; }
+.users-card .card-header .btn { flex: none; }
+.admin-user-row .btn.danger-text { color: var(--danger); }
+.admin-user-row .btn.danger-text:hover { background: var(--danger-bg, #fee2e2); color: var(--danger); }
+/* Assignment types: an add row above the list, inline rename inside a row */
+.type-add { display: flex; gap: 10px; align-items: center; margin-bottom: 8px; }
+.type-add .input { flex: 1 1 220px; min-width: 0; padding: 7px 10px; font-size: 13px; }
+.type-add .btn { flex: none; }
+#type-error { margin-bottom: 8px; }
+.type-row .info { flex: 1 1 auto; }
+.type-rename { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.type-rename .input { flex: 1 1 160px; min-width: 0; padding: 6px 10px; font-size: 13px; }
+/* Add / edit user modal */
+.user-name-row { align-items: flex-start; }
+.user-name-row .field { flex: 1 1 0; min-width: 0; }
+.admin-switch-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.admin-switch-row .hint { display: block; margin-top: 2px; }
+.admin-switch-row .switch input:disabled + .slider { opacity: .45; cursor: not-allowed; }
 @media (max-width: 1000px) {
   .okr-pair { grid-template-columns: 1fr; }
 }
@@ -1710,6 +1755,10 @@ mark.hl { background: #fef08a; color: inherit; border-radius: 3px; padding: 0 1p
   .admin-user-row { flex-wrap: wrap; }
   .admin-user-row .control { width: 100%; justify-content: flex-start; }
   .user-tools .input { flex-basis: 100%; }
+  .users-card .card-header { flex-wrap: wrap; }
+  .type-add { flex-wrap: wrap; }
+  .type-add .input { flex-basis: 100%; }
+  .user-name-row { flex-direction: column; gap: 0; }
 }
 @media (max-width: 600px) {
   .okr-tiles { grid-template-columns: 1fr 1fr; }
@@ -1774,6 +1823,10 @@ mark.hl { background: #fef08a; color: inherit; border-radius: 3px; padding: 0 1p
   html:not(.animated-navigation) .main.reveal > *,
   html:not(.animated-navigation) :is(.auth-login, .auth-wrap) {
     animation: page-enter 1150ms cubic-bezier(.2,.65,.3,1);
+  }
+  /* The sign-in page's illustration follows the rest of the page in */
+  html:not(.animated-navigation) .login-art {
+    animation: page-enter 1150ms cubic-bezier(.2,.65,.3,1) 650ms both;
   }
 
   .btn {

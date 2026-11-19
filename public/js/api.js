@@ -38,7 +38,15 @@ const API = {
   streaks: () => apiFetch("/api/streaks"),
   admin: {
     users: () => apiFetch("/api/admin/users"),
-    setAdmin: (id, is_admin) => apiFetch(`/api/admin/users/${id}/admin`, { method: "PUT", body: { is_admin } }),
+    createUser: fields => apiFetch("/api/admin/users", { method: "POST", body: fields }),
+    updateUser: (id, fields) => apiFetch(`/api/admin/users/${id}`, { method: "PUT", body: fields }),
+    deleteUser: id => apiFetch(`/api/admin/users/${id}`, { method: "DELETE" }),
+    types: {
+      list: () => apiFetch("/api/admin/assignment-types"),
+      create: name => apiFetch("/api/admin/assignment-types", { method: "POST", body: { name } }),
+      update: (id, name) => apiFetch(`/api/admin/assignment-types/${id}`, { method: "PUT", body: { name } }),
+      remove: id => apiFetch(`/api/admin/assignment-types/${id}`, { method: "DELETE" }),
+    },
     okrs: days => apiFetch(`/api/admin/okrs?days=${days}`),
   },
   register: fields => apiFetch("/api/register", { method: "POST", body: fields }),

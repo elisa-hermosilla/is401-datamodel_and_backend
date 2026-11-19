@@ -18,25 +18,57 @@ export async function findUser(userId) {
   return rows[0] || null;
 }
 
+/* The account fields a request may set, checked the same way for sign-up
+   and for the admin page. With partial=true (admin edit) only the fields
+   present in the body are checked and returned; otherwise all five are
+   required. Throws an error with status 400 and a user-facing message. */
+export function validateUserFields(body, { partial = false } = {}) {
+  const b = body || {};
+  const has = k => Object.prototype.hasOwnProperty.call(b, k);
+  const fail = message => { const err = new Error(message); err.status = 400; throw err; };
+  const out = {};
+
+  for (const [key, label] of [["first_name", "first"], ["last_name", "last"]]) {
+    if (partial && !has(key)) continue;
+    const name = String(b[key] ?? "").trim();
+    if (!name) fail(`Enter a ${label} name`);
+    if (name.length > 100) fail("Names must be 100 characters or fewer");
+    out[key] = name;
+  }
+  if (!partial || has("username")) {
+    const username = String(b.username ?? "").trim();
+    if (!username) fail("Choose a username");
+    if (!USERNAME_RE.test(username)) fail("Username must be 3-50 characters: letters, numbers, dots, dashes, or underscores");
+    out.username = username;
+  }
+  if (!partial || has("email")) {
+    const email = String(b.email ?? "").trim().toLowerCase();
+    if (!email) fail("Enter an email");
+    if (email.length > 255 || !EMAIL_RE.test(email)) fail("Enter a valid email address");
+    out.email = email;
+  }
+  if (!partial || has("password")) {
+    const password = String(b.password ?? "");
+    if (password.length < MIN_PASSWORD) fail(`Password must be at least ${MIN_PASSWORD} characters`);
+    out.password = password;
+  }
+  return out;
+}
+
+/* The message for a unique-constraint failure on app_user, or null. */
+export function duplicateUserMessage(err) {
+  if (err?.code !== "23505") return null;
+  return /email/i.test(err.constraint || "") ? "That email already has an account" : "That username is taken";
+}
+
 /* POST /api/register  { username, email, first_name, last_name, password }
    Creates the account, hashes the password with pgcrypto's bcrypt, and signs
    the new user in. */
 router.post("/register", async (req, res, next) => {
   try {
-    const b = req.body || {};
-    const username = String(b.username ?? "").trim();
-    const email = String(b.email ?? "").trim().toLowerCase();
-    const first = String(b.first_name ?? "").trim();
-    const last = String(b.last_name ?? "").trim();
-    const password = String(b.password ?? "");
-
-    if (!first || !last) return bad(res, "Enter your first and last name");
-    if (first.length > 100 || last.length > 100) return bad(res, "Names must be 100 characters or fewer");
-    if (!username) return bad(res, "Choose a username");
-    if (!USERNAME_RE.test(username)) return bad(res, "Username must be 3-50 characters: letters, numbers, dots, dashes, or underscores");
-    if (!email) return bad(res, "Enter your email");
-    if (email.length > 255 || !EMAIL_RE.test(email)) return bad(res, "Enter a valid email address");
-    if (password.length < MIN_PASSWORD) return bad(res, `Password must be at least ${MIN_PASSWORD} characters`);
+    let f;
+    try { f = validateUserFields(req.body); }
+    catch (err) { if (err.status === 400) return bad(res, err.message); throw err; }
 
     let user;
     try {
@@ -44,14 +76,12 @@ router.post("/register", async (req, res, next) => {
         `insert into app_user (username, email, password_hash, first_name, last_name, last_login_at)
          values ($1, $2, crypt($3, gen_salt('bf')), $4, $5, now())
          returning ${USER_COLUMNS}`,
-        [username, email, password, first, last]
+        [f.username, f.email, f.password, f.first_name, f.last_name]
       );
       user = rows[0];
     } catch (err) {
-      if (err.code === "23505") {
-        const which = /email/i.test(err.constraint || "") ? "That email already has an account" : "That username is taken";
-        return bad(res, which);
-      }
+      const dup = duplicateUserMessage(err);
+      if (dup) return bad(res, dup);
       throw err;
     }
 

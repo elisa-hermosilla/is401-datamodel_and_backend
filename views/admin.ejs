@@ -1,4 +1,4 @@
-<%- include("partials/head", { title: "Admin", description: "DueList admin: user management and OKRs.", noindex: true }) %>
+<%- include("partials/head", { title: "Admin", description: "DueList admin: users, assignment types, and OKRs.", noindex: true }) %>
   <div class="app">
 <%- include("partials/sidebar", { active: "admin", user }) %>
 
@@ -6,16 +6,17 @@
       <div class="page-header">
         <div>
           <h1>Admin</h1>
-          <p class="sub">Who can manage DueList, and how the app is doing against its goals.</p>
+          <p class="sub">Users, assignment types, and how the app is doing against its goals.</p>
         </div>
       </div>
       <div class="settings-shell" id="settings-shell">
         <nav class="settings-nav" aria-label="Admin categories">
           <% const adminIcons = {
             okrs: '<path d="M4 20V10m6 10V4m6 16v-7"/><path d="M2 20h20"/>',
-            users: '<circle cx="9" cy="8" r="4"/><path d="M2 21v-2a7 7 0 0 1 14 0v2"/><path d="M16 3.5a4 4 0 0 1 0 9M22 21v-2a7 7 0 0 0-4-6.3"/>'
+            users: '<circle cx="9" cy="8" r="4"/><path d="M2 21v-2a7 7 0 0 1 14 0v2"/><path d="M16 3.5a4 4 0 0 1 0 9M22 21v-2a7 7 0 0 0-4-6.3"/>',
+            types: '<path d="M20.6 13.4 13.4 20.6a2 2 0 0 1-2.8 0L3 13V3h10l7.6 7.6a2 2 0 0 1 0 2.8z"/><circle cx="7.5" cy="7.5" r="1.5"/>'
           }; %>
-          <% for (const [key, label] of [['okrs','OKRs'],['users','Users']]) { %>
+          <% for (const [key, label] of [['okrs','OKRs'],['users','Users'],['types','Assignment types']]) { %>
             <a href="#<%= key %>" data-settings-category="<%= key %>"><span class="settings-category-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><%- adminIcons[key] %></svg></span><%= label %><span class="settings-category-arrow" aria-hidden="true">›</span></a>
           <% } %>
         </nav>
@@ -92,14 +93,15 @@
               </div>
             </section>
 
-            <!-- Users -->
+            <!-- Users: add, edit (including admin access), delete -->
             <section class="settings-category" data-settings-panel="users" id="admin-users" hidden>
               <div class="card users-card">
                 <div class="card-header">
                   <div>
                     <h3>Users</h3>
-                    <p class="sub" id="users-sub">Admins can open this page and grant or remove admin access.</p>
+                    <p class="sub" id="users-sub">Add, edit, or delete accounts. Admin access is set when you edit a user.</p>
                   </div>
+                  <button type="button" class="btn btn-primary btn-sm" id="user-add">Add user</button>
                 </div>
                 <div class="user-tools">
                   <label class="visually-hidden" for="user-search">Search users</label>
@@ -114,9 +116,87 @@
               </div>
             </section>
 
+            <!-- Assignment types: the global list a class category maps to -->
+            <section class="settings-category" data-settings-panel="types" id="admin-types" hidden>
+              <div class="card types-card">
+                <div class="card-header">
+                  <div>
+                    <h3>Assignment types</h3>
+                    <p class="sub" id="types-sub">The kinds of work a class category can be mapped to. Built-in types are used by syncing and can't be changed.</p>
+                  </div>
+                </div>
+                <form class="type-add" id="type-form" novalidate>
+                  <label class="visually-hidden" for="type-name">New type name</label>
+                  <input class="input" id="type-name" placeholder="New type, e.g. lab report" maxlength="50" autocomplete="off">
+                  <button type="submit" class="btn btn-primary btn-sm" id="type-add">Add type</button>
+                </form>
+                <div class="form-error" id="type-error" role="alert"></div>
+                <div class="admin-user-list admin-type-list" id="type-list"></div>
+              </div>
+            </section>
+
           </div>
         </div>
       </div>
     </main>
+  </div>
+
+  <!-- Add / edit user -->
+  <div class="modal-backdrop" id="user-modal">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="user-modal-title">
+      <h3 id="user-modal-title">Add user</h3>
+      <form id="user-form" novalidate>
+        <div class="form-error" id="user-error" role="alert"></div>
+        <div class="row user-name-row">
+          <div class="field">
+            <label for="u-first">First name</label>
+            <input class="input" id="u-first" maxlength="100" autocomplete="off">
+          </div>
+          <div class="field">
+            <label for="u-last">Last name</label>
+            <input class="input" id="u-last" maxlength="100" autocomplete="off">
+          </div>
+        </div>
+        <div class="field">
+          <label for="u-username">Username</label>
+          <input class="input" id="u-username" maxlength="50" autocomplete="off">
+        </div>
+        <div class="field">
+          <label for="u-email">Email</label>
+          <input class="input" id="u-email" type="email" maxlength="255" autocomplete="off">
+        </div>
+        <div class="field">
+          <label for="u-password" id="u-password-label">Password</label>
+          <input class="input" id="u-password" type="password" autocomplete="new-password">
+          <span class="hint" id="u-password-hint">At least 8 characters.</span>
+        </div>
+        <div class="field">
+          <div class="admin-switch-row">
+            <div>
+              <label for="u-admin">Admin</label>
+              <span class="hint" id="u-admin-hint">Admins can open this page and manage users and types.</span>
+            </div>
+            <label class="switch"><input type="checkbox" id="u-admin" aria-label="Admin access"><span class="slider"></span></label>
+          </div>
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="btn btn-secondary" data-close="user-modal">Cancel</button>
+          <button type="submit" class="btn btn-primary" id="user-save">Add user</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Delete user / delete type confirm -->
+  <div class="modal-backdrop" id="confirm-modal">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="confirm-title">
+      <h3 id="confirm-title">Delete</h3>
+      <p class="confirm-text" id="confirm-text"></p>
+      <div class="form-error" id="confirm-error" role="alert"></div>
+      <div class="modal-actions">
+        <button type="button" class="btn btn-secondary" data-close="confirm-modal">Cancel</button>
+        <button type="button" class="btn btn-danger" id="confirm-delete">Delete</button>
+      </div>
+    </div>
   </div>
 <%- include("partials/scripts", { scripts: ["api", "data", "app", "admin"] }) %>
