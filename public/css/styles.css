@@ -148,7 +148,7 @@ input, select, textarea { font-family: inherit; font-size: 14px; }
 .login-intro-copy { margin: 36px 0 28px; }
 /* The dashboard illustration sits under the intro copy; it fades in after
    the rest of the page (see the page-enter rules near the end). */
-.login-art { display: block; width: 100%; max-width: 560px; height: auto; border-radius: 14px; box-shadow: 0 28px 60px -28px rgba(0, 0, 0, .7); }
+.login-art { display: block; width: 100%; max-width: 560px; height: auto; flex: none; filter: drop-shadow(0 22px 28px rgba(0, 0, 0, .45)); }
 .login-intro h1 { margin: 14px 0 20px; font-size: clamp(30px, 3vw, 40px); line-height: 1.15; letter-spacing: -.04em; }
 .login-description { color: #d5e3ef; font-size: 15px; line-height: 1.75; }
 .canvas-dot { background: #ff9994; }
@@ -174,11 +174,15 @@ input, select, textarea { font-family: inherit; font-size: 14px; }
 .auth-login .auth-footer { font-size: 12px; margin-top: 24px; }
 @media (min-width: 761px) {
   .auth-login { padding: 0; background: #fff; align-items: stretch; }
+  /* The shell is exactly one screen tall, and the illustration shrinks to
+     whatever is left under the intro copy, so a short laptop screen never
+     has to scroll. */
   .login-shell {
-    max-width: none; min-height: 100vh; min-height: 100dvh;
+    max-width: none; height: 100vh; height: 100dvh; grid-template-rows: minmax(0, 1fr);
     grid-template-columns: 1.05fr 1fr; border: 0; border-radius: 0; box-shadow: none;
   }
-  .login-intro { padding: clamp(32px, 4.5vw, 80px); }
+  .login-intro { padding: clamp(32px, 4.5vw, 80px); min-height: 0; }
+  .login-art { flex: 0 1 auto; min-height: 0; object-fit: contain; object-position: left top; }
   .login-intro .brand { font-size: 26px; }
   .login-intro .brand-mark { width: 44px; height: 44px; }
   .login-intro-copy { margin: 0; padding: 40px 0 32px; max-width: 600px; }
