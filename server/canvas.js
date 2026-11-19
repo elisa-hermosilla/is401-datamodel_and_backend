@@ -18,6 +18,7 @@
 import { query } from "./db.js";
 import { canSync, earliestNextSyncAt } from "./syncPolicy.js";
 import { credentialContext, decryptCredential } from "./credentialCrypto.js";
+import { matchTypeName, customTypeNames } from "./assignmentTypes.js";
 
 const DEFAULT_BASE_URL = "https://byu.instructure.com";
 const PAGE_SIZE = 100;
@@ -131,7 +132,9 @@ function submissionLabel(types) {
 
 /* Guess our global assignment_type from a name (a Canvas assignment group, a
    feed item's category, or its title). When several keywords appear, the one
-   that comes first in the text wins, so "pre-reading ... Project" is reading. */
+   that comes first in the text wins, so "pre-reading ... Project" is reading.
+   `extraTypes` are the names of types an admin added; one of those appearing
+   in the text wins over the keyword patterns, since it is more specific. */
 const TYPE_PATTERNS = [
   ["quiz", /quiz/],
   ["exam", /exam|\btest\b|midterm|final/],
@@ -141,8 +144,10 @@ const TYPE_PATTERNS = [
   ["discussion", /discussion/],
   ["homework", /homework|\bhw\b|assignment|problem|\blab\b|practice/],
 ];
-export function guessType(name) {
+export function guessType(name, extraTypes = []) {
   const n = String(name || "").toLowerCase();
+  const custom = matchTypeName(n, extraTypes);
+  if (custom) return custom;
   let best = null, at = Infinity;
   for (const [type, re] of TYPE_PATTERNS) {
     const m = re.exec(n);
@@ -270,7 +275,7 @@ async function syncPlannerItems(baseUrl, token, course, typeIds, seen) {
 async function upsertGroups(course, groups, typeIds) {
   const byGroup = {};
   for (const g of groups) {
-    const guessed = guessType(g.name);
+    const guessed = guessType(g.name, customTypeNames(typeIds));
     const { rows: [cat] } = await query(
       `insert into assignment_category (course_id, assignment_type_id, name, external_category_id)
        values ($1, $2, $3, $4)

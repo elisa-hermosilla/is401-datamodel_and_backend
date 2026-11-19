@@ -16,6 +16,7 @@ import { guessType } from "./canvas.js";
 import { organizeWithClaude, haystack } from "./categorize.js";
 import { canSync, earliestNextSyncAt } from "./syncPolicy.js";
 import { credentialContext, decryptCredential } from "./credentialCrypto.js";
+import { customTypeNames } from "./assignmentTypes.js";
 
 /* A feed has no category data. Items are routed in two steps: first by the
    keywords stored on the course's categories (filled in by "Categorize using
@@ -32,8 +33,14 @@ export const BUCKETS = {
 /* The title usually says what kind of item it is; when it doesn't ("Class 14
    Preparation Report"), the first line of the instructions often does
    ("Report your pre-reading..."). */
-export function bucketOf(e) {
-  return guessType(e.categories) || guessType(e.title) || guessType(e.description_first) || "other";
+export function bucketOf(e, extraTypes = []) {
+  return guessType(e.categories, extraTypes) || guessType(e.title, extraTypes) || guessType(e.description_first, extraTypes) || "other";
+}
+
+/* A bucket's category name: the fixed label, or the capitalized type name
+   for a type an admin added. */
+function bucketLabel(bucket) {
+  return BUCKETS[bucket] || bucket.charAt(0).toUpperCase() + bucket.slice(1);
 }
 
 /* Create the bucket's category row if missing (typed by the keyword guess the
@@ -44,7 +51,7 @@ export async function upsertBucket(courseId, bucket, typeIds) {
      values ($1, $2, $3, $4)
      on conflict (course_id, external_category_id) do update set name = excluded.name
      returning *`,
-    [courseId, bucket === "other" ? null : typeIds[bucket], BUCKETS[bucket], `ics:${bucket}`]);
+    [courseId, bucket === "other" ? null : typeIds[bucket], bucketLabel(bucket), `ics:${bucket}`]);
   return cat;
 }
 
@@ -234,7 +241,7 @@ export async function discoverCategories(course, typeIds, mode = null, userId = 
   for (const e of events) {
     let cat = routeEvent(e, rules);
     if (!cat) {
-      const b = bucketOf(e);
+      const b = bucketOf(e, customTypeNames(typeIds));
       if (!buckets[b]) buckets[b] = await upsertBucket(course.course_id, b, typeIds);
       cat = buckets[b];
     }
@@ -284,7 +291,7 @@ export async function syncCourse(course, typeIds, { setup = false } = {}) {
       if (t < from || t > to) continue;
       let cat = routeEvent(e, rules);
       if (!cat) {
-        const bucket = bucketOf(e);
+        const bucket = bucketOf(e, customTypeNames(typeIds));
         if (!buckets[bucket]) buckets[bucket] = await upsertBucket(course.course_id, bucket, typeIds);
         cat = buckets[bucket];
       }

@@ -1,5 +1,5 @@
-/* Admin page: the user list with admin toggles, and the two OKRs
-   (retention and quick-start setup). Data comes from /api/admin/*. */
+/* Admin page: maintain users (add, edit, delete, admin access), maintain
+   the assignment types, and the two OKRs. Data comes from /api/admin/*. */
 
 initApp("admin").then(main);
 
@@ -22,7 +22,7 @@ function main() {
     const go = key => () => selectCategory(key);
     return [
       { center: true, title: "Admin", text: [
-        "This page is for the people who run DueList: who has admin access, and how the app is doing against its goals.",
+        "This page is for the people who run DueList: the user accounts, the assignment types, and how the app is doing against its goals.",
       ] },
       { target: "#okr-objective-1", title: "Objectives and key results", enter: go("okrs"), text: [
         "Two objectives, each with two key results. The cards show where DueList stands on each one.",
@@ -45,13 +45,19 @@ function main() {
       { target: ".user-tools", title: "Find a user", enter: go("users"), text: [
         "Search by name, username or email, and narrow the list to admins or non-admins.",
       ] },
-      { target: () => document.querySelector(".admin-user-row"), fallback: "#user-list", title: "Admin access", enter: go("users"), text: [
-        "Make admin gives someone this page and the ability to promote others. Remove admin takes it away.",
-        "You can't remove your own access, so there is always at least one admin.",
+      { target: () => document.querySelector(".admin-user-row"), fallback: "#user-list", title: "Add, edit, delete", enter: go("users"), text: [
+        "Add user creates an account. Edit changes a person's name, username, email or password, and is where admin access is turned on or off. Delete removes the account and everything in it.",
+        "You can't delete yourself or remove your own admin access, so there is always at least one admin.",
+      ] },
+      { target: "#admin-types .card", title: "Assignment types", enter: go("types"), text: [
+        "The kinds of work a class category can be mapped to: quiz, paper, project, and so on.",
+        "The built-in ones are what syncing uses to sort new work, so they stay as they are. Add your own and students can pick them, the AI organizer can use them, and syncing matches them by name.",
       ] },
     ];
   }
+
   loadUsers();
+  loadTypes();
   loadOkrs();
   document.getElementById("okr-range").addEventListener("change", loadOkrs);
   document.getElementById("user-search").addEventListener("input", renderUsers);
@@ -63,10 +69,53 @@ function main() {
     });
     renderUsers();
   }));
+  document.getElementById("user-add").addEventListener("click", () => openUserModal(null));
+  document.getElementById("user-form").addEventListener("submit", saveUser);
+  document.getElementById("type-form").addEventListener("submit", addType);
+  document.getElementById("confirm-delete").addEventListener("click", runConfirm);
+
   let resizeTimer;
   const onResize = () => { clearTimeout(resizeTimer); resizeTimer = setTimeout(redrawCharts, 120); };
   window.addEventListener("resize", onResize);
   if (window.ResizeObserver) new ResizeObserver(onResize).observe(document.getElementById("admin-okrs"));
+}
+
+/* ---------- Shared bits: form errors and the delete confirm ---------- */
+
+function showError(id, msg) {
+  const el = document.getElementById(id);
+  el.textContent = msg;
+  el.classList.add("show");
+}
+function clearError(id) {
+  const el = document.getElementById(id);
+  el.textContent = "";
+  el.classList.remove("show");
+}
+
+/* One confirm modal for both kinds of delete. `action` runs when Delete is
+   clicked; if it throws, the message shows in the modal and it stays open. */
+let confirmAction = null;
+function openConfirm(title, text, action) {
+  confirmAction = action;
+  document.getElementById("confirm-title").textContent = title;
+  document.getElementById("confirm-text").textContent = text;
+  clearError("confirm-error");
+  openModal("confirm-modal");
+}
+async function runConfirm(e) {
+  if (!confirmAction) return;
+  const btn = e.currentTarget;
+  btn.disabled = true;
+  try {
+    await confirmAction();
+    confirmAction = null;
+    closeModal("confirm-modal");
+  } catch (err) {
+    showError("confirm-error", err.message);
+  } finally {
+    btn.disabled = false;
+  }
 }
 
 /* ---------- Users ---------- */
@@ -86,6 +135,12 @@ async function loadUsers() {
 
 function fullName(u) { return `${u.first_name || ""} ${u.last_name || ""}`.trim() || u.username; }
 
+/* Same order as the server: first name, last name, username */
+function sortUsers() {
+  const key = u => `${u.first_name || ""}\0${u.last_name || ""}\0${u.username}`.toLowerCase();
+  USERS.sort((a, b) => key(a) < key(b) ? -1 : key(a) > key(b) ? 1 : 0);
+}
+
 /* The rows that match the search box and the All / Admins / Non-admins chips */
 function visibleUsers() {
   const q = document.getElementById("user-search").value.trim().toLowerCase();
@@ -104,7 +159,7 @@ function renderUsers() {
   const shown = visibleUsers();
   const count = shown.length === USERS.length ? plural(USERS.length, "account") : `${shown.length} of ${plural(USERS.length, "account")}`;
   document.getElementById("users-sub").textContent =
-    `${count} · ${plural(admins, "admin")}. Admins can open this page and grant or remove admin access.`;
+    `${count} · ${plural(admins, "admin")}. Add, edit, or delete accounts; admin access is set when you edit one.`;
   if (!shown.length) {
     list.innerHTML = '<p class="sub admin-empty">No users match.</p>';
     return;
@@ -116,36 +171,208 @@ function renderUsers() {
       u.email || "",
       `Joined ${MONTHS[joined.getMonth()].slice(0, 3)} ${joined.getDate()}, ${joined.getFullYear()}`,
       `Last sign-in ${relTime(u.last_login_at)}`,
-      u.onboarding_completed_at ? "Quick start done" : "Quick start not finished",
     ].filter(Boolean);
     const tag = u.is_admin ? `<span class="tag type admin-tag">${me ? "You · Admin" : "Admin"}</span>` : "";
-    const button = me ? "" : `<button type="button" class="btn btn-secondary btn-sm" data-toggle-admin="${u.user_id}">${u.is_admin ? "Remove admin" : "Make admin"}</button>`;
-    return `<div class="admin-user-row">
+    const del = me ? "" : `<button type="button" class="btn btn-ghost btn-sm danger-text" data-delete-user="${u.user_id}">Delete</button>`;
+    return `<div class="admin-user-row" data-user-id="${u.user_id}">
       <div class="info">
         <div class="t">${esc(fullName(u))} <span class="admin-username">${esc(u.username)}</span></div>
         <div class="d">${facts.map(esc).join(" · ")}</div>
       </div>
-      <div class="control">${tag}${button}</div>
+      <div class="control">${tag}<button type="button" class="btn btn-secondary btn-sm" data-edit-user="${u.user_id}">Edit</button>${del}</div>
     </div>`;
   }).join("");
-  list.querySelectorAll("[data-toggle-admin]").forEach(btn => btn.addEventListener("click", () => toggleAdmin(Number(btn.dataset.toggleAdmin), btn)));
+  const byId = id => USERS.find(u => u.user_id === Number(id));
+  list.querySelectorAll("[data-edit-user]").forEach(btn => btn.addEventListener("click", () => openUserModal(byId(btn.dataset.editUser))));
+  list.querySelectorAll("[data-delete-user]").forEach(btn => btn.addEventListener("click", () => confirmDeleteUser(byId(btn.dataset.deleteUser))));
 }
 
-async function toggleAdmin(id, btn) {
-  const u = USERS.find(x => x.user_id === id);
-  if (!u) return;
-  const name = fullName(u);
-  if (u.is_admin && !window.confirm(`Remove admin access from ${name}? They will no longer see the Admin page.`)) return;
+/* The add / edit form. `u` is the user to edit, or null to add one. */
+let editingUserId = null;
+
+function openUserModal(u) {
+  editingUserId = u ? u.user_id : null;
+  const me = !!u && u.user_id === USER.user_id;
+  const set = (id, v) => { document.getElementById(id).value = v; };
+  document.getElementById("user-modal-title").textContent = u ? `Edit ${fullName(u)}` : "Add user";
+  set("u-first", u?.first_name || "");
+  set("u-last", u?.last_name || "");
+  set("u-username", u?.username || "");
+  set("u-email", u?.email || "");
+  set("u-password", "");
+  document.getElementById("u-password-label").textContent = u ? "New password" : "Password";
+  document.getElementById("u-password-hint").textContent = u ? "Leave blank to keep the current password." : "At least 8 characters.";
+  const admin = document.getElementById("u-admin");
+  admin.checked = !!u?.is_admin;
+  admin.disabled = me;
+  document.getElementById("u-admin-hint").textContent = me
+    ? "You can't remove your own admin access."
+    : "Admins can open this page and manage users and types.";
+  document.getElementById("user-save").textContent = u ? "Save changes" : "Add user";
+  clearError("user-error");
+  openModal("user-modal");
+  document.getElementById("u-first").focus();
+}
+
+async function saveUser(e) {
+  e.preventDefault();
+  const val = id => document.getElementById(id).value;
+  const btn = document.getElementById("user-save");
+  const fields = {
+    first_name: val("u-first").trim(),
+    last_name: val("u-last").trim(),
+    username: val("u-username").trim(),
+    email: val("u-email").trim(),
+  };
+  const password = val("u-password");
+  if (password || !editingUserId) fields.password = password;
+  const admin = document.getElementById("u-admin");
+  if (!admin.disabled) fields.is_admin = admin.checked;
+
+  clearError("user-error");
   btn.disabled = true;
   try {
-    const updated = await API.admin.setAdmin(id, !u.is_admin);
-    Object.assign(u, updated);
-    toast(updated.is_admin ? `${name} is now an admin` : `${name} is no longer an admin`, "success");
+    if (editingUserId) {
+      const updated = await API.admin.updateUser(editingUserId, fields);
+      const u = USERS.find(x => x.user_id === editingUserId);
+      if (u) Object.assign(u, updated); else USERS.push(updated);
+      toast(`${fullName(updated)} updated`, "success");
+    } else {
+      const created = await API.admin.createUser(fields);
+      USERS.push(created);
+      toast(`${fullName(created)} added`, "success");
+    }
+    sortUsers();
+    closeModal("user-modal");
     renderUsers();
-  } catch (e) {
+  } catch (err) {
+    showError("user-error", err.message);
+  } finally {
     btn.disabled = false;
-    toast(e.message, "error");
   }
+}
+
+function confirmDeleteUser(u) {
+  if (!u) return;
+  openConfirm(
+    `Delete ${fullName(u)}?`,
+    `This deletes ${u.username}'s account along with their classes, assignments, and settings. This cannot be undone.`,
+    async () => {
+      await API.admin.deleteUser(u.user_id);
+      USERS = USERS.filter(x => x.user_id !== u.user_id);
+      renderUsers();
+      toast(`${fullName(u)} deleted`, "success");
+    });
+}
+
+/* ---------- Assignment types ---------- */
+
+let TYPES = [];
+let renamingTypeId = null;
+
+async function loadTypes() {
+  const list = document.getElementById("type-list");
+  try {
+    TYPES = await API.admin.types.list();
+  } catch (e) {
+    list.innerHTML = `<p class="sub">${esc(e.message)}</p>`;
+    return;
+  }
+  renderTypes();
+}
+
+function renderTypes() {
+  const list = document.getElementById("type-list");
+  const added = TYPES.filter(t => !t.built_in).length;
+  document.getElementById("types-sub").textContent =
+    `${plural(TYPES.length, "type")}, ${added} added here. Built-in types are used by syncing and can't be changed.`;
+  if (!TYPES.length) {
+    list.innerHTML = '<p class="sub admin-empty">No types yet.</p>';
+    return;
+  }
+  list.innerHTML = TYPES.map(t => {
+    const id = t.assignment_type_id;
+    const tag = t.built_in ? '<span class="tag type admin-tag">Built-in</span>' : "";
+    const info = renamingTypeId === id
+      ? `<form class="type-rename" data-rename-form="${id}">
+          <label class="visually-hidden" for="type-rename-${id}">New name</label>
+          <input class="input" id="type-rename-${id}" value="${esc(t.name)}" maxlength="50" autocomplete="off">
+          <button type="submit" class="btn btn-primary btn-sm">Save</button>
+          <button type="button" class="btn btn-secondary btn-sm" data-rename-cancel>Cancel</button>
+        </form>`
+      : `<div class="t">${esc(cap(t.name))} ${tag}</div>
+         <div class="d">${plural(t.categories, "category", "categories")} · ${plural(t.active_users, "active user")}</div>`;
+    const controls = t.built_in || renamingTypeId === id ? "" :
+      `<button type="button" class="btn btn-secondary btn-sm" data-edit-type="${id}">Edit</button>
+       <button type="button" class="btn btn-ghost btn-sm danger-text" data-delete-type="${id}">Delete</button>`;
+    return `<div class="admin-user-row type-row" data-type-id="${id}">
+      <div class="info">${info}</div>
+      <div class="control">${controls}</div>
+    </div>`;
+  }).join("");
+
+  const byId = id => TYPES.find(t => t.assignment_type_id === Number(id));
+  list.querySelectorAll("[data-edit-type]").forEach(btn => btn.addEventListener("click", () => {
+    renamingTypeId = Number(btn.dataset.editType);
+    renderTypes();
+    document.getElementById(`type-rename-${renamingTypeId}`)?.select();
+  }));
+  list.querySelectorAll("[data-rename-cancel]").forEach(btn => btn.addEventListener("click", () => { renamingTypeId = null; renderTypes(); }));
+  list.querySelectorAll("[data-rename-form]").forEach(form => form.addEventListener("submit", e => renameType(e, byId(form.dataset.renameForm))));
+  list.querySelectorAll("[data-delete-type]").forEach(btn => btn.addEventListener("click", () => confirmDeleteType(byId(btn.dataset.deleteType))));
+}
+
+async function addType(e) {
+  e.preventDefault();
+  const input = document.getElementById("type-name");
+  const btn = document.getElementById("type-add");
+  clearError("type-error");
+  btn.disabled = true;
+  try {
+    const created = await API.admin.types.create(input.value);
+    TYPES.push(created);
+    input.value = "";
+    renderTypes();
+    toast(`${cap(created.name)} added`, "success");
+  } catch (err) {
+    showError("type-error", err.message);
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+async function renameType(e, t) {
+  e.preventDefault();
+  if (!t) return;
+  const input = e.currentTarget.querySelector("input");
+  const btn = e.currentTarget.querySelector('[type="submit"]');
+  btn.disabled = true;
+  try {
+    const updated = await API.admin.types.update(t.assignment_type_id, input.value);
+    Object.assign(t, updated);
+    renamingTypeId = null;
+    renderTypes();
+    toast(`Renamed to ${cap(updated.name)}`, "success");
+  } catch (err) {
+    btn.disabled = false;
+    toast(err.message, "error");
+  }
+}
+
+function confirmDeleteType(t) {
+  if (!t) return;
+  const n = t.active_users;
+  const who = n === 1 ? "1 active user uses" : `${n} active users use`;
+  openConfirm(
+    `Delete ${cap(t.name)}?`,
+    `${who} ${cap(t.name)} for their assignments (signed in within the last 30 days). ` +
+    `Deleting it leaves ${plural(t.categories, "category", "categories")} with no type. This cannot be undone.`,
+    async () => {
+      await API.admin.types.remove(t.assignment_type_id);
+      TYPES = TYPES.filter(x => x.assignment_type_id !== t.assignment_type_id);
+      renderTypes();
+      toast(`${cap(t.name)} deleted`, "success");
+    });
 }
 
 /* ---------- OKRs ---------- */
@@ -171,7 +398,7 @@ function tile(label, value, foot) {
 }
 
 function pct(n) { return `${Math.round(n)}%`; }
-function plural(n, word) { return `${n} ${word}${n === 1 ? "" : "s"}`; }
+function plural(n, word, words = `${word}s`) { return `${n} ${n === 1 ? word : words}`; }
 
 /* "under a minute", "12 min", "1 hr 20 min", "2.5 days" */
 function fmtDuration(minutes) {
