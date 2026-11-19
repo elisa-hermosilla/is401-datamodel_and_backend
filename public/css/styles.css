@@ -145,7 +145,10 @@ input, select, textarea { font-family: inherit; font-size: 14px; }
 }
 .login-intro .brand { font-size: 23px; gap: 12px; }
 .login-intro .brand-mark { width: 40px; height: 40px; border-radius: 11px; font-size: 22px; }
-.login-intro-copy { margin: 64px 0; }
+.login-intro-copy { margin: 36px 0 28px; }
+/* The dashboard illustration sits under the intro copy; it fades in after
+   the rest of the page (see the page-enter rules near the end). */
+.login-art { display: block; width: 100%; max-width: 560px; height: auto; border-radius: 14px; box-shadow: 0 28px 60px -28px rgba(0, 0, 0, .7); }
 .login-intro h1 { margin: 14px 0 20px; font-size: clamp(30px, 3vw, 40px); line-height: 1.15; letter-spacing: -.04em; }
 .login-description { color: #d5e3ef; font-size: 15px; line-height: 1.75; }
 .canvas-dot { background: #ff9994; }
@@ -178,7 +181,7 @@ input, select, textarea { font-family: inherit; font-size: 14px; }
   .login-intro { padding: clamp(32px, 4.5vw, 80px); }
   .login-intro .brand { font-size: 26px; }
   .login-intro .brand-mark { width: 44px; height: 44px; }
-  .login-intro-copy { margin: auto 0; padding: 64px 0; max-width: 600px; }
+  .login-intro-copy { margin: 0; padding: 40px 0 32px; max-width: 600px; }
   .login-intro h1 { font-size: clamp(32px, 3.6vw, 60px); }
   .login-description { max-width: 500px; font-size: clamp(15px, 1.2vw, 18px); }
   .auth-login .auth-panel { padding: 48px clamp(32px, 5vw, 96px); }
@@ -204,6 +207,7 @@ input, select, textarea { font-family: inherit; font-size: 14px; }
 }
 @media (max-width: 480px) {
   .auth-login { padding: 0; display: block; background: #fff; }
+  .login-art { display: none; }
   .login-shell { max-width: none; border: 0; border-radius: 0; box-shadow: none; }
   .login-intro { padding: 16px max(20px, env(safe-area-inset-right)) 16px max(20px, env(safe-area-inset-left)); }
   .login-intro .brand { font-size: 20px; }
@@ -751,8 +755,6 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--navy); }
 .sidebar .nav a.active { background: var(--navy); color: #fff; box-shadow: none; }
 .overview-main { max-width: none; padding: 28px 32px 32px; }
 .overview-main .page-header { margin-bottom: 20px; align-items: center; }
-.dashboard-heading-copy { position: relative; }
-.dashboard-header-art { position: absolute; top: 50%; left: calc(100% + 14px); display: block; width: 100px; height: 67px; object-fit: contain; transform: translateY(-50%); }
 .overview-main .page-header h1 { font-size: 32px; }
 .overview-main .page-header .sub { font-size: 15px; }
 .overview-main h2 { font-size: 19px; letter-spacing: -.015em; }
@@ -1484,7 +1486,6 @@ mark.hl { background: #fef08a; color: inherit; border-radius: 3px; padding: 0 1p
 .mobile-dashboard-control { display: none; }
 .dashboard-filters { display: contents; }
 @media (max-width: 760px) {
-  .dashboard-header-art { display: none; }
   .dashboard-main .mobile-dashboard-control { display: inline-flex; }
   .dashboard-main .mobile-dashboard-control[hidden] { display: none; }
   .dashboard-main .page-header { gap: 10px; margin-bottom: 14px; }
@@ -1796,6 +1797,10 @@ mark.hl { background: #fef08a; color: inherit; border-radius: 3px; padding: 0 1p
   html:not(.animated-navigation) .main.reveal > *,
   html:not(.animated-navigation) :is(.auth-login, .auth-wrap) {
     animation: page-enter 1150ms cubic-bezier(.2,.65,.3,1);
+  }
+  /* The sign-in page's illustration follows the rest of the page in */
+  html:not(.animated-navigation) .login-art {
+    animation: page-enter 1150ms cubic-bezier(.2,.65,.3,1) 650ms both;
   }
 
   .btn {
